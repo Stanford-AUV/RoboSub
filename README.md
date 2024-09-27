@@ -36,7 +36,7 @@ ros2 run PACKAGE_NAME NODE_NAME
 ```
 For example:
 ```bash
-ros2 run control thrusters
+ros2 run control thrust_generator
 ```
 
 ## Creating New Nodes

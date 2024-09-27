@@ -1,4 +1,4 @@
-from control.utils.thrusters import (
+from control.utils.thrust_generator import (
     thruster_configs_to_TAM_inv,
     total_force_to_individual_thrusts,
 )

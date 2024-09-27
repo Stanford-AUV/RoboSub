@@ -1,8 +1,10 @@
-/thrusters:
+/**:
   ros__parameters:
     timer_period: 0.01
     history_depth: 10
     thruster_count: 8
+/thrust_generator:
+  ros__parameters:
     # Thruster positions in body frame
     thruster_positions:
       thruster_1: [+0.272, +0.22, -0.14]

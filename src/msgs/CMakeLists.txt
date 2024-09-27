@@ -28,8 +28,8 @@ find_package(std_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/PWMs.msg"
-  "msg/Thrusts.msg"
+  "msg/PWMsStamped.msg"
+  "msg/ThrustsStamped.msg"
   DEPENDENCIES geometry_msgs std_msgs
 )
 

@@ -7,7 +7,7 @@ def generate_launch_description():
         [
             Node(
                 package="control",
-                executable="thrusters",
+                executable="thrust_generator",
                 parameters=["params/thrusters.yaml"],
             )
         ]

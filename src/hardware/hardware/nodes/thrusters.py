@@ -1,9 +1,8 @@
 import numpy as np
 import rclpy
-from geometry_msgs.msg import WrenchStamped
 from rclpy import Parameter
 from rclpy.node import Node
-from msgs.msg import Thrusts, PWMs
+from msgs.msg import ThrustsStamped, PWMsStamped
 
 from hardware.utils.thrusters import thrust_to_pwm
 
@@ -28,9 +27,9 @@ class Thrusters(Node):
             self.get_parameter("history_depth").get_parameter_value().integer_value
         )
         self._thrusts_sub = self.create_subscription(
-            Thrusts, "thrusts", self.thrusts_callback, history_depth
+            ThrustsStamped, "thrusts", self.thrusts_callback, history_depth
         )
-        self._pwms_pub = self.create_publisher(PWMs, "pwms", history_depth)
+        self._pwms_pub = self.create_publisher(PWMsStamped, "pwms", history_depth)
 
         timer_period = (
             self.get_parameter("timer_period").get_parameter_value().double_value
@@ -40,13 +39,13 @@ class Thrusters(Node):
         )
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
-    def thrusts_callback(self, msg: Thrusts):
+    def thrusts_callback(self, msg: ThrustsStamped):
         self.pwms = np.array(
             [thrust_to_pwm(thrust) for thrust in msg.thrusts], dtype=np.int16
         )
 
     def timer_callback(self):
-        msg = PWMs()
+        msg = PWMsStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.pwms = self.pwms
         self.get_logger().info(f"Publishing PWMs {msg.pwms}")

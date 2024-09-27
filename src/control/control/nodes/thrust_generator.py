@@ -3,19 +3,19 @@ import rclpy
 from geometry_msgs.msg import Wrench, WrenchStamped
 from rclpy import Parameter
 from rclpy.node import Node
-from msgs.msg import Thrusts
+from msgs.msg import ThrustsStamped
 
-from control.utils.thrusters import (
+from control.utils.thrust_generator import (
     thruster_configs_to_TAM_inv,
     total_force_to_individual_thrusts,
 )
 
 
-class Thrusters(Node):
+class ThrustGenerator(Node):
     """This node converts a desired thrust vector into the individual thruster magnitudes and directions."""
 
     def __init__(self):
-        super().__init__("thrusters")
+        super().__init__("thrust_generator")
 
         self.declare_parameter("timer_period", Parameter.Type.DOUBLE)
         self.declare_parameter("history_depth", Parameter.Type.INTEGER)
@@ -58,7 +58,9 @@ class Thrusters(Node):
         history_depth = (
             self.get_parameter("history_depth").get_parameter_value().integer_value
         )
-        self._thrusts_pub = self.create_publisher(Thrusts, f"thrusts", history_depth)
+        self._thrusts_pub = self.create_publisher(
+            ThrustsStamped, f"thrusts", history_depth
+        )
         self._wrench_sub = self.create_subscription(
             Wrench, "wrench", self.wrench_callback, history_depth
         )
@@ -73,7 +75,7 @@ class Thrusters(Node):
 
     def timer_callback(self):
         thrusts = total_force_to_individual_thrusts(self.TAM_inv, self.wrench)
-        msg = Thrusts()
+        msg = ThrustsStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.thrusts = thrusts.tolist()
         self.get_logger().info(f"Publishing thrusts {msg.thrusts}")
@@ -86,7 +88,7 @@ class Thrusters(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = Thrusters()
+    node = ThrustGenerator()
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
