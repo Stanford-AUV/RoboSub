@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>hardware</name>
+  <version>0.0.0</version>
+  <description>This package acts as a bridge between the software and the hardware. It takes software inputs like individual thruster amount and converts them to PWM values to be sent to the sub. This package is only to be used when running code on the physical robot. If you want to test the rest of the packages in simulation, run the simulation package instead of the hardware package.</description>
+  <maintainer email="scotthickmann21@gmail.com">ros</maintainer>
+  <license>TODO: License declaration</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
