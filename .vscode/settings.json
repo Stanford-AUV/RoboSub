@@ -75,4 +75,5 @@
         "/home/ros/env/bin/python"
     ],
     "python.defaultInterpreterPath": "/home/ros/env/bin/python",
+    "autoDocstring.docstringFormat": "numpy",
 }

@@ -19,7 +19,7 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "thrusters = control.thrusters:main",
+            "thrusters = control.nodes.thrusters:main",
         ],
     },
 )

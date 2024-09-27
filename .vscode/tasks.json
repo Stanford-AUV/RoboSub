@@ -141,19 +141,6 @@
             }
         },
         {
-            "label": "flake8",
-            "detail": "Run flake8 on python files.",
-            "type": "ament",
-            "task": "flake8",
-            "path": "src/",
-            "problemMatcher": "$ament_flake8",
-            "presentation": {
-                "panel": "dedicated",
-                "reveal": "silent",
-                "clear": true
-            }
-        },
-        {
             "label": "pep257",
             "detail": "Run pep257 on python files.",
             "type": "ament",
@@ -185,7 +172,7 @@
             "dependsOn": [
                 "cppcheck",
                 "cpplint",
-                "flake8",
+                "black",
                 "lint_cmake",
                 "pep257",
                 "xmllint",

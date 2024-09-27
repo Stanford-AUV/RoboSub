@@ -1,16 +1,18 @@
-import rclpy
-from rclpy.node import Node
-from rclpy import Parameter
 import numpy as np
-
-from std_msgs.msg import Float64
+import rclpy
 from geometry_msgs.msg import Wrench, WrenchStamped
+from rclpy import Parameter
+from rclpy.node import Node
+from std_msgs.msg import Float64
+
+from control.utils.thrusters import (
+    thruster_configs_to_TAM_inv,
+    total_force_to_individual_thrusts,
+)
 
 
 class Thrusters(Node):
-    """
-    This node converts a desired thrust vector into the individual thruster magnitudes and directions.
-    """
+    """This node converts a desired thrust vector into the individual thruster magnitudes and directions."""
 
     def __init__(self):
         super().__init__("thrusters")
@@ -47,11 +49,9 @@ class Thrusters(Node):
             thruster_orientations[i] = thruster_orientation / np.linalg.norm(
                 thruster_orientation
             )
-
-        TAM = np.empty(shape=(6, thruster_count))
-        TAM[:3, :] = thruster_orientations.T
-        TAM[3:, :] = np.cross(thruster_positions, thruster_orientations).T
-        self.TAM_inv = np.linalg.pinv(TAM)
+        self.TAM_inv = thruster_configs_to_TAM_inv(
+            thruster_count, thruster_positions, thruster_orientations
+        )
 
         self.wrench = Wrench()
 
@@ -76,24 +76,8 @@ class Thrusters(Node):
         )
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
-    def total_force_to_individual_thrusts(self, wrench: Wrench):
-        """Converts a desired force to motor thrusts.
-        Force is a 6x1 vector with the desired force in the x, y, z, roll, pitch, and yaw directions.
-        """
-        wrench_vector = np.array(
-            [
-                wrench.force.x,
-                wrench.force.y,
-                wrench.force.z,
-                wrench.torque.x,
-                wrench.torque.y,
-                wrench.torque.z,
-            ]
-        )
-        return self.TAM_inv @ wrench_vector
-
     def timer_callback(self):
-        thrusts = self.total_force_to_individual_thrusts(self.wrench)
+        thrusts = total_force_to_individual_thrusts(self.TAM_inv, self.wrench)
         for i, thrust in enumerate(thrusts.tolist()):
             msg = Float64()
             msg.data = thrust

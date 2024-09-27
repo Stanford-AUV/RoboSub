@@ -35,6 +35,7 @@
 				"ms-azuretools.vscode-docker",
 				"ms-iot.vscode-ros",
 				"ms-python.black-formatter",
+				"ms-python.flake8",
 				"ms-python.python",
 				"ms-vscode.cpptools",
 				"redhat.vscode-yaml",
@@ -42,7 +43,8 @@
 				"streetsidesoftware.code-spell-checker",
 				"twxs.cmake",
 				"yzhang.markdown-all-in-one",
-				"zachflower.uncrustify"
+				"zachflower.uncrustify",
+				"njpwerner.autodocstring"
 			]
 		}
 	}
