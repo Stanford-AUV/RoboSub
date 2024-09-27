@@ -11,7 +11,7 @@ To build the project, run:
 ./build.sh && source install/setup.bash
 ```
 
-## Development
+## Running
 
 ### Running multiple ROS nodes at once through a launch file (preferred method)
 
@@ -37,6 +37,21 @@ ros2 run PACKAGE_NAME NODE_NAME
 For example:
 ```bash
 ros2 run control thrusters
+```
+
+## Creating New Nodes
+
+Make sure to create new nodes inside the according package under the `nodes` directory. Make sure to also add that file in the `setup.py` file of the package.
+
+## Testing
+
+To run all unit tests, run:
+```bash
+./test.sh
+```
+In case a `pep257` test fails, run the following to get more details about the error:
+```bash
+ament_pep257
 ```
 
 ## Tasks

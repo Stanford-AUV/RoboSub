@@ -3,7 +3,7 @@ import rclpy
 from geometry_msgs.msg import Wrench, WrenchStamped
 from rclpy import Parameter
 from rclpy.node import Node
-from std_msgs.msg import Float64
+from msgs.msg import Thrusts
 
 from control.utils.thrusters import (
     thruster_configs_to_TAM_inv,
@@ -55,15 +55,10 @@ class Thrusters(Node):
 
         self.wrench = Wrench()
 
-        self._thrust_pubs = []
         history_depth = (
             self.get_parameter("history_depth").get_parameter_value().integer_value
         )
-        for thruster_id in self._thruster_ids:
-            thrust_pub = self.create_publisher(
-                Float64, f"thrusters/{thruster_id}/magnitude", history_depth
-            )
-            self._thrust_pubs.append(thrust_pub)
+        self._thrusts_pub = self.create_publisher(Thrusts, f"thrusts", history_depth)
         self._wrench_sub = self.create_subscription(
             Wrench, "wrench", self.wrench_callback, history_depth
         )
@@ -78,10 +73,11 @@ class Thrusters(Node):
 
     def timer_callback(self):
         thrusts = total_force_to_individual_thrusts(self.TAM_inv, self.wrench)
-        for i, thrust in enumerate(thrusts.tolist()):
-            msg = Float64()
-            msg.data = thrust
-            self._thrust_pubs[i].publish(msg)
+        msg = Thrusts()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.thrusts = thrusts.tolist()
+        self.get_logger().info(f"Publishing thrusts {msg.thrusts}")
+        self._thrusts_pub.publish(msg)
 
     def wrench_callback(self, msg: WrenchStamped):
         self.wrench = msg.wrench
