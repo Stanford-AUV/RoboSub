@@ -1,0 +1,119 @@
+/**:
+  ros__parameters:
+    timer_period: 0.01
+    history_depth: 10
+    thruster_count: 8
+/thrust_generator:
+  ros__parameters:
+    # Thruster positions in body frame
+    thruster_positions:
+      thruster_1: [+0.272, +0.22, -0.14]
+      thruster_2: [-0.272, +0.22, -0.14]
+      thruster_3: [-0.272, -0.22, -0.14]
+      thruster_4: [+0.272, -0.22, -0.14]
+      thruster_5: [+0.272, -0.22, +0.00]
+      thruster_6: [+0.272, +0.22, +0.00]
+      thruster_7: [-0.272, +0.22, +0.00]
+      thruster_8: [-0.272, -0.22, +0.00]
+    # Thruster orientations (pointing in the direction of positive thrust; z axis can be changed accordingly)
+    thruster_orientations:
+      thruster_1: [0, 0, 1]
+      thruster_2: [0, 0, -1]
+      thruster_3: [0, 0, 1]
+      thruster_4: [0, 0, -1]
+      thruster_5: [-1, -1, 0]
+      thruster_6: [1, -1, 0]
+      thruster_7: [-1, -1, 0]
+      thruster_8: [1, -1, 0]
+/sensors:
+  ros__parameters:
+    slop: 0.001
+/ekf_filter_node:
+  ros__parameters:
+    world_frame: "odom"
+    odom_frame: "odom"
+    base_link_frame: "base_link"
+    permit_corrected_publication: false
+    frequency: 60.0
+
+    imu0: "/imu/data_sync"
+    imu0_config:
+      - false
+      - false
+      - false
+      - false
+      - false
+      - false
+      - false
+      - false
+      - false
+      - true
+      - true
+      - true
+      - true
+      - true
+      - true
+    imu0_differential: true
+    imu0_relative: false
+    imu0_queue_size: 10
+    imu0_remove_gravitational_acceleration: true
+
+    twist0: "/dvl/twist_sync"
+    twist0_config:
+      - false
+      - false
+      - false
+      - false
+      - false
+      - false
+      - true
+      - true
+      - true
+      - false
+      - false
+      - false
+      - false
+      - false
+      - false
+    twist0_differential: true
+    twist0_relative: false
+
+    pose0: "/depth/pose_sync"
+    pose0_config:
+      - false
+      - false
+      - true
+      - false
+      - false
+      - false
+      - false
+      - false
+      - false
+      - false
+      - false
+      - false
+      - false
+      - false
+      - false
+    pose0_relative: false
+    pose0_differential: true
+
+    pose1: "/imu/pose_sync"
+    pose1_config:
+      - false
+      - false
+      - false
+      - true
+      - true
+      - true
+      - false
+      - false
+      - false
+      - false
+      - false
+      - false
+      - false
+      - false
+      - false
+    pose1_relative: true
+    pose1_differential: false

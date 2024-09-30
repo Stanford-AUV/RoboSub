@@ -1,5 +1,8 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
+import os
+
+global_params = os.path.join(os.path.dirname(__file__), "params", "global.yaml")
 
 
 def generate_launch_description():
@@ -9,12 +12,18 @@ def generate_launch_description():
             Node(
                 package="control",
                 executable="thrust_generator",
-                parameters=["params/thrusters.yaml", {"timer_period": timer_period}],
+                parameters=[
+                    global_params,
+                    {"timer_period": timer_period},
+                ],
             ),
             Node(
                 package="hardware",
                 executable="thrusters",
-                parameters=["params/thrusters.yaml", {"timer_period": timer_period}],
+                parameters=[
+                    global_params,
+                    {"timer_period": timer_period},
+                ],
             ),
         ]
     )

@@ -20,6 +20,7 @@ setup(
     entry_points={
         "console_scripts": [
             "thrusters = hardware.nodes.thrusters:main",
+            "sensors = hardware.nodes.sensors:main",
         ],
     },
 )
