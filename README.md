@@ -14,7 +14,7 @@ The main components of the RoboSub tech stack are:
   
 - **[Gazebo Harmonic](https://gazebosim.org/docs/harmonic/install/)**: Gazebo is used to simulate underwater dynamics, allowing developers to test control algorithms and mission planning in a virtual environment before deploying them to the actual RoboSub hardware.
 
-- **VSCode with Remote SSH**: The development workflow relies heavily on Visual Studio Code's Remote SSH feature, enabling developers to work on identical AWS EC2 instances. This setup allows for seamless development from local machines while leveraging the computational resources of remote servers and avoiding setup inconsistencies across the team.
+- **VSCode with Remote SSH**: The development workflow relies heavily on Visual Studio Code's Remote SSH feature, enabling developers to work with identical setups. This setup allows for seamless development from local machines while leveraging the computational resources of remote servers and avoiding setup inconsistencies across the team.
 
 ## Warnings
 
@@ -22,17 +22,38 @@ When developing with ROS 2 and Gazebo, it's easy to suddenly be reading outdated
 
 ## Installation
 
+# Part 1: VM Installation
+
+1. Install VMWare Fusion (the free version, not the pro version).
+2. Download the Ubuntu ISO (either AMD or ARM depending on your computer) from https://cdimage.ubuntu.com/noble/daily-live/current/.
+3. Open VMWare and drag the downloaded ISO for installation.
+4. Press continue, then finish, and name your instance (leaving the default name is fine).
+5. Select "Try to install Ubuntu". Then click "Install Ubuntu" from the desktop.
+6. Proceed with the installation leaving everything as the default values.
+7. Shutdown the virtual machine (Virtual Machine > Shutdown).
+8. Go to Virtual Machine > Settings > CD/DVD and select autodetect.
+9. Still in settings, go to Startup Disk and select Hard Disk and then Restart.
+10. When prompted for Ubuntu, press enter, and then login.
+11. Run the following: `sudo apt-get update && sudo apt-get install open-vm-tools-desktop`
+12. Shutdown the Virtual Machine, then restart it, and copy-pasting shortcuts should work.
+13. Run the following in a Terminal: `sudo apt-get install openssh-server && sudo apt install net-tools && sudo apt install git-all && service ssh start`.
+14. Follow the steps in https://gazebosim.org/docs/harmonic/install_ubuntu/#binary-installation-on-ubuntu
+15. Follow steps 1 and 2 of https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository.
+16. Follow steps 1 to 3 of https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user.
+17. Note the USER@HOST shown in the VM's Ubuntu Terminal. Then open a Terminal on your local computer (i.e. your Mac) and enter `ssh USER@HOST.local`.
+18. If you connect successfully, now type `logout`, and then type `ssh-keygen -t ed25519` leaving all fields as default. Finally type `ssh-copy-id -i ~/.ssh/id_ed25519.pub USER@HOST.local`, once more replacing USER and HOST with your own credentials.
+
+# Part 2: Code Installation
+
 1. Download VSCode.
 2. Install the Remote Development extension.
-3. Ask Scott (@Scott Hickmann on Slack) for credentials to an AWS EC2 instance and to be added to the GitHub. You should receive two pieces of information:
-   - A domain name (e.g. `ec2-35-173-183-51.compute-1.amazonaws.com`)
-   - An `.pem` file. Make sure to store this in a permanent location on your computer where it will not be moved or deleted.
-4. Open a new VSCode window.
-5. Press `Control` + `Shift` + `P`.
-6. Type `Remote-SSH: Connect to Host`.
-7. Press `+ Add New SSH Host`.
-8. Make note of the AWS domain and path to the `.pem` file stored in step 3, and type `ssh -i PATH_TO_PEM_FILE AWS_DOMAIN` and press enter.
-9. From the files tab on the left, press `Clone Repository`, `Clone from GitHub`, enter the repository name `Stanford-AUV/RoboSub`, and finally enter a location to clone the repository to on the AWS EC2 instance.
+3. Open a new VSCode window.
+4. Press `Control` + `Shift` + `P`.
+5. Type `Remote-SSH: Connect to Host`.
+6. Press `+ Add New SSH Host`.
+7. Type `ssh USER@HOST.local`.
+8. Press connect at the bottom right, and wait for connection to be successful.
+9. From the files tab on the left, press `Clone Repository`, `Clone from GitHub`, enter the repository name `Stanford-AUV/RoboSub`, and finally enter a location to clone the repository to (something like `~/GitHub/`).
 10. Open that newly cloned repository in a VSCode window.
 11. When prompted to open the project in a Docker container at the bottom right, press `Reopen in Container`.
 12. Wait for the build process to take place and complete.
@@ -70,6 +91,17 @@ For example:
 ```bash
 ros2 run control thrust_generator
 ```
+
+## Simulation
+
+Since simulation requires a GUI, we will only run the simulation server from VSCode. The simulation client will run directly on the VM.
+
+To use the Gazebo simulator, follow these steps:
+
+1. In a VSCode Terminal, run `./sim.sh` to launch the simulation server
+2. In a Terminal on the VM (not in VSCode! a GUI is necessary for this), run the following to launch the simulation client: `GZ_PARTITION=127.0.0.1:ros QT_QPA_PLATFORM=xcb gz sim -g -v 4`
+
+A window should pop up with the simulation environment displayed.
 
 ## Creating New Nodes
 
