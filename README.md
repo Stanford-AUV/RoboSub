@@ -21,6 +21,7 @@ The main components of the RoboSub tech stack are:
 When developing with ROS 2 and Gazebo, it's easy to suddenly be reading outdated documentation online concerning past ROS and Gazebo versions. Make sure you are always looking at sources that refer to ROS 2 Jazzy and Gazebo Harmonic.
 
 ## Installation
+For Windows users [click here](#windows-installation)
 
 # Part 1: VM Installation
 
@@ -59,6 +60,20 @@ When developing with ROS 2 and Gazebo, it's easy to suddenly be reading outdated
 12. Wait for the build process to take place and complete.
 13. Create a new VSCode Terminal (`Terminal` > `New Terminal`).
 14. You should be all set! Proceed to the [building section](#building).
+
+# Windows Installation
+
+1. Open the Microsoft store and search up `Ubuntu 24.04`
+2. Download and open from the store when the installation completes
+3. Set a username and password (make sure to write it down somewhere!)
+4. Follow the steps in https://gazebosim.org/docs/harmonic/install_ubuntu/#binary-installation-on-ubuntu
+5. Follow steps 1 to 3 of https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository.
+6. Follow steps 1 to 3 of https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user.
+7. From the files tab on the left, press `Clone Repository`, `Clone from GitHub`, enter the repository name `Stanford-AUV/RoboSub`, and finally enter a location to clone the repository to (something like `~/GitHub/`).
+8. `cd` into wherever you've stored the `RoboSub` repository and run `code .`
+9. When prompted in the lower left corner, open the repository with the container
+
+After completing installation, you can `cd` into your `RoboSub`directory and open it with `code .`
 
 ## Building
 
