@@ -22,7 +22,12 @@ When developing with ROS 2 and Gazebo, it's easy to suddenly be reading outdated
 
 ## Installation
 
-# Part 1: VM Installation
+- For MacOS users [click here](#macos-installation)
+- For Windows users [click here](#windows-installation)
+
+### MacOS Installation
+
+#### Part 1: VM Installation
 
 1. Install VMWare Fusion (the free version, not the pro version).
 2. Download the Ubuntu ISO (either AMD or ARM depending on your computer) from https://cdimage.ubuntu.com/noble/daily-live/current/.
@@ -43,7 +48,7 @@ When developing with ROS 2 and Gazebo, it's easy to suddenly be reading outdated
 17. Note the USER@HOST shown in the VM's Ubuntu Terminal. Then open a Terminal on your local computer (i.e. your Mac) and enter `ssh USER@HOST.local`.
 18. If you connect successfully, now type `logout`, and then type `ssh-keygen -t ed25519` leaving all fields as default. Finally type `ssh-copy-id -i ~/.ssh/id_ed25519.pub USER@HOST.local`, once more replacing USER and HOST with your own credentials.
 
-# Part 2: Code Installation
+#### Part 2: Code Installation
 
 1. Download VSCode.
 2. Install the Remote Development extension.
@@ -55,6 +60,21 @@ When developing with ROS 2 and Gazebo, it's easy to suddenly be reading outdated
 8. Press connect at the bottom right, and wait for connection to be successful.
 9. From the files tab on the left, press `Clone Repository`, `Clone from GitHub`, enter the repository name `Stanford-AUV/RoboSub`, and finally enter a location to clone the repository to (something like `~/GitHub/`).
 10. Open that newly cloned repository in a VSCode window.
+11. When prompted to open the project in a Docker container at the bottom right, press `Reopen in Container`.
+12. Wait for the build process to take place and complete.
+13. Create a new VSCode Terminal (`Terminal` > `New Terminal`).
+14. You should be all set! Proceed to the [building section](#building).
+
+### Windows Installation
+
+1. Open the Microsoft store and search up `Ubuntu 24.04`
+2. Download and open from the store when the installation completes
+3. Set a username and password (make sure to write it down somewhere!)
+4. Follow the steps in https://gazebosim.org/docs/harmonic/install_ubuntu/#binary-installation-on-ubuntu
+5. Follow steps 1 to 3 of https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository.
+6. Follow steps 1 to 3 of https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user.
+7. From the files tab on the left, press `Clone Repository`, `Clone from GitHub`, enter the repository name `Stanford-AUV/RoboSub`, and finally enter a location to clone the repository to (something like `~/GitHub/`).
+8. Open that newly cloned repository in a VSCode window.
 11. When prompted to open the project in a Docker container at the bottom right, press `Reopen in Container`.
 12. Wait for the build process to take place and complete.
 13. Create a new VSCode Terminal (`Terminal` > `New Terminal`).
