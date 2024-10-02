@@ -9,8 +9,6 @@ RUN wget https://packages.osrfoundation.org/gazebo.gpg -O /usr/share/keyrings/pk
     && rm -rf /var/lib/apt/lists/*
 ENV DEBIAN_FRONTEND=
 
-# ** [Optional] Uncomment this section to install additional packages. **
-#
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get -y install --no-install-recommends python3.12-venv ros-jazzy-robot-localization \
