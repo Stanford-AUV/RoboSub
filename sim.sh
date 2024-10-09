@@ -1,1 +1,1 @@
-GZ_PARTITION=127.0.0.1:ros gz sim shapes.sdf -s
+GZ_PARTITION=127.0.0.1:ros gz sim src/simulation/simulation/models/world.urdf -s
