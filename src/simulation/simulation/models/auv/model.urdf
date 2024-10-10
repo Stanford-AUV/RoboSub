@@ -1,5 +1,6 @@
 <?xml version="1.0" ?>
 <sdf version="1.6">
+    <!-- See https://github.com/gazebosim/harmonic_demo/blob/8954ffb15e0ac7ffafe164889f273d94e7f6cb40/harmonic_demo/Tethys%20Sensors/model.sdf for examples of an AUV model with sensors -->
     <model name="auv">
 
         <link name='base_link'>
@@ -40,6 +41,55 @@
                 <update_rate>1</update_rate>
                 <visualize>true</visualize>
                 <topic>depth</topic>
+            </sensor>
+            <sensor name="dvl_sensor" type="custom" gz:type="dvl">
+                <!-- Account for DVL mounting position and base link rotation -->
+                <pose degrees="true">0 0 -1 0 0 180</pose>
+                <always_on>1</always_on>
+                <update_rate>1</update_rate>
+                <topic>dvl</topic>
+                <gz:dvl>
+                    <type>phased_array</type>
+                    <arrangement degrees="true">
+                        <beam id="1">
+                            <aperture>2.1</aperture>
+                            <rotation>45</rotation>
+                            <tilt>30</tilt>
+                        </beam>
+                        <beam>
+                            <aperture>2.1</aperture>
+                            <rotation>135</rotation>
+                            <tilt>30</tilt>
+                        </beam>
+                        <beam>
+                            <aperture>2.1</aperture>
+                            <rotation>-45</rotation>
+                            <tilt>30</tilt>
+                        </beam>
+                        <beam>
+                            <aperture>2.1</aperture>
+                            <rotation>-135</rotation>
+                            <tilt>30</tilt>
+                        </beam>
+                    </arrangement>
+                    <tracking>
+                        <bottom_mode>
+                            <when>best</when>
+                            <noise type="gaussian">
+                                <!-- +/- 0.4 cm/s precision at 10 m/s within 2 stddevs -->
+                                <!-- <stddev>0.002</stddev> -->
+                            </noise>
+                            <visualize>false</visualize>
+                        </bottom_mode>
+                    </tracking>
+                    <!-- Roughly 1 m resolution at a 100m -->
+                    <resolution>0.01</resolution>
+                    <!-- Approximate maximum range @ ~14.4v -->
+                    <maximum_range>80.</maximum_range>
+                    <minimum_range>0.1</minimum_range>
+                    <!-- ENU to SFM -->
+                    <reference_frame>0 0 0 0 0 -1.570796</reference_frame>
+                </gz:dvl>
             </sensor>
         </link>
 

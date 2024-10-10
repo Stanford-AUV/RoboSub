@@ -21,6 +21,7 @@ setup(
         "console_scripts": [
             "thrusters = simulation.nodes.thrusters:main",
             "sensors = simulation.nodes.sensors:main",
+            "dvl_bridge = simulation.nodes.dvl_bridge:main",
         ],
     },
 )

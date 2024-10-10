@@ -1,3 +1,5 @@
+# Note that the dvl bridge is manually implemented in the simulation package
+
 - ros_topic_name: "/clock"
   gz_topic_name: "/world/buoyant_auv/clock"
   ros_type_name: "rosgraph_msgs/msg/Clock"
