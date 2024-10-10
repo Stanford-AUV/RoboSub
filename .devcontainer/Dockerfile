@@ -25,6 +25,7 @@ RUN python3 -m venv /home/ros/env --system-site-packages --symlinks
 ARG WORKSPACE
 RUN echo "if [ -f ${WORKSPACE}/install/setup.bash ]; then source ${WORKSPACE}/install/setup.bash; fi" >> /home/ros/.bashrc
 RUN echo "if [ -f ${WORKSPACE}/requirements.txt ]; then /home/ros/env/bin/pip install -r ${WORKSPACE}/requirements.txt; fi" >> /home/ros/.bashrc
+RUN echo "export GZ_PARTITION=127.0.0.1:ros" >> /home/ros/.bashrc
 
 # Setup SSH server
 RUN apt update && apt install -y openssh-server
