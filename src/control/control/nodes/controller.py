@@ -1,24 +1,29 @@
 """
-Controller node for the control system.
+Controller Node.
 
-Author:
+Authors:
     Ali Ahmad
-
-Version:
-    1.0.0
+    Khaled Messai
 """
-from control.utils.pid import PID
-import numpy as np
-import rclpy
-from geometry_msgs.msg import Wrench, WrenchStamped
-from rclpy import Parameter
-from rclpy.node import Node
-from msgs.msg import ThrustsStamped
+import threading
+from msgs.msg import 
 
 class Controller(Node):
-    """The Controller Node."""
 
-    def __init__(self):
-        """Initialize the controller node."""
+    def __init__(self, kP, kI, kD, ceil, start_i):
+        super().__init__('controller')
+        self.lock = threading.Lock()
+        self.state_subscription = self.create_subscription(State, "state", self.state_callback, 10)
+
+
+    def state_callback(self):
         pass
 
+    def reference_callback(self):
+        pass
+
+    def update(self):
+        pass
+
+    def reset(self):
+        pass
