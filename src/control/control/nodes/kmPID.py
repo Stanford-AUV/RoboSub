@@ -53,13 +53,17 @@ class PID(Node):
         self.curPos = np.zeros(self.arrayLength)
         self.curWrench = np.zeros(self.arrayLength) 
 
+
+    'These three functions violate DRY but I decided I would hedge that in the future, we will want'
+    'specific changes to each of them. Consequently I decided to keep them separate.'
     def calculateVelOutput(self, reference):
         'Get time change
         self.timeFunction(self) 
 
         kP = self.kP["vel"] 
         kI = self.kI["vel"]
-        kD = self.kD["vel"] 
+        kD = self.kD["vel"]
+        iSum = self.iSum["vel"]
 
         'Calculate error' 
         velError = reference.targetVel - self.curVel
@@ -77,33 +81,35 @@ class PID(Node):
 
         self.lastVelError = velError
 
-    def calculateTorqueOutput(self, reference):
+    def calculatePosOutput(self, reference):
         'Get time change
         self.timeFunction(self) 
 
         kP = self.kP["Pos"] 
         kI = self.kI["Pos"]
         kD = self.kD["Pos"] 
+        iSum = self.iSum["Pos"]
         
         'Calculate Error'
-        wrenchError = reference.targetPos - self.curPos
+        posError = reference.targetPos - self.curPos
         'Proportional'
-        propTerm = wrenchError * kP 
+        propTerm = posError * kP 
         'Derivative'
         d_dx = (self.curPos - self.lastPosError) / self.deltaT 
         d_dx *= kD 
         'Integrative' 
-        iTerm = velError * kI * self.deltaT 
+        iTerm = posError * kI * self.deltaT 
         self.iSum += iTerm 
         self.lastPosError = posError 
 
-    def calculatePosOutput(self, reference):
+    def calculateWrenchOutput(self, reference):
         'Get time change
         self.timeFunction(self) 
 
         kP = self.kP["wrench"] 
         kI = self.kI["wrench"]
         kD = self.kD["wrench"] 
+        iSum = self.iSum["wrench"]
         
         'Calculate Error'
         wrenchError = reference.targetWrench - self.curWrench
@@ -113,21 +119,9 @@ class PID(Node):
         d_dx = (self.curWrench - self.lastWrenchError) / self.deltaT 
         d_dx *= kD 
         'Integrative' 
-        iTerm = velError * kI * self.deltaT 
-        self.iSum += iTerm 
-        self
-
-
-
-
-
-        
-
-
-
-    
-
-
+        iTerm = wrenchError * kI * self.deltaT 
+        iSum += iTerm 
+        self.lastWrenchError = wrenchError
 
 
     def pidClamp(self, iTerm, output, maxOutput, minOutput):
