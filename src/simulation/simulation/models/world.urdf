@@ -5,6 +5,7 @@
       <!-- For turquoise ambient -->
       <ambient>0.0 1.0 1.0</ambient>
       <background>0.0 0.7 0.8</background>
+      <grid>false</grid>
     </scene>
 
     <physics name="1ms" type="ode">
@@ -50,32 +51,23 @@
       <static>true</static>
       <pose>0 0 -20 0 0 0</pose>
       <link name="link">
-        <collision name="collision">
+        <visual name="sand_visual">
           <geometry>
-            <plane>
-              <normal>0 0 1</normal>
-              <size>1000 1000</size>
-            </plane>
+            <mesh>
+              <uri>../materials/sand.dae</uri>
+              <scale>1 1 1</scale>
+            </mesh>
           </geometry>
-          <surface>
-            <contact>
-              <collide_without_contact>true</collide_without_contact>
-            </contact>
-          </surface>
-        </collision>
-        <visual name="visual">
-          <geometry>
-            <plane>
-              <normal>0 0 1</normal>
-              <size>1000 1000</size>
-            </plane>
-          </geometry>
-          <material>
-            <ambient>0.76 0.7 0.5 1</ambient>
-            <diffuse>0.76 0.7 0.5 1</diffuse>
-            <specular>0.1 0.1 0.1 1</specular>
-          </material>
         </visual>
+
+        <collision name="sand_collision">
+          <geometry>
+            <mesh>
+              <uri>../materials/sand.dae</uri>
+              <scale>1 1 1</scale>
+            </mesh>
+          </geometry>
+        </collision>
       </link>
     </model>
 
