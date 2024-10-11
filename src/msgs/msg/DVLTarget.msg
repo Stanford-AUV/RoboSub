@@ -1,0 +1,2 @@
+uint8 type
+float32 range_mean

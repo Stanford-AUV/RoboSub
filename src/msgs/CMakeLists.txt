@@ -28,10 +28,14 @@ find_package(std_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/PWMsStamped.msg"
-  "msg/ThrustsStamped.msg"
   "msg/State.msg"
   "msg/Wrench.msg"
+  "msg/PWMsStamped.msg"
+  "msg/ThrustsStamped.msg"
+  "msg/DVLBeam.msg"
+  "msg/DVLData.msg"
+  "msg/DVLTarget.msg"
+  "msg/DVLVelocity.msg"
   DEPENDENCIES geometry_msgs std_msgs
 )
 
