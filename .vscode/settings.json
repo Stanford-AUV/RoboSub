@@ -62,7 +62,9 @@
         "Odometry",
         "ndarray",
         "Khaled",
-        "Messai"
+        "Messai",
+        "pinv",
+        "nanosec"
     ],
     "cSpell.allowCompoundWords": true,
     "cSpell.ignorePaths": [
