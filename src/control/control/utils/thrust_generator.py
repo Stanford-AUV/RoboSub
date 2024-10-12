@@ -1,8 +1,23 @@
-"""This module provides utilities for generating thrust configurations and converting forces to individual motor thrusts."""
+"""
+Convert desired wrench to individual thruster thrusts.
+
+This module provides functions to compute the inverse thrust allocation matrix
+(TAM) and convert a desired wrench (force and torque) into individual thruster
+thrusts for a system with multiple thrusters.
+
+Dependencies:
+    geometry_msgs.msg.Wrench
+    numpy
+
+Author:
+    Scott Hickman
+
+Version:
+    1.0.0
+"""
+from geometry_msgs.msg import Wrench
 
 import numpy as np
-
-from geometry_msgs.msg import Wrench
 
 import numpy as np
 
@@ -13,6 +28,7 @@ def thruster_configs_to_TAM_inv(
     thruster_orientations: np.ndarray,
 ) -> np.ndarray:
     """
+    Compute thrust allocation matrix inverse from thruster configurations.
     Compute thrust allocation matrix inverse from thruster configurations.
 
     Parameters
@@ -41,6 +57,8 @@ def total_force_to_individual_thrusts(TAM_inv: np.ndarray, wrench: Wrench):
     """
     Convert a desired force to motor thrusts.
 
+    Force is a 6x1 vector with the desired force in the x, y, z, roll, pitch,
+    and yaw directions.
     Force is a 6x1 vector with the desired force in the x, y, z, roll, pitch,
     and yaw directions.
 
