@@ -10,13 +10,6 @@ Example:
     wrench = Wrench(np.array([1, 2, 3]), np.array([4, 5, 6]))
     msg = wrench.to_msg()
 
-Dependencies:
-    geometry_msgs.msg.Vector3
-    geometry_msgs.msg.Wrench
-    geometry_msgs.msg.WrenchStamped
-    numpy
-    rclpy.time.Time
-    
 Author:
     Ali Ahmad
 
@@ -46,13 +39,11 @@ class AbstractWrench():
         """
         self.force = force
         self.torque = torque
-        self.wrench_msg = Wrench(
-            force=Vector3(x=force[0], y=force[1], z=force[2]),
-            torque=Vector3(x=torque[0], y=torque[1], z=torque[2])
-        )
+        self.wrench_msg = Wrench(Vector3(force), Vector3(torque))
 
     def to_msg(self):
         """Convert the Wrench object to a ROS WrenchStamped message."""
         msg = WrenchStamped()
+        msg.header.stamp = Time().now().to_msg()
         msg.wrench = self.wrench_msg
         return msg
