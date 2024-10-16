@@ -1,18 +1,25 @@
 """
 Controller Node.
 
+This file implements a ROS2 node that computes a control signal based on the
+state of the system and a reference state. The node subscribes to the 'state'
+and 'path' topics to receive the current state and reference state, and
+publishes the computed control signal to the 'wrench' topic. The control signal
+is computed using a given control policy, which is a PID controller in this
+case.
+
 Dependencies:
+    threading
+    control.utils.pid.PID
+    control.utils.state.State
     geometry_msgs.msg.WrenchStamped
     nav_msgs.msg.Odometry
     numpy
-    quaternion
-    rclpy
     rclpy.node.Node
-    rclpy.time.Time
-    threading
 
 Authors:
     Ali Ahmad
+    Khaled Messai
 
 Version:
     1.0.0
@@ -20,58 +27,41 @@ Version:
 
 import threading
 
-from control.utils.utils import quat_to_axis_angle, qvmul, to_np
+from control.utils.pid import PID
+from control.utils.state import State
 
-from geometry_msgs.msg import Vector3, Wrench, WrenchStamped
+from geometry_msgs.msg import WrenchStamped
 
 from nav_msgs.msg import Odometry
 
 import numpy as np
 
-import quaternion
-
 import rclpy
 from rclpy.node import Node
-from rclpy.time import Time
-
-from std_msgs.msg import Header
 
 
 class Controller(Node):
     """
     Node that computes a control signal based on state and reference poses.
 
-    Creates subscribers to the state and reference topics and publishes to the
-    desired_wrench topic. Uses a PID controller to compute the control signal
-    with configurable gains and limits.
+    Creates subscribers to the 'state' and 'path' topics and publishes to the
+    'wrench' topic. Uses a a given control policy to compute the control
+    signal to publish.
     """
 
-    def __init__(self,
-                 kp: np.array,
-                 kd: np.array,
-                 ki: np.array,
-                 max_signal: np.ndarray,
-                 max_i: np.ndarray):
+    def __init__(self, policy):
         """
         Initialize the controller node.
 
         We initialize the controller node with subscribers to the state and
         reference topics, and a publisher to the desired_wrench topic. We
-        initialize the PID controller with given parameters and a lock for
+        initialize the control policy with given parameters and a lock for
         thread safety.
 
         Parameters
         ----------
-        kp: np.ndarray (2x3)
-            The proportional gains for the controller (pos, ang).
-        kd: np.ndarray (2x3)
-            The derivative gains for the controller (pos, ang).
-        ki: np.ndarray (2x3)
-            The integral gains for the controller (pos, ang).
-        ceil: np.ndarray (2x3)
-            The saturation limits for the controller.
-        max_i: np.ndarray (2x3)
-            The integral saturation limits for the controller.
+        policy
+            The policy to use for the controller.
         """
         super().__init__('controller')
 
@@ -79,111 +69,92 @@ class Controller(Node):
             Odometry, 'state', self.state_callback, 10
         )
         self.reference_subscription = self.create_subscription(
-            Odometry, 'reference', self.reference_callback, 10
+            Odometry, 'path', self.reference_callback, 10
         )
         self.control_publisher = self.create_publisher(
-            WrenchStamped, 'desired_wrench', 10
+            WrenchStamped, 'wrench', 10
         )
 
         self.lock = threading.Lock()
 
         self.time = self.get_clock().now()
 
-        self.kP_pos = kp[0]
-        self.kP_ang = kp[1]
-        self.kD_pos = kd[0]
-        self.kD_ang = kd[1]
-        self.kI_pos = ki[0]
-        self.kI_ang = ki[1]
-        self.max_signal = max_signal
-        self.max_i = max_i
+        self.policy = policy
 
-        self.state = None
-        self.reference = None
-        self.integral_pos = 0
-        self.integral_ang = 0
+        self.cur_state = None
+        self.ref_state = None
+
+    def reset(self):
+        """Reset the controller."""
+        self.get_logger.info('Resetting controller...')
+        with self.lock:
+            self.policy.reset()
 
     def state_callback(self, msg: Odometry):
+        """
+        Update the current state and update the control signal.
+
+        Parameters
+        ----------
+        msg : Odometry
+            The message containing the state of the system.
+        """
         with self.lock:
-            self.state = to_np(msg)
-            timestamp = Time(
-                seconds=msg.header.stamp.sec,
-                nanoseconds=msg.header.stamp.nanosec,
-                clock_type=self.get_clock().clock_type
-            )
-            self.dt = (timestamp - self.time).nanoseconds / 1e6
-            self.time = timestamp
+            self.cur_state = State.from_odometry_msg(msg)
+            self.get_logger().info('Current state updated')
             self.update()
 
     def reference_callback(self, msg: Odometry):
+        """
+        Update the reference state.
+
+        Parameters
+        ----------
+        msg : Odometry
+            The message containing the reference state.
+        """
         with self.lock:
-            self.reference = to_np(msg)
+            self.ref_state = State.from_odometry_msg(msg)
+            self.get_logger().info('Reference state updated')
 
     def update(self):
-        r_W = self.state[0:3]  # position, world frame
-        v_B = self.state[3:6]  # velocity, body frame
-        q_W = quaternion(self.state[6:10])  # orientation, world frame
-        w_B = self.state[10:13]  # angular velocity, body frame
-
-        r_W_ref = self.reference[0:3]  # position, world frame
-        v_B_ref = self.reference[3:6]  # velocity, body frame
-        q_W_ref = quaternion(self.reference[6:10])  # orientation, world frame
-        w_B_ref = self.reference[10:13]  # angular velocity, body frame
-
-        # pose error
-        error_r_W = r_W_ref - r_W
-
-        q_W_inv = np.conjugate(q_W)
-        q_W_ref_inv = np.conjugate(q_W_ref)
-        error_q_W = q_W_inv * q_W_ref_inv
-        error_q_W = quat_to_axis_angle(error_q_W)
-
-        # velocity error
-        error_v_B = v_B_ref - v_B
-        error_w_B = w_B_ref - w_B
-
-        # integral term
-        self.integral_pos = np.clip(
-            (self.integral_pos + error_r_W + error_v_B) * self.dt,
-            -self.max_i[0],
-            self.max_i[0]
-        )
-        self.integral_ang = np.clip(
-            (self.integral_ang + error_q_W + error_w_B) * self.dt,
-            -self.max_i[1],
-            self.max_i[1]
-        )
-
-        # force on the body (in the body frame)
-        F_W = self.kP_pos * error_r_W + self.kD_pos * error_v_B + self.kI_pos * self.integral_pos
-        F_B = qvmul(q_W_inv, F_W)
-
-        # torque on the body (in the body frame)
-        t_B = self.kP_ang * error_q_W + self.kD_ang * error_w_B + self.kI_ang * self.integral_ang
-
-        msg = WrenchStamped(
-            Header(
-                stamp=self.time,
-                frame_id='body'
-            ),
-            Wrench(
-                force=Vector3(x=F_B[0], y=F_B[1], z=F_B[2]),
-                torque=Vector3(x=t_B[0], y=t_B[1], z=t_B[2])
-            )
-        )
-
-        self.output_publisher_.publish(msg)
-
-    def reset(self):
-        self.get_logger.info('Resetting controller...')
-        with self.lock:
-            self.integral = np.zeros(6)
+        """Update the control signal and publish to the wrench topic."""
+        newTime = self.get_clock().now()
+        dt = newTime - self.time
+        self.time = newTime
+        wrench = self.policy.update(self.cur_state, self.ref_state, dt)
+        self.control_publisher.publish(wrench)
 
 
 def main(args=None):
+    """Set up and spin the Controller node."""
     rclpy.init(args=args)
+
+    pid = PID(
+        kP_position=np.array([1, 1, 1]),
+        kD_position=np.array([1, 1, 1]),
+        kI_position=np.array([1, 1, 1]),
+        kP_orientation=np.array([1, 1, 1]),
+        kD_orientation=np.array([1, 1, 1]),
+        kI_orientation=np.array([1, 1, 1]),
+        max_signal_position=np.array([1, 1, 1]),
+        max_signal_orientation=np.array([1, 1, 1]),
+        max_integral_position=np.array([1, 1, 1]),
+        max_integral_orientation=np.array([1, 1, 1])
+    )
+
+    controller_node = Controller(pid)
+
+    try:
+        rclpy.spin(controller_node)
+    except KeyboardInterrupt:
+        controller_node.get_logger().info('Shutting down controller...')
+        pass
+
+    controller_node.destroy_node()
+
     rclpy.shutdown()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
