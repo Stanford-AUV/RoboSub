@@ -37,6 +37,8 @@ from nav_msgs.msg import Odometry
 
 import numpy as np
 
+import quaternion
+
 
 class State():
     """
@@ -97,7 +99,7 @@ class State():
                 msg.twist.twist.linear.z,
             ]
         )
-        orientation_world = np.array(
+        orientation_world = quaternion(
             [
                 msg.pose.pose.orientation.w,
                 msg.pose.pose.orientation.x,
