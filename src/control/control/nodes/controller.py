@@ -22,7 +22,7 @@ import threading
 
 from control.utils.utils import quat_to_axis_angle, qvmul, to_np
 
-from geometry_msgs.msg import WrenchStamped
+from geometry_msgs.msg import Vector3, Wrench, WrenchStamped
 
 from nav_msgs.msg import Odometry
 
@@ -33,6 +33,8 @@ import quaternion
 import rclpy
 from rclpy.node import Node
 from rclpy.time import Time
+
+from std_msgs.msg import Header
 
 
 class Controller(Node):
@@ -155,6 +157,22 @@ class Controller(Node):
         # force on the body (in the body frame)
         F_W = self.kP_pos * error_r_W + self.kD_pos * error_v_B + self.kI_pos * self.integral_pos
         F_B = qvmul(q_W_inv, F_W)
+
+        # torque on the body (in the body frame)
+        t_B = self.kP_ang * error_q_W + self.kD_ang * error_w_B + self.kI_ang * self.integral_ang
+
+        msg = WrenchStamped(
+            Header(
+                stamp=self.time,
+                frame_id='body'
+            ),
+            Wrench(
+                force=Vector3(x=F_B[0], y=F_B[1], z=F_B[2]),
+                torque=Vector3(x=t_B[0], y=t_B[1], z=t_B[2])
+            )
+        )
+
+        self.output_publisher_.publish(msg)
 
     def reset(self):
         self.get_logger.info('Resetting controller...')
