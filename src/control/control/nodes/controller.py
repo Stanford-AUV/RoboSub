@@ -120,7 +120,7 @@ class Controller(Node):
     def update(self):
         """Update the control signal and publish to the wrench topic."""
         newTime = self.get_clock().now()
-        dt = newTime - self.time
+        dt = (newTime - self.time) / 1e6
         self.time = newTime
         wrench = self.policy.update(self.cur_state, self.ref_state, dt)
         self.control_publisher.publish(wrench)
