@@ -64,7 +64,9 @@
         "Khaled",
         "Messai",
         "pinv",
-        "nanosec"
+        "nanosec",
+        "normv",
+        "qvmul"
     ],
     "cSpell.allowCompoundWords": true,
     "cSpell.ignorePaths": [
