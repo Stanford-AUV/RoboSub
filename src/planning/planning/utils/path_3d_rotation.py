@@ -2,15 +2,17 @@ import matplotlib
 matplotlib.use('Agg')
 
 import numpy as np
-from scipy.interpolate import make_interp_spline, make_lsq_spline
-from scipy.spatial.transform import Rotation#, RotationSpline
+from scipy.interpolate import make_interp_spline
+from scipy.spatial.transform import Rotation
+from scipy.optimize import root_scalar
 
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from mpl_toolkits.mplot3d import Axes3D
-from scipy.interpolate import CubicSpline
 
-from scipy.optimize import minimize_scalar, root_scalar
+import os
+
+if not os.path.exists("./out"):
+    os.mkdir("./out") # Make the output folder to store the visualization of path generation
 
 # Find the maximum value of a B-spline between t_start and t_end.
 def find_maximum_bspl(spline, t_start, t_end, num_points=1000):
@@ -178,7 +180,6 @@ angular_accelerations = quaternion_spline.angular_acceleration(t_fine)
 # Compute positions
 positions = [spline(t_fine) for spline in splines]
 x_fine, y_fine, z_fine = positions
-# orientations = orientation_spline(t_fine).as_euler("xyz", degrees=True)
 orientations = quaternion_spline.as_euler(t_fine, order='xyz', degrees=True)
 
 
@@ -253,7 +254,7 @@ plt.ylabel("Angular Acceleration")
 plt.tight_layout()
 plt.show()
 
-plt.savefig("plot.png")
+plt.savefig("out/plot.png")
 
 # Setup the figure and 3D axis
 fig = plt.figure()
@@ -316,7 +317,7 @@ anim = FuncAnimation(
     fig, animate, init_func=init, frames=len(t_fine), interval=20, blit=True
 )
 
-anim.save('animation.mp4', writer='ffmpeg')
+anim.save('out/animation.mp4', writer='ffmpeg')
 
 # Show the animation
 plt.show()

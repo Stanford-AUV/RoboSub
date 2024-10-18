@@ -2,16 +2,16 @@ import matplotlib
 matplotlib.use('Agg')
 
 import numpy as np
-from scipy.interpolate import make_interp_spline, make_lsq_spline
-from scipy.spatial.transform import Rotation#, RotationSpline
+from scipy.interpolate import make_interp_spline
+from scipy.spatial.transform import Rotation
 
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from mpl_toolkits.mplot3d import Axes3D
-from scipy.interpolate import CubicSpline
 
-def make_interp_spline_with_constraints(x, y, k=3, t=None, bc_type=None):
-    return make_interp_spline(x=x, y=y, k=k, t=t, bc_type=bc_type)
+import os
+
+if not os.path.exists("./out"):
+    os.mkdir("./out") # Make the output folder to store the visualization of path generation
 
 # Example points (x, y)
 x = np.random.rand(5)
@@ -21,12 +21,6 @@ orientations = Rotation.random(5).as_euler("xyz", degrees=True)
 x = np.concatenate((x, [x[0]]))
 y = np.concatenate((y, [y[0]]))
 z = np.concatenate((z, [z[0]]))
-# orientations = np.concatenate((orientations, [orientations[0]]))
-
-# arr = np.linspace(-180, 180, 1)
-# orientations = np.array([[-179.99, -179.99, -179.99], [179.99, 179.99, 179.99]])
-# orientations = np.array([[-1, -1, -1], [1, 1, 1]])
-# orientations = np.array([[-149.99, -149.99, -149.99], [149.99, 149.99, 149.99]])
 orientations = np.concatenate((orientations, [orientations[0]]))
 
 t_end = 1
@@ -38,7 +32,7 @@ dim_vars = (x, y, z)
 
 # Fit cubic splines to x and y as a function of t
 splines = [
-    make_interp_spline_with_constraints(
+    make_interp_spline(
         t, var, k=5, bc_type=([(1, 0.0), (2, 0.0)], [(1, 0.0), (2, 0.0)])
     )
     for var in dim_vars
@@ -57,8 +51,6 @@ class RotationSpline:
 
         self.rotations = Rotation.from_quat(quaternions)
         self.rotvecs = self.rotations.as_rotvec()
-
-        print(self.rotvecs)
 
         self.spline_x = make_interp_spline(t, self.rotvecs[:, 0], k=5, bc_type=([(1, 0.0), (2, 0.0)], [(1, 0.0), (2, 0.0)]))
         self.spline_y = make_interp_spline(t, self.rotvecs[:, 1], k=5, bc_type=([(1, 0.0), (2, 0.0)], [(1, 0.0), (2, 0.0)]))
@@ -96,9 +88,6 @@ class RotationSpline:
         angular_acc_z = self.spline_z(t_fine, 2)
         return np.vstack((angular_acc_x, angular_acc_y, angular_acc_z)).T
     
-# orientation_spline = RotationSpline(
-#     t, Rotation.from_euler("xyz", orientations, degrees=True)
-# )
 
 quaternion_spline = RotationSpline(t, Rotation.from_euler("xyz", orientations, degrees=True).as_quat())
 
@@ -109,7 +98,6 @@ angular_accelerations = quaternion_spline.angular_acceleration(t_fine)
 # Compute positions
 positions = [spline(t_fine) for spline in splines]
 x_fine, y_fine, z_fine = positions
-# orientations = orientation_spline(t_fine).as_euler("xyz", degrees=True)
 orientations = quaternion_spline.as_euler(t_fine, order='xyz', degrees=True)
 
 
@@ -184,7 +172,7 @@ plt.ylabel("Angular Acceleration")
 plt.tight_layout()
 plt.show()
 
-plt.savefig("plot.png")
+plt.savefig("out/plot.png")
 
 
 # Setup the figure and 3D axis
@@ -248,7 +236,7 @@ anim = FuncAnimation(
     fig, animate, init_func=init, frames=len(t_fine), interval=20, blit=True
 )
 
-anim.save('animation.mp4', writer='ffmpeg')
+anim.save('out/animation.mp4', writer='ffmpeg')
 
 # Show the animation
 plt.show()
