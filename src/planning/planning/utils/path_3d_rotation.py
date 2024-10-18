@@ -80,12 +80,18 @@ orientations = np.concatenate((orientations, [orientations[0]]))
 
 dim_vars = (x, y, z)
 
+max_velocity = 1
+max_acceleration = 1
+max_angular_velocity = 1
+max_angular_acceleration = 1
+
 # Fit splines to x y z as a function of t
 splines = []
 new_xs = [] # Spline intervals that ensure maxes are not exceeded
 for var in dim_vars:
     spline, new_x = make_interp_spline_with_constraints(
-        np.linspace(0, 1, len(x)), var, k=5, bc_type=([(1, 0.0), (2, 0.0)], [(1, 0.0), (2, 0.0)]), v_max=1, a_max=1
+        # Example, max absolute 1 m/s velocity and 1 m/s^2 acceleration 
+        np.linspace(0, 1, len(x)), var, k=5, bc_type=([(1, 0.0), (2, 0.0)], [(1, 0.0), (2, 0.0)]), v_max=max_velocity, a_max=max_acceleration
     )
     splines.append(spline)
     new_xs.append(new_x)
@@ -146,7 +152,7 @@ class RotationSpline:
         return np.vstack((angular_acc_x, angular_acc_y, angular_acc_z)).T
     
 # Fit splines to theta_x theta_y theta_z as a function of t
-quaternion_spline = RotationSpline(np.linspace(0, 1, len(x)), Rotation.from_euler("xyz", orientations, degrees=True).as_quat(), v_max=1, a_max=0.1)
+quaternion_spline = RotationSpline(np.linspace(0, 1, len(x)), Rotation.from_euler("xyz", orientations, degrees=True).as_quat(), v_max=max_angular_velocity, a_max=max_angular_acceleration)
 
 new_xs.extend([quaternion_spline.t_x, quaternion_spline.t_y, quaternion_spline.t_z])
 
@@ -157,7 +163,7 @@ for i in range(len(new_xs[0]) - 1):
 # Final update to splines with final_x
 splines = [
     make_interp_spline_with_constraints(
-        final_x, var, k=5, bc_type=([(1, 0.0), (2, 0.0)], [(1, 0.0), (2, 0.0)]), v_max=1, a_max=1
+        final_x, var, k=5, bc_type=([(1, 0.0), (2, 0.0)], [(1, 0.0), (2, 0.0)]), v_max=max_velocity, a_max=max_acceleration
     )[0] for var in dim_vars
 ]
 quaternion_spline.update_t(final_x)
