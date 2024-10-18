@@ -3,7 +3,8 @@ from rclpy.node import Node
 
 from sensor_msgs.msg import Imu
 from ros_gz_interfaces.msg import Altimeter
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, TwistStamped
+from nav_msgs.msg import Odometry
 
 
 class Sensors(Node):
@@ -23,7 +24,9 @@ class Sensors(Node):
         self._pose_sub = self.create_subscription(
             PoseStamped, "gz/pose", self.pose_callback, 10
         )
-        self._pose_pub = self.create_publisher(PoseStamped, "pose", 10)
+        self._odometry_pub = self.create_publisher(Odometry, "odometry", 10)
+
+        self.last_pose = PoseStamped()
 
     def imu_callback(self, msg: Imu):
         self.get_logger().info("Received IMU message")
@@ -36,8 +39,46 @@ class Sensors(Node):
         self._altimeter_pub.publish(msg)
 
     def pose_callback(self, msg: PoseStamped):
-        self.get_logger().info(f"Received pose message: {msg.pose}")
-        self._pose_pub.publish(msg)
+        odometry = Odometry()
+        odometry.header.stamp = msg.header.stamp
+        odometry.pose.pose = msg.pose
+
+        twist = TwistStamped()
+        twist.header.stamp = msg.header.stamp
+        twist.twist.linear.x = (
+            (msg.pose.position.x - self.last_pose.pose.position.x)
+            * 1e9
+            / (msg.header.stamp.nanosec - self.last_pose.header.stamp.nanosec)
+        )
+        twist.twist.linear.y = (
+            (msg.pose.position.y - self.last_pose.pose.position.y)
+            * 1e9
+            / (msg.header.stamp.nanosec - self.last_pose.header.stamp.nanosec)
+        )
+        twist.twist.linear.z = (
+            (msg.pose.position.z - self.last_pose.pose.position.z)
+            * 1e9
+            / (msg.header.stamp.nanosec - self.last_pose.header.stamp.nanosec)
+        )
+        twist.twist.angular.x = (
+            (self.last_pose.pose.orientation.x - msg.pose.orientation.x)
+            / (msg.header.stamp.nanosec - self.last_pose.header.stamp.nanosec)
+            * 1e9
+        )
+        twist.twist.angular.y = (
+            (self.last_pose.pose.orientation.y - msg.pose.orientation.y)
+            * 1e9
+            / (msg.header.stamp.nanosec - self.last_pose.header.stamp.nanosec)
+        )
+        twist.twist.angular.z = (
+            (self.last_pose.pose.orientation.z - msg.pose.orientation.z)
+            * 1e9
+            / (msg.header.stamp.nanosec - self.last_pose.header.stamp.nanosec)
+        )
+
+        self.get_logger().info(f"Received odometry message: {twist.twist.linear.x}")
+        self.last_pose = msg
+        self._odometry_pub.publish(odometry)
 
 
 def main(args=None):
