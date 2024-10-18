@@ -14,7 +14,8 @@
 		"--security-opt=apparmor:unconfined",
 		"--volume=/tmp/.X11-unix:/tmp/.X11-unix",
 		"--volume=/mnt/wslg:/mnt/wslg",
-		"--ipc=host"
+		"--ipc=host",
+		"--privileged"
 		// uncomment to use intel iGPU
 		// "--device=/dev/dri"
 	],
