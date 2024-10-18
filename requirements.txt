@@ -1,1 +1,5 @@
 casadi
+torch
+torchvision
+torchaudio
+ultralytics

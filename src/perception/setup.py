@@ -19,9 +19,11 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            f"perception_node = {package_name}.perception_node:main",
-            f"debug_node = {package_name}.debug_node:main",
-            f"data_node = {package_name}.data_node:main",
+            f"perception_node = perception.nodes.perception_node:main",
+            f"debug_node = perception.nodes.debug_node:main",
+            f"data_node = perception.nodes.data_node:main",
+            f"image_publisher = perception.nodes.dummy_video:main",
+            f"yolov8_ros_node = perception.nodes.YOLONode:main",
         ],
     },
 )
