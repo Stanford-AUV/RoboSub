@@ -15,7 +15,8 @@ trap cleanup SIGINT
 export GZ_PARTITION=127.0.0.1:ros
 export DISPLAY=:0
 export GZ_SIM_RESOURCE_PATH=`pwd`/src/simulation/simulation/models:$GZ_SIM_RESOURCE_PATH
-export GZ_SIM_SYSTEM_PLUGIN_PATH=`pwd`/src/simulation/simulation/models/CartPole/plugins:$GZ_SIM_SYSTEM_PLUGIN_PATH 
+export GZ_SIM_SYSTEM_PLUGIN_PATH=`pwd`/build/custom_gz_plugins:$GZ_SIM_SYSTEM_PLUGIN_PATH
+export GZ_GUI_PLUGIN_PATH=`pwd`/build/custom_gz_plugins:$GZ_GUI_PLUGIN_PATH
 
 # Start commands in the background
 gz sim src/simulation/simulation/models/world.urdf &

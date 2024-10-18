@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+    <name>custom_gz_plugins</name>
+    <version>0.0.0</version>
+    <description>This package builds the custom plugins for Gazebo.</description>
+    <maintainer email="scotthickmann21@gmail.com">ros</maintainer>
+    <license>TODO: License declaration</license>
+
+    <depend>gz-cmake3</depend>
+    <depend>gz-common5</depend>
+    <depend>gz-gui8</depend>
+    <depend>gz-plugin2</depend>
+    <depend>gz-rendering8</depend>
+    <buildtool_depend>cmake</buildtool_depend>
+    <exec_depend>rclpy</exec_depend>
+    <exec_depend>std_msgs</exec_depend>
+
+    <test_depend>ament_copyright</test_depend>
+    <test_depend>ament_black</test_depend>
+    <test_depend>ament_pep257</test_depend>
+    <test_depend>python3-pytest</test_depend>
+
+    <export>
+        <build_type>cmake</build_type>
+
+    </export>
+
+</package>
