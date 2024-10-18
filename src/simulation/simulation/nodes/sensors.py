@@ -76,7 +76,7 @@ class Sensors(Node):
             / (msg.header.stamp.nanosec - self.last_pose.header.stamp.nanosec)
         )
 
-        self.get_logger().info(f"Received odometry message: {twist.twist.linear.x}")
+        self.get_logger().info(f"Received odometry message: {odometry}")
         self.last_pose = msg
         self._odometry_pub.publish(odometry)
 
