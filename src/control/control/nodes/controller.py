@@ -103,8 +103,6 @@ class Controller(Node):
 
         self.state = None
         self.reference = None
-        self.integral_pos = 0
-        self.integral_ang = 0
 
 
 
