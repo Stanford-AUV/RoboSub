@@ -28,6 +28,7 @@ Dependencies:
     nav_msgs.msg.Odometry
 
 Author:
+    Ali Ahmad
     Khaled Messai
 
 Version:
@@ -37,7 +38,7 @@ from nav_msgs.msg import Odometry
 
 import numpy as np
 
-import quaternion
+import spatialmath as sm
 
 
 class State():
@@ -50,23 +51,23 @@ class State():
     """
 
     def __init__(self,
-                 position_world: np.array,
-                 velocity_body: np.array,
-                 orientation_world: np.array,
-                 angular_velocity_body: np.array):
+                 position_world: np.ndarray,
+                 velocity_body: np.ndarray,
+                 orientation_world: sm.SE3,
+                 angular_velocity_body: np.ndarray):
         """
         Initialize a State object.
 
         Parameters
         ----------
-        position_world : np.array
+        position_world : np.ndarray
             A 3-vector representing the position of the robot in the world.
-        velocity_body : np.array
+        velocity_body : np.ndarray
             A 3-vector representing the velocity of the robot in the body
             frame.
-        orientation_world : np.array
+        orientation_world : np.ndarray
             A 4-vector representing the orientation of the robot in the world.
-        angular_velocity_body : np.array
+        angular_velocity_body : np.ndarray
             A 3-vector representing the angular velocity of the robot in the
             body frame.
         """
@@ -99,9 +100,9 @@ class State():
                 msg.twist.twist.linear.z,
             ]
         )
-        orientation_world = quaternion(
-            [
-                msg.pose.pose.orientation.w,
+        orientation_world = sm.SE3.Quaternion(
+            s=msg.pose.pose.orientation.w,
+            v=[
                 msg.pose.pose.orientation.x,
                 msg.pose.pose.orientation.y,
                 msg.pose.pose.orientation.z,

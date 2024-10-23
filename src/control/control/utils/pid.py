@@ -22,7 +22,7 @@ Example:
 
 Dependencies:
     numpy
-    quaternion
+    spatialmath-python
     control.utils.state.State
     control.utils.wrench.AbstractWrench
     geometry_msgs.msg.WrenchStamped
@@ -35,14 +35,13 @@ Version:
 """
 
 from control.utils.state import State
-from control.utils.utils import quat_to_axis_angle
 from control.utils.wrench import AbstractWrench
 
 from geometry_msgs.msg import WrenchStamped
 
 import numpy as np
 
-import quaternion
+import spatialmath as sm
 
 
 class PID():
@@ -55,40 +54,40 @@ class PID():
     """
 
     def __init__(self,
-                 kP_position: np.array,
-                 kD_position: np.array,
-                 kI_position: np.array,
-                 kP_orientation: np.array,
-                 kD_orientation: np.array,
-                 kI_orientation: np.array,
-                 max_signal_position: np.array,
-                 max_signal_orientation: np.array,
-                 max_integral_position: np.array,
-                 max_integral_orientation: np.array):
+                 kP_position: np.ndarray,
+                 kD_position: np.ndarray,
+                 kI_position: np.ndarray,
+                 kP_orientation: np.ndarray,
+                 kD_orientation: np.ndarray,
+                 kI_orientation: np.ndarray,
+                 max_signal_position: np.ndarray,
+                 max_signal_orientation: np.ndarray,
+                 max_integral_position: np.ndarray,
+                 max_integral_orientation: np.ndarray):
         """
         Initialize the PID controller gains and limits.
 
         Parameters
         ----------
-        kP_position : np.array
+        kP_position : np.ndarray
             The proportional gains for the position error.
-        kD_position : np.array
+        kD_position : np.ndarray
             The derivative gains for the position error.
-        kI_position : np.array
+        kI_position : np.ndarray
             The integral gains for the position error.
-        kP_orientation : np.array
+        kP_orientation : np.ndarray
             The proportional gains for the orientation error.
-        kD_orientation : np.array
+        kD_orientation : np.ndarray
             The derivative gains for the orientation error.
-        kI_orientation : np.array
+        kI_orientation : np.ndarray
             The integral gains for the orientation error.
-        max_signal_position : np.array
+        max_signal_position : np.ndarray
             The maximum control signal for the position.
-        max_signal_orientation : np.array
+        max_signal_orientation : np.ndarray
             The maximum control signal for the orientation.
-        max_integral_position : np.array
+        max_integral_position : np.ndarray
             The maximum integral error for the position.
-        max_integral_orientation : np.array
+        max_integral_orientation : np.ndarray
             The maximum integral error for the orientation.
         """
         self.kP_position = kP_position
@@ -112,8 +111,8 @@ class PID():
         This function is used to reset the accumulated integral error, which
         can be useful to avoid wind-up issues in the controller.
         """
-        for key in self.iSum:
-            self.iSum[key] = 0
+        self.integral_position = np.zeros(3)
+        self.integral_orientation = np.zeros(3)
 
     def update(self,
                state: State,
@@ -160,8 +159,9 @@ class PID():
 
         # Orientation error, world frame, axis-angle form
         error_q_W = reference.orientation_world * \
-            state.orientation_world.inverse()
-        error_q_W = quat_to_axis_angle(error_q_W)
+            state.orientation_world.inv()
+        angle, axis = error_q_W.angle_axis()
+        error_q_W = axis * angle
         # Angular velocity error, body frame
         error_w_B = reference.angular_velocity_body - \
             state.angular_velocity_body
@@ -178,9 +178,7 @@ class PID():
             self.integral_orientation * self.kI_orientation
 
         # Convert force to body frame
-        force_quaternion = quaternion.quaternion(0, *force_world)
-        force_body = state.orientation_world.inverse() *\
-            force_quaternion * state.orientation_world
+        force_body = state.orientation_world.inv().R @ force_world
 
         # Clamp the control signal
         force_body = np.clip(

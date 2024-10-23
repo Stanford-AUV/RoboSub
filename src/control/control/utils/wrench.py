@@ -10,6 +10,13 @@ Example:
     wrench = Wrench(np.array([1, 2, 3]), np.array([4, 5, 6]))
     msg = wrench.to_msg()
 
+Dependencies:
+    geometry_msgs.msg.Vector3
+    geometry_msgs.msg.Wrench
+    geometry_msgs.msg.WrenchStamped
+    numpy
+    rclpy.time.Time
+    
 Author:
     Ali Ahmad
 
