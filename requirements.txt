@@ -2,3 +2,4 @@ depthai
 numpy
 scipy
 opencv-python
+casadi

@@ -1,0 +1,508 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+    <!-- See https://github.com/gazebosim/harmonic_demo/blob/8954ffb15e0ac7ffafe164889f273d94e7f6cb40/harmonic_demo/Tethys%20Sensors/model.sdf for examples of an AUV model with sensors -->
+    <model name="auv">
+
+        <link name='base_link'>
+            <pose>0 0 0 0 0 0</pose>
+            <inertial>
+                <mass>995.2</mass>
+                <inertia>
+                    <ixx>3.000000</ixx>
+                    <ixy>0.000000</ixy>
+                    <ixz>0.000000</ixz>
+                    <iyy>3.000000</iyy>
+                    <iyz>0.000000</iyz>
+                    <izz>3.000000</izz>
+                </inertia>
+            </inertial>
+            <visual name='base_visual'>
+                <geometry>
+                    <box>
+                        <size>0.444 0.34 0.5</size>
+                    </box>
+                </geometry>
+            </visual>
+            <collision name='base_collision'>
+                <geometry>
+                    <box>
+                        <size>1 1 1</size>
+                    </box>
+                </geometry>
+            </collision>
+            <sensor name="imu_sensor" type="imu">
+                <always_on>1</always_on>
+                <update_rate>1</update_rate>
+                <visualize>true</visualize>
+                <topic>imu</topic>
+            </sensor>
+            <sensor name="depth_sensor" type="altimeter">
+                <always_on>1</always_on>
+                <update_rate>1</update_rate>
+                <visualize>true</visualize>
+                <topic>depth</topic>
+            </sensor>
+            <sensor name="dvl_sensor" type="custom" gz:type="dvl">
+                <!-- Account for DVL mounting position and base link rotation -->
+                <pose degrees="true">0 0 -1 0 0 180</pose>
+                <always_on>1</always_on>
+                <update_rate>1</update_rate>
+                <topic>dvl</topic>
+                <gz:dvl>
+                    <type>phased_array</type>
+                    <arrangement degrees="true">
+                        <beam id="1">
+                            <aperture>2.1</aperture>
+                            <rotation>45</rotation>
+                            <tilt>30</tilt>
+                        </beam>
+                        <beam>
+                            <aperture>2.1</aperture>
+                            <rotation>135</rotation>
+                            <tilt>30</tilt>
+                        </beam>
+                        <beam>
+                            <aperture>2.1</aperture>
+                            <rotation>-45</rotation>
+                            <tilt>30</tilt>
+                        </beam>
+                        <beam>
+                            <aperture>2.1</aperture>
+                            <rotation>-135</rotation>
+                            <tilt>30</tilt>
+                        </beam>
+                    </arrangement>
+                    <tracking>
+                        <bottom_mode>
+                            <when>best</when>
+                            <noise type="gaussian">
+                                <!-- +/- 0.4 cm/s precision at 10 m/s within 2 stddevs -->
+                                <!-- <stddev>0.002</stddev> -->
+                            </noise>
+                            <visualize>false</visualize>
+                        </bottom_mode>
+                    </tracking>
+                    <!-- Roughly 1 m resolution at a 100m -->
+                    <resolution>0.01</resolution>
+                    <!-- Approximate maximum range @ ~14.4v -->
+                    <maximum_range>80.</maximum_range>
+                    <minimum_range>0.1</minimum_range>
+                    <!-- ENU to SFM -->
+                    <reference_frame>0 0 0 0 0 -1.570796</reference_frame>
+                </gz:dvl>
+            </sensor>
+        </link>
+
+        <!-- Thruster Links -->
+        <link name='box_1'>
+            <pose>-0.272 -0.22 -0.14 0 0 0</pose>            <!-- Position adjustment needed -->
+            <visual name="visual_side_1">
+                <geometry>
+                    <box>
+                        <size>0.2 0.2 0.01</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>1 0 0 1</ambient>                    <!-- Red color -->
+                    <diffuse>1 0 0 1</diffuse>
+                </material>
+            </visual>
+            <visual name="visual_side_2">
+                <pose>0 0 -0.01 0 0 0</pose>
+                <geometry>
+                    <box>
+                        <size>0.2 0.2 0.01</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>0 0 1 1</ambient>                    <!-- Blue color -->
+                    <diffuse>0 0 1 1</diffuse>
+                </material>
+            </visual>
+            <collision name="collision">
+                <geometry>
+                    <box>
+                        <size>0.2 0.01 0.2</size>
+                    </box>
+                </geometry>
+            </collision>
+        </link>
+
+        <link name='box_2'>
+            <pose>0.272 -0.22 -0.14 3.1415926536 0 0</pose>            <!-- Position adjustment needed -->
+            <visual name="visual_side_1">
+                <geometry>
+                    <box>
+                        <size>0.2 0.2 0.01</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>1 0 0 1</ambient>                    <!-- Red color -->
+                    <diffuse>1 0 0 1</diffuse>
+                </material>
+            </visual>
+            <visual name="visual_side_2">
+                <pose>0 0 -0.01 0 0 0</pose>
+                <geometry>
+                    <box>
+                        <size>0.2 0.2 0.01</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>0 0 1 1</ambient>                    <!-- Blue color -->
+                    <diffuse>0 0 1 1</diffuse>
+                </material>
+            </visual>
+            <collision name="collision">
+                <geometry>
+                    <box>
+                        <size>0.2 0.01 0.2</size>
+                    </box>
+                </geometry>
+            </collision>
+        </link>
+
+        <link name='box_3'>
+            <pose>0.272 0.22 -0.14 0 0 0</pose>            <!-- Position adjustment needed -->
+            <visual name="visual_side_1">
+                <geometry>
+                    <box>
+                        <size>0.2 0.2 0.01</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>1 0 0 1</ambient>                    <!-- Red color -->
+                    <diffuse>1 0 0 1</diffuse>
+                </material>
+            </visual>
+            <visual name="visual_side_2">
+                <pose>0 0 -0.01 0 0 0</pose>
+                <geometry>
+                    <box>
+                        <size>0.2 0.2 0.01</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>0 0 1 1</ambient>                    <!-- Blue color -->
+                    <diffuse>0 0 1 1</diffuse>
+                </material>
+            </visual>
+            <collision name="collision">
+                <geometry>
+                    <box>
+                        <size>0.2 0.01 0.2</size>
+                    </box>
+                </geometry>
+            </collision>
+        </link>
+
+        <link name='box_4'>
+            <pose>-0.272 0.22 -0.14 3.1415926536 0 0</pose>            <!-- Position adjustment needed -->
+            <visual name="visual_side_1">
+                <geometry>
+                    <box>
+                        <size>0.2 0.2 0.01</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>1 0 0 1</ambient>                    <!-- Red color -->
+                    <diffuse>1 0 0 1</diffuse>
+                </material>
+            </visual>
+            <visual name="visual_side_2">
+                <pose>0 0 -0.01 0 0 0</pose>
+                <geometry>
+                    <box>
+                        <size>0.2 0.2 0.01</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>0 0 1 1</ambient>                    <!-- Blue color -->
+                    <diffuse>0 0 1 1</diffuse>
+                </material>
+            </visual>
+            <collision name="collision">
+                <geometry>
+                    <box>
+                        <size>0.2 0.01 0.2</size>
+                    </box>
+                </geometry>
+            </collision>
+        </link>
+
+        <link name='box_5'>
+            <pose>-0.272 0.22 0 0 1.5707963268 -2.3561944902</pose>            <!-- Position adjustment needed -->
+            <visual name="visual_side_1">
+                <geometry>
+                    <box>
+                        <size>0.2 0.2 0.01</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>1 0 0 1</ambient>                    <!-- Red color -->
+                    <diffuse>1 0 0 1</diffuse>
+                </material>
+            </visual>
+            <visual name="visual_side_2">
+                <pose>0 0 -0.01 0 0 0</pose>
+                <geometry>
+                    <box>
+                        <size>0.2 0.2 0.01</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>0 0 1 1</ambient>                    <!-- Blue color -->
+                    <diffuse>0 0 1 1</diffuse>
+                </material>
+            </visual>
+            <collision name="collision">
+                <geometry>
+                    <box>
+                        <size>0.2 0.01 0.2</size>
+                    </box>
+                </geometry>
+            </collision>
+        </link>
+
+        <link name='box_6'>
+            <pose>-0.272 -0.22 0 3.1415926536 1.5707963268 2.3561944902</pose>            <!-- Position adjustment needed -->
+            <visual name="visual_side_1">
+                <geometry>
+                    <box>
+                        <size>0.2 0.2 0.01</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>1 0 0 1</ambient>                    <!-- Red color -->
+                    <diffuse>1 0 0 1</diffuse>
+                </material>
+            </visual>
+            <visual name="visual_side_2">
+                <pose>0 0 -0.01 0 0 0</pose>
+                <geometry>
+                    <box>
+                        <size>0.2 0.2 0.01</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>0 0 1 1</ambient>                    <!-- Blue color -->
+                    <diffuse>0 0 1 1</diffuse>
+                </material>
+            </visual>
+            <collision name="collision">
+                <geometry>
+                    <box>
+                        <size>0.2 0.01 0.2</size>
+                    </box>
+                </geometry>
+            </collision>
+        </link>
+
+        <link name="box_7">
+            <pose>0.272 -0.22 0 0 1.5707963268 -2.3561944902</pose>
+            <visual name="visual_side_1">
+                <geometry>
+                    <box>
+                        <size>0.2 0.2 0.01</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>1 0 0 1</ambient>                    <!-- Red color -->
+                    <diffuse>1 0 0 1</diffuse>
+                </material>
+            </visual>
+            <visual name="visual_side_2">
+                <pose>0 0 -0.01 0 0 0</pose>
+                <geometry>
+                    <box>
+                        <size>0.2 0.2 0.01</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>0 0 1 1</ambient>                    <!-- Blue color -->
+                    <diffuse>0 0 1 1</diffuse>
+                </material>
+            </visual>
+            <collision name="collision">
+                <geometry>
+                    <box>
+                        <size>0.2 0.01 0.2</size>
+                    </box>
+                </geometry>
+            </collision>
+        </link>
+
+        <link name='box_8'>
+            <pose>0.272 0.22 0 3.1415926536 1.5707963268 2.3561944902</pose>            <!-- Position adjustment needed -->
+            <visual name="visual_side_1">
+                <geometry>
+                    <box>
+                        <size>0.2 0.2 0.01</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>1 0 0 1</ambient>                    <!-- Red color -->
+                    <diffuse>1 0 0 1</diffuse>
+                </material>
+            </visual>
+            <visual name="visual_side_2">
+                <pose>0 0 -0.01 0 0 0</pose>
+                <geometry>
+                    <box>
+                        <size>0.2 0.2 0.01</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>0 0 1 1</ambient>                    <!-- Blue color -->
+                    <diffuse>0 0 1 1</diffuse>
+                </material>
+            </visual>
+            <collision name="collision">
+                <geometry>
+                    <box>
+                        <size>0.2 0.01 0.2</size>
+                    </box>
+                </geometry>
+            </collision>
+        </link>
+
+        <!-- Thruster Joints -->
+        <joint name='thruster_1' type='revolute'>
+            <pose>0 0 0 0 0 0</pose>
+            <parent>base_link</parent>
+            <child>box_1</child>
+            <axis>
+                <xyz>0 0 1</xyz>
+                <use_parent_model_frame>1</use_parent_model_frame>
+                <limit>
+                    <lower>-1e+12</lower>
+                    <upper>1e+12</upper>
+                    <effort>-1</effort>
+                    <velocity>-1</velocity>
+                </limit>
+            </axis>
+        </joint>
+
+        <joint name='thruster_2' type='revolute'>
+            <pose>0 0 0 0 0 0</pose>
+            <parent>base_link</parent>
+            <child>box_2</child>
+            <axis>
+                <xyz>0 0 -1</xyz>
+                <use_parent_model_frame>1</use_parent_model_frame>
+                <limit>
+                    <lower>-1e+12</lower>
+                    <upper>1e+12</upper>
+                    <effort>-1</effort>
+                    <velocity>-1</velocity>
+                </limit>
+            </axis>
+        </joint>
+
+        <joint name='thruster_3' type='revolute'>
+            <pose>0 0 0 0 0 0</pose>
+            <parent>base_link</parent>
+            <child>box_3</child>
+            <axis>
+                <xyz>0 0 1</xyz>
+                <use_parent_model_frame>1</use_parent_model_frame>
+                <limit>
+                    <lower>-1e+12</lower>
+                    <upper>1e+12</upper>
+                    <effort>-1</effort>
+                    <velocity>-1</velocity>
+                </limit>
+            </axis>
+        </joint>
+
+        <joint name='thruster_4' type='revolute'>
+            <pose>0 0 0 0 0 0</pose>
+            <parent>base_link</parent>
+            <child>box_4</child>
+            <axis>
+                <xyz>0 0 -1</xyz>
+                <use_parent_model_frame>1</use_parent_model_frame>
+                <limit>
+                    <lower>-1e+12</lower>
+                    <upper>1e+12</upper>
+                    <effort>-1</effort>
+                    <velocity>-1</velocity>
+                </limit>
+            </axis>
+        </joint>
+
+        <joint name='thruster_5' type='revolute'>
+            <pose>0 0 0 0 0 0</pose>
+            <parent>base_link</parent>
+            <child>box_5</child>
+            <axis>
+                <xyz>-1 -1 0</xyz>
+                <use_parent_model_frame>1</use_parent_model_frame>
+                <limit>
+                    <lower>-1e+12</lower>
+                    <upper>1e+12</upper>
+                    <effort>-1</effort>
+                    <velocity>-1</velocity>
+                </limit>
+            </axis>
+        </joint>
+
+        <joint name='thruster_6' type='revolute'>
+            <pose>0 0 0 0 0 0</pose>
+            <parent>base_link</parent>
+            <child>box_6</child>
+            <axis>
+                <xyz>1 -1 0</xyz>
+                <use_parent_model_frame>1</use_parent_model_frame>
+                <limit>
+                    <lower>-1e+12</lower>
+                    <upper>1e+12</upper>
+                    <effort>-1</effort>
+                    <velocity>-1</velocity>
+                </limit>
+            </axis>
+        </joint>
+
+        <joint name='thruster_7' type='revolute'>
+            <pose>0 0 0 0 0 0</pose>
+            <parent>base_link</parent>
+            <child>box_7</child>
+            <axis>
+                <xyz>-1 -1 0</xyz>
+                <use_parent_model_frame>1</use_parent_model_frame>
+                <limit>
+                    <lower>-1e+12</lower>
+                    <upper>1e+12</upper>
+                    <effort>-1</effort>
+                    <velocity>-1</velocity>
+                </limit>
+            </axis>
+        </joint>
+
+        <joint name='thruster_8' type='revolute'>
+            <pose>0 0 0 0 0 0</pose>
+            <parent>base_link</parent>
+            <child>box_8</child>
+            <axis>
+                <xyz>1 -1 0</xyz>
+                <use_parent_model_frame>1</use_parent_model_frame>
+                <limit>
+                    <lower>-1e+12</lower>
+                    <upper>1e+12</upper>
+                    <effort>-1</effort>
+                    <velocity>-1</velocity>
+                </limit>
+            </axis>
+        </joint>
+
+        <plugin filename="gz-sim-pose-publisher-system" name="gz::sim::systems::PosePublisher">
+            <publish_model_pose>true</publish_model_pose>
+            <publish_link_pose>false</publish_link_pose>
+            <publish_visual_pose>false</publish_visual_pose>
+            <publish_collision_pose>false</publish_collision_pose>
+            <publish_sensor_pose>false</publish_sensor_pose>
+            <publish_nested_model_pose>true</publish_nested_model_pose>
+            <update_frequency>1000</update_frequency>
+        </plugin>
+    </model>
+</sdf>
