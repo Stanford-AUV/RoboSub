@@ -3,3 +3,7 @@ numpy
 scipy
 opencv-python
 casadi
+torch
+torchvision
+torchaudio
+ultralytics
