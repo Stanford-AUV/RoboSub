@@ -78,7 +78,7 @@ class ThrustGenerator(Node):
         msg = ThrustsStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.thrusts = thrusts.tolist()
-        self.get_logger().info(f"Publishing thrusts {msg.thrusts}")
+        #self.get_logger().info(f"Publishing thrusts {msg.thrusts}")
         self._thrusts_pub.publish(msg)
 
     def wrench_callback(self, msg: WrenchStamped):

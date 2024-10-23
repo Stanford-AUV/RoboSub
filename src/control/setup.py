@@ -10,7 +10,7 @@ setup(
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml"]),
     ],
-    install_requires=["setuptools"],
+    install_requires=["setuptools", "spatialmath-python"],
     zip_safe=True,
     maintainer="ros",
     maintainer_email="scotthickmann21@gmail.com",
@@ -21,6 +21,7 @@ setup(
         "console_scripts": [
             "thrust_generator = control.nodes.thrust_generator:main",
             "controller = control.nodes.controller:main",
-        ],
+            "test_path = control.nodes.test_path:main",
+        ]
     },
 )

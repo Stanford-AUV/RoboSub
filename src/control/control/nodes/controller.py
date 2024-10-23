@@ -22,7 +22,7 @@ Authors:
     Khaled Messai
 
 Version:
-    1.0.0
+    1.1.0
 """
 
 import threading
@@ -66,7 +66,7 @@ class Controller(Node):
         super().__init__('controller')
 
         self.state_subscription = self.create_subscription(
-            Odometry, 'state', self.state_callback, 10
+            Odometry, 'odometry', self.state_callback, 10
         )
         self.reference_subscription = self.create_subscription(
             Odometry, 'path', self.reference_callback, 10
@@ -120,7 +120,7 @@ class Controller(Node):
     def update(self):
         """Update the control signal and publish to the wrench topic."""
         newTime = self.get_clock().now()
-        dt = (newTime - self.time) / 1e6
+        dt = (newTime - self.time) / 1e9
         self.time = newTime
         wrench = self.policy.update(self.cur_state, self.ref_state, dt)
         self.control_publisher.publish(wrench)
