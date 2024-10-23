@@ -44,6 +44,7 @@ import numpy as np
 import spatialmath as sm
 
 
+
 class PID():
     """
     PID controller class that minimizes error to a desired reference.
@@ -103,6 +104,9 @@ class PID():
         self.max_signal_orientation = max_signal_orientation
         self.max_integral_position = max_integral_position
         self.max_integral_orientation = max_integral_orientation
+
+
+        self.index = 0 # index of where we are in the paths 
 
     def reset(self):
         """
