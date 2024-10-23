@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-import cv2
 import depthai as dai
+import cv2
 import numpy as np
 
 # Closer-in minimum depth, disparity range is doubled (from 95 to 190):
