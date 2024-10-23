@@ -3,3 +3,4 @@ torch
 torchvision
 torchaudio
 ultralytics
+casadi
