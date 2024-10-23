@@ -122,3 +122,65 @@ class State():
             orientation_world,
             angular_velocity_body
         )
+
+
+    @staticmethod
+    def from_customPaths_msg(msg: Paths, index=0: int):
+        #Path Message:
+        #List of Poses 
+        #List of Twists 
+
+        #Given an index, grab the path and twist at that index in the list, and return a state. 
+
+         """
+        Parameters
+        ----------
+        msg : Paths
+            Custom stamped Robosub paths message containing a:
+                1. List of Pose messages
+                2. List of Twist messages
+        index : int
+            The index of the path and twist we want to convert to the reference state. 
+            Default: 0
+        """
+        position_world = np.array(
+            [
+                msg.poses[index].pose.position.x,
+                msg.poses[index].pose.position.y,
+                msg.poses[index].pose.position.z,
+            ]
+        )
+        velocity_body = np.array(
+            [
+                msg.twists[index].twist.linear.x,
+                msg.twists[index].twist.linear.y,
+                msg.twists[index].twist.linear.z,
+            ]
+        )
+        orientation_world = sm.SE3.Quaternion(
+            s=msg.poses[index].pose.orientation.w,
+            v=[
+                msg.poses[index].pose.orientation.x,
+                msg.poses[index].pose.orientation.y,
+                msg.poses[index].pose.orientation.z,
+            ]
+        )
+        angular_velocity_body = np.array(
+            [
+                msg.twists[index].twist.angular.x,
+                msg.twists[index].twist.angular.y,
+                msg.twists[index].twist.angular.z,
+            ]
+        )
+
+        return State(
+            position_world,
+            velocity_body,
+            orientation_world,
+            angular_velocity_body
+        )
+
+        
+
+
+
