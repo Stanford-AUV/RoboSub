@@ -23,6 +23,7 @@ setup(
             f"debug_node = perception.nodes.debug_node:main",
             f"data_node = perception.nodes.data_node:main",
             f"image_publisher = perception.nodes.dummy_video:main",
+            f"camera_publisher = perception.nodes.camera_video:main",
             f"yolov8_ros_node = perception.nodes.YOLONode:main",
         ],
     },

@@ -7,7 +7,8 @@ def generate_launch_description():
         [
             Node(
                 package="perception",  # Replace with your package name
-                executable="image_publisher",  # The name of the executable (should match the entry point defined in setup.py)
+                # executable="image_publisher",  # The name of the executable (should match the entry point defined in setup.py)
+                executable="camera_publisher",
                 output="screen",
                 parameters=[],
             ),
