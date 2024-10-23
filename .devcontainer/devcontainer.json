@@ -15,7 +15,9 @@
 		"--volume=/tmp/.X11-unix:/tmp/.X11-unix",
 		"--volume=/mnt/wslg:/mnt/wslg",
 		"--ipc=host",
-		"--privileged"
+		"--privileged",
+		"--volume=/dev/bus/usb:/dev/bus/usb",
+		"--device-cgroup-rule=c 189:* rmw"
 		// uncomment to use intel iGPU
 		// "--device=/dev/dri"
 	],
