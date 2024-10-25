@@ -139,7 +139,7 @@ class Controller(Node):
         iSum = self.iSum["vel"]
 
         #Calculate error' 
-        velError = self.reference.velocity_body - self.cur_state.velocity_body
+            velError = self.reference.velocity_body - self.cur_state.velocity_body
         #Proportional' 
         propTerm = velError * kP 
         #Derivative' 

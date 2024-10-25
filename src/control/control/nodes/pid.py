@@ -128,6 +128,7 @@ class PID():
 
         self.cur_state = None
         self.reference = None
+        self.paths = None
 
         self.dt = 0.0
         self.curTime = self.get_clock().now()
@@ -136,6 +137,12 @@ class PID():
         self.lastVelError = np.zeros(3)
         self.lastOrientationError = np.zeros(3)
         self.lastangVelError = np.zeros(3)
+
+    def set_cur_state(self, state: State):
+        self.cur_state = state
+    
+    def set_reference(self, reference: State):
+        self.reference = reference
 
     def calculatePosOutput(self):
         #Get time change
@@ -237,7 +244,40 @@ class PID():
         self.config.integral_position = np.zeros(3)
         self.config.integral_orientation = np.zeros(3)
 
+    
+
+    def areWeThereYet(self, error_margin = 1):
+        #Check if we are at the end of the path
+        if self.index == len(self.paths) - 1:
+            return True
+
+        #Check if we are close enough to the next point in the path
+
+        errorMagnitude = np.linalg.norm(self.lastPosError)
+        if errorMagnitude <= error_margin:
+            self.index += 1
+            self.reference = State.from_customPaths_msg(self.paths, self.index)
+            return True
+        return False
+
+    def timeFunction(self):
+        #is in nanoseconds, probably need to scale it up to seconds. just divide by 1e9 xd 
+        newTime = self.get_clock().now()
+        self.deltaT = (newTime - self.curTime) / 1e9 
+        self.curTime = newTime 
+
+
+
     def update(self) -> WrenchStamped:
+
+        if self.cur_state is None or self.reference is None:
+            raise ValueError("Current state or reference state is not set")
+        
+        if self.paths is None:
+            raise ValueError("No paths are set")
+        
+        update_index = self.areWeThereYet()
+            
         
         force_body = self.calculatePosOutput() + self.calculateVelOutput()
         torque_body = self.calculateOrientationOutput() + self.calculateAngularVelocityOutput()
@@ -246,9 +286,4 @@ class PID():
 
         return wrench.to_msg()
 
-
-    def timeFunction(self):
-        #is in nanoseconds, probably need to scale it up to seconds. just divide by 1e9 xd 
-        newTime = self.get_clock().now()
-        self.deltaT = (newTime - self.curTime) / 1e9 
-        self.curTime = newTime 
+    

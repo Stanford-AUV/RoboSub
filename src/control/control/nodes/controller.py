@@ -68,8 +68,8 @@ class Controller(Node):
         self.state_subscription = self.create_subscription(
             Odometry, 'odometry', self.state_callback, 10
         )
-        self.reference_subscription = self.create_subscription(
-            Odometry, 'path', self.reference_callback, 10
+        self.reference_subscription = self.create_subscription(x
+            Paths, 'path', self.reference_callback, 10
         )
         self.control_publisher = self.create_publisher(
             WrenchStamped, 'wrench', 10
@@ -101,6 +101,7 @@ class Controller(Node):
         """
         with self.lock:
             self.cur_state = State.from_odometry_msg(msg)
+            self.policy.set_cur_state(self.cur_state)
             self.get_logger().info('Current state updated')
             self.update()
 
@@ -114,7 +115,9 @@ class Controller(Node):
             The message containing the reference state.
         """
         with self.lock:
-            self.ref_state = State.from_odometry_msg(msg)
+            self.ref_state = State.from_customPaths_msg(msg)
+            self.policy.set_reference(self.ref_state)
+            self.policy.paths = msg.paths
             self.get_logger().info('Reference state updated')
 
     def update(self):
