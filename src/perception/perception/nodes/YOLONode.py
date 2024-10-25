@@ -10,7 +10,10 @@ from vision_msgs.msg import (
     Detection2D,
     Detection2DArray,
     ObjectHypothesisWithPose,
+    Pose2D,
 )
+
+# from geometry_msgs.msg import Pose2D
 
 
 class YoloV8ROSNode(Node):
@@ -48,24 +51,27 @@ class YoloV8ROSNode(Node):
             center_x = x + w / 2
             center_y = y + h / 2
 
-            # Create the Pose2D for the center
-            center = {"x": center_x, "y": center_y}
-
             # Set size_x and size_y
-            size_x = w
-            size_y = h
+            size_x = float(w)
+            size_y = float(h)
 
-            return {"center": center, "size_x": size_x, "size_y": size_y}
+            # Create the Pose2D for the center
+            pose = Pose2D()
+            pose.position.x = float(center_x)
+            pose.position.y = float(center_y)
+
+            return {"center": pose, "size_x": size_x, "size_y": size_y}
 
         detections_array = Detection2DArray()
         # append detection (i.e. a bounding box) to detections_array
         num_bbox = len(results[0].boxes.xywh)
         for bbox_idx in range(num_bbox):
             detection = Detection2D()
+
             # init objecthypothsis...
             objhypo = ObjectHypothesisWithPose()
-            objhypo.hypothesis.class_id = int(results[0].boxes[bbox_idx].cls)
-            objhypo.hypothesis.score = results[0].boxes[bbox_idx].conf
+            objhypo.hypothesis.class_id = str(results[0].boxes[bbox_idx].cls)
+            objhypo.hypothesis.score = float(results[0].boxes[bbox_idx].conf)
             detection.results.append(objhypo)
 
             # init 2d boundingbox
@@ -81,8 +87,6 @@ class YoloV8ROSNode(Node):
             detections_array.detections.append(detection)
 
         # Annotate the image with detections
-
-        # self.get_logger().info(detections_array)
         detections_array.header = msg.header
         self.pub.publish(detections_array)
 

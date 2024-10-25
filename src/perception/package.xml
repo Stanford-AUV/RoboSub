@@ -15,6 +15,7 @@
   <depend>sensor_msgs</depend>
   <depend>vision_msgs</depend>
   <depend>yolov8_msgs</depend>
+  <depend>geometry_msgs</depend>
 
   <export>
     <build_type>ament_python</build_type>
