@@ -130,8 +130,7 @@ class PID():
         self.reference = None
         self.paths = None
 
-        self.dt = 0.0
-        self.curTime = self.get_clock().now()
+
 
         self.lastPosError = np.zeros(3)
         self.lastVelError = np.zeros(3)
@@ -141,10 +140,10 @@ class PID():
     def set_cur_state(self, state: State):
         self.cur_state = state
     
-    def set_reference(self, reference: State):
+    def set_reference_state(self, reference: State):
         self.reference = reference
 
-    def calculatePosOutput(self):
+    def calculatePosOutput(self, dt):
         #Get time change
         self.timeFunction() 
 
@@ -153,10 +152,11 @@ class PID():
         #Proportional' 
         pTerm = self.config.kP_position * posError
         #Integral' 
-        self.config.integral_position += posError * self.dt
+        self.config.integral_position += posError * dt
+        self.config.integral_position = np.clip(self.config.integral_position, -self.config.max_integral_position, self.config.max_integral_position)
         iTerm = self.config.kI_position * self.config.integral_position
         #Derivative' 
-        dTerm = self.config.kD_position * (posError - self.lastPosError) / self.dt
+        dTerm = self.config.kD_position * (posError - self.lastPosError) / dt
         #Sum' 
         output = pTerm + iTerm + dTerm
         #Clamp' 
@@ -165,7 +165,7 @@ class PID():
         self.lastPosError = posError
         return output
 
-    def calculateVelOutput(self):
+    def calculateVelOutput(self, dt):
         #Get time change
         self.timeFunction() 
 
@@ -174,10 +174,12 @@ class PID():
         #Proportional' 
         pTerm = self.config.kP_velocity * velError
         #Integral' 
-        self.config.integral_velocity += velError * self.dt
+        self.config.integral_velocity += velError * dt
+        self.config.integral_velocity = np.clip(self.config.integral_velocity, -self.config.max_integral_velocity, self.config.max_integral_velocity)
         iTerm = self.config.kI_velocity * self.config.integral_velocity
+        
         #Derivative' 
-        dTerm = self.config.kD_velocity * (velError - self.lastVelError) / self.dt
+        dTerm = self.config.kD_velocity * (velError - self.lastVelError) / dt
         #Sum' 
         output = pTerm + iTerm + dTerm
         #Clamp' 
@@ -186,7 +188,7 @@ class PID():
         self.lastVelError = velError
         return output
 
-    def calculateOrientationOutput(self):
+    def calculateOrientationOutput(self, dt):
         #Get time change
         self.timeFunction()
 
@@ -198,10 +200,11 @@ class PID():
         #Proportional
         pTerm = self.config.kP_orientation * orientationError
         #Integral
-        self.config.integral_orientation += orientationError * self.dt
+        self.config.integral_orientation += orientationError * dt
+        self.config.integral_orientation = np.clip(self.config.integral_orientation, -self.config.max_integral_orientation, self.config.max_integral_orientation)
         iTerm = self.config.kI_orientation * self.config.integral_orientation
         #Derivative
-        dTerm = self.config.kD_orientation * (orientationError - self.lastOrientationError) / self.dt
+        dTerm = self.config.kD_orientation * (orientationError - self.lastOrientationError) / dt
         #Sum
         output = pTerm + iTerm + dTerm
         #Clamp
@@ -210,7 +213,7 @@ class PID():
         self.lastOrientationError = orientationError
         return output
 
-    def calculateAngularVelocityOutput(self):
+    def calculateAngularVelocityOutput(self, dt):
         # Get time change
         self.timeFunction() 
 
@@ -219,12 +222,12 @@ class PID():
         # Proportional
         propTerm = angVelError * self.config.kP_angular_velocity
         #Derivative
-        d_dx = (angVelError - self.lastangVelError) / self.deltaT 
+        d_dx = (angVelError - self.lastangVelError) / dt 
         d_dx *= self.config.kD_angular_velocity
         #Integraive
-        iTerm = angVelError * self.config.kI_angular_velocity * self.deltaT 
-        self.config.integral_orientation += iTerm 
-
+        self.config.integral_orientation += angVelError * dt
+        self.config.integral_orientation = np.clip(self.config.integral_orientation, -self.config.max_integral_angular_velocity, self.config.max_integral_angular_velocity)
+        iTerm = angVelError * self.config.kI_angular_velocity * dt 
         #generate output
         output = propTerm + d_dx + iTerm 
 
@@ -243,6 +246,12 @@ class PID():
         """
         self.config.integral_position = np.zeros(3)
         self.config.integral_orientation = np.zeros(3)
+        self.config.integral_velocity = np.zeros(3)
+        self.config.integral_angular_velocity = np.zeros(3)
+        self.lastPosError = np.zeros(3)
+        self.lastVelError = np.zeros(3)
+        self.lastOrientationError = np.zeros(3)
+        self.lastangVelError = np.zeros(3)
 
     
 
@@ -260,11 +269,6 @@ class PID():
             return True
         return False
 
-    def timeFunction(self):
-        #is in nanoseconds, probably need to scale it up to seconds. just divide by 1e9 xd 
-        newTime = self.get_clock().now()
-        self.deltaT = (newTime - self.curTime) / 1e9 
-        self.curTime = newTime 
 
 
 

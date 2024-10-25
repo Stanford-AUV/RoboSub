@@ -68,7 +68,7 @@ class Controller(Node):
         self.state_subscription = self.create_subscription(
             Odometry, 'odometry', self.state_callback, 10
         )
-        self.reference_subscription = self.create_subscription(x
+        self.reference_subscription = self.create_subscription(
             Paths, 'path', self.reference_callback, 10
         )
         self.control_publisher = self.create_publisher(
@@ -120,13 +120,24 @@ class Controller(Node):
             self.policy.paths = msg.paths
             self.get_logger().info('Reference state updated')
 
-    def update(self):
-        """Update the control signal and publish to the wrench topic."""
+
+    def deltaT(self):
         newTime = self.get_clock().now()
         dt = (newTime - self.time) / 1e9
         self.time = newTime
-        wrench = self.policy.update(self.cur_state, self.ref_state, dt)
-        self.control_publisher.publish(wrench)
+        return dt
+
+    def update(self):
+        """Update the control signal and publish to the wrench topic."""
+        dt = self.deltaT()
+        try:
+            wrench = self.policy.update(self.cur_state, self.ref_state, dt)
+            self.control_publisher.publish(wrench)
+        except Exception as e:
+            self.get_logger().error(f'Error updating control signal: {e}')
+            self.get_logger().error('Resetting controller...')
+            self.reset()
+
 
 
 def main(args=None):
