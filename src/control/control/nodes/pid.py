@@ -194,7 +194,8 @@ class PID():
 
         orientationError = self.reference.orientation_world * self.cur_state.orientation_world.inv()
         
-        orientationError = np.array([orientationError[0], orientationError[1], orientationError[2]])
+        angle, axis = orientationError.angle_axis()
+        orientationError = angle * axis
 
 
         #Proportional
