@@ -43,6 +43,7 @@ import numpy as np
 
 import spatialmath as sm
 
+from src/msgs/msg/GeneratedPath.msg import Paths 
 
 class PID_config():
     "Class to encapsulate PID parameters"
@@ -273,7 +274,7 @@ class PID():
 
 
 
-    def update(self) -> WrenchStamped:
+    def update(sel, dt) -> WrenchStamped:
 
         if self.cur_state is None or self.reference is None:
             raise ValueError("Current state or reference state is not set")
@@ -284,8 +285,8 @@ class PID():
         update_index = self.areWeThereYet()
             
         
-        force_body = self.calculatePosOutput() + self.calculateVelOutput()
-        torque_body = self.calculateOrientationOutput() + self.calculateAngularVelocityOutput()
+        force_body = self.calculatePosOutput(dt) + self.calculateVelOutput(dt)
+        torque_body = self.calculateOrientationOutput(dt) + self.calculateAngularVelocityOutput(dt)
         
         wrench = AbstractWrench(force_body, torque_body)
 
