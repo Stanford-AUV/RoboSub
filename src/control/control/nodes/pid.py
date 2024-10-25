@@ -34,8 +34,8 @@ Version:
     1.0.0
 """
 
-from control.utils.state import State
-from control.utils.wrench import AbstractWrench
+from state import State
+from wrench import AbstractWrench
 
 from geometry_msgs.msg import WrenchStamped
 
@@ -44,6 +44,73 @@ import numpy as np
 import spatialmath as sm
 
 
+class PID_config():
+    "Class to encapsulate PID parameters"
+    "Kp - proportional gain"
+    "Kd - derivative gain"
+    "Ki - integral gain"
+    "Three sets of gains for position, velocity, and orientation"
+    "Max signals : upper limits for the control signal"
+    def __init__(self, 
+                kP_position: np.ndarray,
+                kD_position: np.ndarray,
+                kI_position: np.ndarray,
+                kP_velocity: np.ndarray,
+                kD_velocity: np.ndarray,
+                kI_velocity: np.ndarray,
+                kP_orientation: np.ndarray,
+                kD_orientation: np.ndarray,
+                kI_orientation: np.ndarray,
+                kP_angular_velocity: np.ndarray,
+                kD_angular_velocity: np.ndarray,
+                kI_angular_velocity: np.ndarray,
+                max_signal_position: np.ndarray,
+                max_signal_velocity: np.ndarray,
+                max_signal_orientation: np.ndarray,
+                max_signal_angular_velocity: np.ndarray,
+                max_integral_position: np.ndarray,
+                max_integral_velocity: np.ndarray,
+                max_integral_orientation: np.ndarray,
+                max_integral_angular_velocity: np.ndarray):
+
+        self.kP_position = kP_position
+        self.kD_position = kD_position
+        self.kI_position = kI_position
+
+        self.kP_velocity = kP_velocity
+        self.kD_velocity = kD_velocity
+        self.kI_velocity = kI_velocity
+
+        self.kP_orientation = kP_orientation
+        self.kD_orientation = kD_orientation
+        self.kI_orientation = kI_orientation
+
+        self.kP_angular_velocity = kP_angular_velocity
+        self.kD_angular_velocity = kD_angular_velocity
+        self.kI_angular_velocity = kI_angular_velocity
+
+        self.integral_position = np.zeros(3)
+        self.integral_velocity = np.zeros(3)
+        self.integral_orientation = np.zeros(3)
+        self.integral_angular_velocity = np.zeros(3)
+
+        self.max_signal_position = max_signal_position
+        self.max_signal_orientation = max_signal_orientation
+        self.max_signal_velocity = max_signal_velocity
+        self.max_signal_angular_velocity = max_signal_angular_velocity
+
+        self.max_integral_position = max_integral_position
+        self.max_integral_orientation = max_integral_orientation
+        self.max_integral_velocity = max_integral_velocity
+        self.max_integral_angular_velocity = max_integral_angular_velocity
+
+
+
+    def update_PID_params(self, gain_type : str, new_values : np.ndarray):
+        if hasattr(self, gain_type):
+            setattr(self, gain_type, new_values)
+        else:
+            raise ValueError("invalid gain type :(")
 
 class PID():
     """
@@ -54,59 +121,111 @@ class PID():
     parameters.
     """
 
-    def __init__(self,
-                 kP_position: np.ndarray,
-                 kD_position: np.ndarray,
-                 kI_position: np.ndarray,
-                 kP_orientation: np.ndarray,
-                 kD_orientation: np.ndarray,
-                 kI_orientation: np.ndarray,
-                 max_signal_position: np.ndarray,
-                 max_signal_orientation: np.ndarray,
-                 max_integral_position: np.ndarray,
-                 max_integral_orientation: np.ndarray):
-        """
-        Initialize the PID controller gains and limits.
-
-        Parameters
-        ----------
-        kP_position : np.ndarray
-            The proportional gains for the position error.
-        kD_position : np.ndarray
-            The derivative gains for the position error.
-        kI_position : np.ndarray
-            The integral gains for the position error.
-        kP_orientation : np.ndarray
-            The proportional gains for the orientation error.
-        kD_orientation : np.ndarray
-            The derivative gains for the orientation error.
-        kI_orientation : np.ndarray
-            The integral gains for the orientation error.
-        max_signal_position : np.ndarray
-            The maximum control signal for the position.
-        max_signal_orientation : np.ndarray
-            The maximum control signal for the orientation.
-        max_integral_position : np.ndarray
-            The maximum integral error for the position.
-        max_integral_orientation : np.ndarray
-            The maximum integral error for the orientation.
-        """
-        self.kP_position = kP_position
-        self.kD_position = kD_position
-        self.kI_position = kI_position
-        self.kP_orientation = kP_orientation
-        self.kD_orientation = kD_orientation
-        self.kI_orientation = kI_orientation
-
-        self.integral_position = np.array([0, 0, 0])
-        self.integral_orientation = np.array([0, 0, 0])
-        self.max_signal_position = max_signal_position
-        self.max_signal_orientation = max_signal_orientation
-        self.max_integral_position = max_integral_position
-        self.max_integral_orientation = max_integral_orientation
-
-
+    def __init__(self, config: PID_config):
+        
+        self.config = config
         self.index = 0 # index of where we are in the paths 
+
+        self.cur_state = None
+        self.reference = None
+
+        self.dt = 0.0
+        self.curTime = self.get_clock().now()
+
+        self.lastPosError = np.zeros(3)
+        self.lastVelError = np.zeros(3)
+        self.lastOrientationError = np.zeros(3)
+        self.lastangVelError = np.zeros(3)
+
+    def calculatePosOutput(self):
+        #Get time change
+        self.timeFunction() 
+
+        #Calculate error' 
+        posError = self.reference.position_world - self.cur_state.position_world
+        #Proportional' 
+        pTerm = self.config.kP_position * posError
+        #Integral' 
+        self.config.integral_position += posError * self.dt
+        iTerm = self.config.kI_position * self.config.integral_position
+        #Derivative' 
+        dTerm = self.config.kD_position * (posError - self.lastPosError) / self.dt
+        #Sum' 
+        output = pTerm + iTerm + dTerm
+        #Clamp' 
+        output = np.clip(output, -self.config.max_signal_position, self.config.max_signal_position)
+        #Update last error' 
+        self.lastPosError = posError
+        return output
+
+    def calculateVelOutput(self):
+        #Get time change
+        self.timeFunction() 
+
+        #Calculate error' 
+        velError = self.reference.velocity_body - self.cur_state.velocity_body
+        #Proportional' 
+        pTerm = self.config.kP_velocity * velError
+        #Integral' 
+        self.config.integral_velocity += velError * self.dt
+        iTerm = self.config.kI_velocity * self.config.integral_velocity
+        #Derivative' 
+        dTerm = self.config.kD_velocity * (velError - self.lastVelError) / self.dt
+        #Sum' 
+        output = pTerm + iTerm + dTerm
+        #Clamp' 
+        output = np.clip(output, -self.config.max_signal_velocity, self.config.max_signal_velocity)
+        #Update last error' 
+        self.lastVelError = velError
+        return output
+
+    def calculateOrientationOutput(self):
+        #Get time change
+        self.timeFunction()
+
+        orientationError = self.reference.orientation_world * self.cur_state.orientation_world.inv()
+        
+        orientationError = np.array([orientationError[0], orientationError[1], orientationError[2]])
+
+
+        #Proportional
+        pTerm = self.config.kP_orientation * orientationError
+        #Integral
+        self.config.integral_orientation += orientationError * self.dt
+        iTerm = self.config.kI_orientation * self.config.integral_orientation
+        #Derivative
+        dTerm = self.config.kD_orientation * (orientationError - self.lastOrientationError) / self.dt
+        #Sum
+        output = pTerm + iTerm + dTerm
+        #Clamp
+        output = np.clip(output, -self.config.max_signal_orientation, self.config.max_signal_orientation)
+        #Update last error
+        self.lastOrientationError = orientationError
+        return output
+
+    def calculateAngularVelocityOutput(self):
+        # Get time change
+        self.timeFunction() 
+
+        #Calculate Error
+        angVelError = self.reference.angular_velocity_body - self.cur_state.angular_velocity_body
+        # Proportional
+        propTerm = angVelError * self.config.kP_angular_velocity
+        #Derivative
+        d_dx = (angVelError - self.lastangVelError) / self.deltaT 
+        d_dx *= self.config.kD_angular_velocity
+        #Integraive
+        iTerm = angVelError * self.config.kI_angular_velocity * self.deltaT 
+        self.config.integral_orientation += iTerm 
+
+        #generate output
+        output = propTerm + d_dx + iTerm 
+
+        self.lastangVelError = angVelError
+
+        return output
+        
+
 
     def reset(self):
         """
@@ -115,87 +234,21 @@ class PID():
         This function is used to reset the accumulated integral error, which
         can be useful to avoid wind-up issues in the controller.
         """
-        self.integral_position = np.zeros(3)
-        self.integral_orientation = np.zeros(3)
+        self.config.integral_position = np.zeros(3)
+        self.config.integral_orientation = np.zeros(3)
 
-    def update(self,
-               state: State,
-               reference: State,
-               dt: float
-               ) -> WrenchStamped:
-        """
-        Compute the control signal.
-
-        The function calculates the control signal by evaluating the between
-        the error between the current state and the target reference. It then
-        computes the control signal by multiplying the error by the gains
-        and clamp the output to the maximum limit.
-
-        Parameters
-        ----------
-        state : State
-            State object representing the current state of the system.
-        reference : State
-            State object representing the desired reference state.
-        dt : float
-            The time step between the current and previous state.
-
-        Returns
-        -------
-        np.array
-            The control signal, constrained by the maximum output limit (ceil).
-        """
-        # Position error, world frame
-        error_r_W = reference.position_world - state.position_world
-        # Velocity error, body frame
-        error_v_B = reference.velocity_body - state.velocity_body
-        # Integral sum, clamped
-        self.integral_position += error_r_W * dt
-        self.integral_position = np.clip(
-            self.integral_position,
-            -self.max_integral_position,
-            self.max_integral_position
-        )
-        # Calculate force in the world frame
-        force_world = error_r_W * self.kP_position + \
-            error_v_B * self.kD_position + \
-            self.integral_position * self.kI_position
-
-        # Orientation error, world frame, axis-angle form
-        error_q_W = reference.orientation_world * \
-            state.orientation_world.inv()
-        angle, axis = error_q_W.angle_axis()
-        error_q_W = axis * angle
-        # Angular velocity error, body frame
-        error_w_B = reference.angular_velocity_body - \
-            state.angular_velocity_body
-        self.integral_orientation += error_q_W * dt
-        self.integral_orientation = np.clip(
-            self.integral_orientation,
-            -self.max_integral_orientation,
-            self.max_integral_orientation
-        )
-
-        # Calculate torque in the body frame
-        torque_body = error_q_W * self.kP_orientation + \
-            error_w_B * self.kD_orientation + \
-            self.integral_orientation * self.kI_orientation
-
-        # Convert force to body frame
-        force_body = state.orientation_world.inv().R @ force_world
-
-        # Clamp the control signal
-        force_body = np.clip(
-            force_body,
-            -self.max_signal_position,
-            self.max_signal_position
-        )
-        torque_body = np.clip(
-            torque_body,
-            -self.max_signal_orientation,
-            self.max_signal_orientation
-        )
-
+    def update(self) -> WrenchStamped:
+        
+        force_body = self.calculatePosOutput() + self.calculateVelOutput()
+        torque_body = self.calculateOrientationOutput() + self.calculateAngularVelocityOutput()
+        
         wrench = AbstractWrench(force_body, torque_body)
 
         return wrench.to_msg()
+
+
+    def timeFunction(self):
+        #is in nanoseconds, probably need to scale it up to seconds. just divide by 1e9 xd 
+        newTime = self.get_clock().now()
+        self.deltaT = (newTime - self.curTime) / 1e9 
+        self.curTime = newTime 
