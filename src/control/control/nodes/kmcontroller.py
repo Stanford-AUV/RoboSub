@@ -301,10 +301,6 @@ def update(PIDController):
         return
 
     self.publish_control()
-
-    
-
-
 def main(args=None):
     rclpy.init(args=args)
 
