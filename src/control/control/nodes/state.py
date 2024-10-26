@@ -180,6 +180,48 @@ class State():
             angular_velocity_body
         )
 
+    @staticmethod
+    def pathToState(path):
+        'Test function to mock paths without a message'
+        
+        position_world = np.array(
+            [
+                path.pose.position.x,
+                path.pose.position.y,
+                path.pose.position.z,
+            ]
+        )
+        velocity_body = np.array(
+            [
+                path.twist.linear.x,
+                path.twist.linear.y,
+                path.twist.linear.z,
+            ]
+        )
+        orientation_world = sm.SE3.Quaternion(
+            s=path.pose.orientation.w,
+            v=[
+                path.pose.orientation.x,
+                path.pose.orientation.y,
+                path.pose.orientation.z,
+            ]
+        )
+        angular_velocity_body = np.array(
+            [
+                path.twist.angular.x,
+                path.twist.angular.y,
+                path.twist.angular.z,
+            ]
+        )
+
+        return State(
+            position_world,
+            velocity_body,
+            orientation_world,
+            angular_velocity_body
+        )
+
+
         
 
 

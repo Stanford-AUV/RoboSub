@@ -146,6 +146,9 @@ class PID():
     def set_reference_state(self, reference: State):
         self.reference = reference
 
+    def set_paths(self, paths: Paths):
+        self.paths = paths
+
 
     'The PID calculations for each of the four possible errors. Position, Velocity, Orientation, Angular Velocity.'
     'These functions are presently kept separate to prepare for ad hoc modifications to their calculations. It is possible to combine them into one function,' 
@@ -165,7 +168,7 @@ class PID():
         pTerm = self.config.kP_position * posError
         #Integral' 
         self.config.integral_position += posError * self.config.kI_position * dt
-        self.config.integral_position = np.clip(self.config.integral_position, -self.config.max_integral_position, self.config.max_integral_position)
+        self.config.integral_position = self.clampIntegral(self.config.integral_position, self.config.max_integral_position)
         iTerm = self.config.integral_position 
         #Derivative' 
         dTerm = self.config.kD_position * (posError - self.lastPosError) / dt
@@ -184,7 +187,7 @@ class PID():
         pTerm = self.config.kP_velocity * velError
         #Integral' 
         self.config.integral_velocity += velError * self.config.kI_velocity * dt
-        self.config.integral_velocity = np.clip(self.config.integral_velocity, -self.config.max_integral_velocity, self.config.max_integral_velocity)
+        self.config.integral_velocity = self.clampIntegral(self.config.integral_velocity, self.config.max_integral_velocity)
         iTerm = self.config.integral_velocity
         
         #Derivative' 
@@ -208,7 +211,7 @@ class PID():
         pTerm = self.config.kP_orientation * orientationError
         #Integral
         self.config.integral_orientation += orientationError * self.config.kI_orientation * dt
-        self.config.integral_orientation = np.clip(self.config.integral_orientation, -self.config.max_integral_orientation, self.config.max_integral_orientation)
+        self.config.integral_orientation = self.clampIntegral(self.config.integral_orientation, self.config.max_integral_orientation)
         iTerm = self.config.integral_orientation
         #Derivative
         dTerm = self.config.kD_orientation * (orientationError - self.lastOrientationError) / dt
@@ -229,7 +232,7 @@ class PID():
         dTerm = self.config.kD_angular_velocity * (angVelError - self.lastangVelError) / dt 
         #Integrative
         self.config.integral_angular_velocity += angVelError * self.config.kI_angular_velocity * dt
-        self.config.integral_angular_velocity = np.clip(self.config.integral_angular_velocity, -self.config.max_integral_angular_velocity, self.config.max_integral_angular_velocity)
+        self.config.integral_angular_velocity = self.clampIntegral(self.config.integral_angular_velocity, self.config.max_integral_angular_velocity)
         iTerm = self.config.integral_angular_velocity 
         #generate output
         output = propTerm + dTerm + iTerm 
@@ -237,6 +240,9 @@ class PID():
         self.lastangVelError = angVelError
 
         return output
+
+    def clampIntegral(self, integral, max_integral):
+        return np.clip(integral, -max_integral, max_integral)
         
 
 
@@ -272,21 +278,26 @@ class PID():
 
 
     def update(self, dt) -> WrenchStamped:
-
-        if self.cur_state is None or self.reference is None:
-            raise ValueError("Current state or reference state is not set")
         
         if self.paths is None:
             raise ValueError("No paths are set")
-        
-        update_index = self.areWeThereYet()
+        else:
+            update_index = self.areWeThereYet()
+
+        if self.cur_state is None or self.reference is None:
+            raise ValueError("Current state or reference state is not set")
+        else:
+            force_body = self.calculatePosOutput(dt) + self.calculateVelOutput(dt)
+            torque_body = self.calculateOrientationOutput(dt) + self.calculateAngularVelocityOutput(dt)
+            wrench = AbstractWrench(force_body, torque_body)
+            return wrench.to_msg()
+
             
         
-        force_body = self.calculatePosOutput(dt) + self.calculateVelOutput(dt)
-        torque_body = self.calculateOrientationOutput(dt) + self.calculateAngularVelocityOutput(dt)
         
-        wrench = AbstractWrench(force_body, torque_body)
+        
+        
 
-        return wrench.to_msg()
+        
 
     
