@@ -29,6 +29,7 @@ Dependencies:
 
 Author:
     Ali Ahmad
+    Khaled Messai
 
 Version:
     1.0.0
@@ -107,11 +108,12 @@ class PID_config():
 
 
 
-    def update_PID_params(self, gain_type : str, new_values : np.ndarray):
+    def update_PID_params(self, gain_type: str, new_values: np.ndarray, new_limits: float):
         if hasattr(self, gain_type):
             setattr(self, gain_type, new_values)
         else:
             raise ValueError("invalid gain type :(")
+        
 
 class PID():
     """
@@ -129,10 +131,10 @@ class PID():
 
         self.cur_state = None
         self.reference = None
-        self.paths = None
+        self.paths = None #keep track of the paths
 
 
-
+        #derivative term requires last errors
         self.lastPosError = np.zeros(3)
         self.lastVelError = np.zeros(3)
         self.lastOrientationError = np.zeros(3)
@@ -144,18 +146,27 @@ class PID():
     def set_reference_state(self, reference: State):
         self.reference = reference
 
-    def calculatePosOutput(self, dt):
-        #Get time change
-        self.timeFunction() 
 
+    'The PID calculations for each of the four possible errors. Position, Velocity, Orientation, Angular Velocity.'
+    'These functions are presently kept separate to prepare for ad hoc modifications to their calculations. It is possible to combine them into one function,' 
+    'with the exception of orientation, which calculates the error differently.'
+
+    'Core PID loop:'
+        '1. Calculate error, represented as the difference between the reference and the current state.'
+        '2. Calculate the proportional term, which is the error multiplied by the proportional gain (kp).'
+        '3. Calculate the integral term, which is the sum of the error multiplied by the integral gain (ki).'
+        '4. Calculate the derivative term, which is the difference between the current error and the previous error multiplied by the derivative gain (kd).'
+        '5. Sum the three terms to get the output.'
+
+    def calculatePosOutput(self, dt):
         #Calculate error' 
         posError = self.reference.position_world - self.cur_state.position_world
         #Proportional' 
         pTerm = self.config.kP_position * posError
         #Integral' 
-        self.config.integral_position += posError * dt
+        self.config.integral_position += posError * self.config.kI_position * dt
         self.config.integral_position = np.clip(self.config.integral_position, -self.config.max_integral_position, self.config.max_integral_position)
-        iTerm = self.config.kI_position * self.config.integral_position
+        iTerm = self.config.integral_position 
         #Derivative' 
         dTerm = self.config.kD_position * (posError - self.lastPosError) / dt
         #Sum' 
@@ -167,17 +178,14 @@ class PID():
         return output
 
     def calculateVelOutput(self, dt):
-        #Get time change
-        self.timeFunction() 
-
         #Calculate error' 
         velError = self.reference.velocity_body - self.cur_state.velocity_body
         #Proportional' 
         pTerm = self.config.kP_velocity * velError
         #Integral' 
-        self.config.integral_velocity += velError * dt
+        self.config.integral_velocity += velError * self.config.kI_velocity * dt
         self.config.integral_velocity = np.clip(self.config.integral_velocity, -self.config.max_integral_velocity, self.config.max_integral_velocity)
-        iTerm = self.config.kI_velocity * self.config.integral_velocity
+        iTerm = self.config.integral_velocity
         
         #Derivative' 
         dTerm = self.config.kD_velocity * (velError - self.lastVelError) / dt
@@ -190,9 +198,6 @@ class PID():
         return output
 
     def calculateOrientationOutput(self, dt):
-        #Get time change
-        self.timeFunction()
-
         orientationError = self.reference.orientation_world * self.cur_state.orientation_world.inv()
         
         angle, axis = orientationError.angle_axis()
@@ -202,9 +207,9 @@ class PID():
         #Proportional
         pTerm = self.config.kP_orientation * orientationError
         #Integral
-        self.config.integral_orientation += orientationError * dt
+        self.config.integral_orientation += orientationError * self.config.kI_orientation * dt
         self.config.integral_orientation = np.clip(self.config.integral_orientation, -self.config.max_integral_orientation, self.config.max_integral_orientation)
-        iTerm = self.config.kI_orientation * self.config.integral_orientation
+        iTerm = self.config.integral_orientation
         #Derivative
         dTerm = self.config.kD_orientation * (orientationError - self.lastOrientationError) / dt
         #Sum
@@ -216,22 +221,18 @@ class PID():
         return output
 
     def calculateAngularVelocityOutput(self, dt):
-        # Get time change
-        self.timeFunction() 
-
         #Calculate Error
         angVelError = self.reference.angular_velocity_body - self.cur_state.angular_velocity_body
         # Proportional
         propTerm = angVelError * self.config.kP_angular_velocity
         #Derivative
-        d_dx = (angVelError - self.lastangVelError) / dt 
-        d_dx *= self.config.kD_angular_velocity
-        #Integraive
-        self.config.integral_orientation += angVelError * dt
-        self.config.integral_orientation = np.clip(self.config.integral_orientation, -self.config.max_integral_angular_velocity, self.config.max_integral_angular_velocity)
-        iTerm = angVelError * self.config.kI_angular_velocity * dt 
+        dTerm = self.config.kD_angular_velocity * (angVelError - self.lastangVelError) / dt 
+        #Integrative
+        self.config.integral_angular_velocity += angVelError * self.config.kI_angular_velocity * dt
+        self.config.integral_angular_velocity = np.clip(self.config.integral_angular_velocity, -self.config.max_integral_angular_velocity, self.config.max_integral_angular_velocity)
+        iTerm = self.config.integral_angular_velocity 
         #generate output
-        output = propTerm + d_dx + iTerm 
+        output = propTerm + dTerm + iTerm 
 
         self.lastangVelError = angVelError
 
@@ -258,23 +259,19 @@ class PID():
     
 
     def areWeThereYet(self, error_margin = 1):
-        #Check if we are at the end of the path
-        if self.index == len(self.paths) - 1:
-            return True
-
         #Check if we are close enough to the next point in the path
-
         errorMagnitude = np.linalg.norm(self.lastPosError)
         if errorMagnitude <= error_margin:
-            self.index += 1
-            self.reference = State.from_customPaths_msg(self.paths, self.index)
+            if self.index < len(self.paths) - 1:
+                self.index += 1
+                self.reference = State.from_customPaths_msg(self.paths, self.index)
             return True
         return False
 
 
 
 
-    def update(sel, dt) -> WrenchStamped:
+    def update(self, dt) -> WrenchStamped:
 
         if self.cur_state is None or self.reference is None:
             raise ValueError("Current state or reference state is not set")
