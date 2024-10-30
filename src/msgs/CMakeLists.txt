@@ -31,6 +31,10 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/GeneratedPath.msg"
   "msg/PWMsStamped.msg"
   "msg/ThrustsStamped.msg"
+  "msg/DVLBeam.msg"
+  "msg/DVLData.msg"
+  "msg/DVLTarget.msg"
+  "msg/DVLVelocity.msg"
   DEPENDENCIES geometry_msgs std_msgs
 )
 

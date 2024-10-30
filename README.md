@@ -31,7 +31,7 @@ When developing with ROS 2 and Gazebo, it's easy to suddenly be reading outdated
 
 1. Install VMWare Fusion (the free version, not the pro version).
 2. Download the Ubuntu ISO (either AMD or ARM depending on your computer) from https://cdimage.ubuntu.com/noble/daily-live/current/.
-3. Open VMWare and drag the downloaded ISO for installation.
+3. Open VMWare and drag the downloaded ISO for installation. MAKE SURE YOU SET THE DISK SIZE TO AT LEAST 30 GB!!!
 4. Press continue, then finish, and name your instance (leaving the default name is fine).
 5. Select "Try to install Ubuntu". Then click "Install Ubuntu" from the desktop.
 6. Proceed with the installation leaving everything as the default values.
@@ -114,14 +114,15 @@ ros2 run control thrust_generator
 
 ## Simulation
 
-Since simulation requires a GUI, we will only run the simulation server from VSCode. The simulation client will run directly on the VM.
+Since simulation requires a GUI, we will only run the simulation code from VSCode. The simulation itself will run directly on the VM.
 
 To use the Gazebo simulator, follow these steps:
 
-1. In a VSCode Terminal, run `./sim.sh` to launch the simulation server
-2. In a Terminal on the VM (not in VSCode! a GUI is necessary for this), run the following to launch the simulation client: `GZ_PARTITION=127.0.0.1:ros QT_QPA_PLATFORM=xcb gz sim -g -v 4`
-
-A window should pop up with the simulation environment displayed.
+1. Make sure you have the VM window easily accessible. The Gazebo window will show up inside the VM.
+2. In a Terminal on the VM (not in VSCode!), run `xhost +local:docker`
+3. Back on the VSCode Terminal, run `./sim.sh`
+4. A window should pop up in the VM with the simulation environment displayed. Press play to start the simulation.
+5. To stop the simulation, press `Control` + `C` on the VSCode Terminal
 
 ## Creating New Nodes
 
