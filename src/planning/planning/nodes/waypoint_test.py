@@ -80,7 +80,7 @@ class WaypointTest(Node):
 
     def generated_path_callback(self, msg: GeneratedPath):
         self.get_logger().info("Received generated path! Here it is:")
-        self.get_logger().info("{}".format(msg))
+        self.get_logger().info(f"{msg}")
 
     def publish_waypoints_from_json(self, json_file_path):
         try:
