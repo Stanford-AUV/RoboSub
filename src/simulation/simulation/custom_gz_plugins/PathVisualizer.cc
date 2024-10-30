@@ -41,14 +41,16 @@ void PathVisualizer::LoadConfig(const tinyxml2::XMLElement * /*_pluginElem*/)
 
 
   // Subscribe to the path topic
-  this->node.Subscribe("~/generated_path", &PathVisualizer::PathUpdateCallback, this);
+  this->node.Subscribe("/generated_path", &PathVisualizer::PathUpdateCallback, this);
+
+  this->showPath = false;
 }
 
 /////////////////////////////////////////////////
 void PathVisualizer::TogglePath()
 {
+  this->showPath = !(this->showPath);
   this->dirty = true;
-  this->showPath = !this->showPath;  // Toggle path visibility
 }
 
 /////////////////////////////////////////////////
@@ -67,74 +69,131 @@ bool PathVisualizer::eventFilter(QObject *_obj, QEvent *_event)
 }
 //! [eventFilter]
 
-void PathVisualizer::PathUpdateCallback(const gz::custom_msgs::GeneratedPath &_msg) {
-  // Extract waypoints from the message
-  this->dirty = true;  // Mark for redraw
-  // Store the path data for use in PerformRenderingOperations
-  this->pathData = _msg;
+void PathVisualizer::PathUpdateCallback(const gz::custom_msgs::GeneratedPath &_msg)
+{
+    // Check if message is valid before storing
+    if (_msg.poses_size() != _msg.twists_size()) {
+        gzerr << "Invalid path message: poses and twists size mismatch" << std::endl;
+        return;
+    }
+    
+    {
+        std::lock_guard<std::mutex> lock(this->pathMutex);
+        this->pathData = _msg;
+        this->dirty = true;
+    }
 }
 
 /////////////////////////////////////////////////
 //! [performRenderingOperations]
 void PathVisualizer::PerformRenderingOperations()
 {
-  if (!this->dirty)
-  {
-    return;
-  }
+    if (!this->dirty)
+        return;
 
-  if (nullptr == this->scene)
-  {
-    this->FindScene();
-  }
+    if (this->scene == nullptr)
+        this->FindScene();
 
-  if (nullptr == this->scene)
-    return;
+    if (this->scene == nullptr)
+        return;
 
-  // Remove existing path if any
-  if (this->pathVisual)
-  {
-    this->scene->RootVisual()->RemoveChild(this->pathVisual);
-    this->pathVisual.reset();
-  }
-
-  // Create and add a new path if showPath is true
-  if (this->showPath)
-  {
-    this->pathVisual = this->scene->CreateVisual("path_visual");
-    
-    // Replace hardcoded points with message data
-    for (size_t i = 0; i < this->pathData.poses_size(); i++)  // Use stored path data
+    // Remove existing path markers
+    for (auto &marker : this->pathMarkers)
     {
-      auto pathMarker = this->scene->CreateCone();
-      auto pathMarkerVisual = this->scene->CreateVisual();
-      pathMarkerVisual->AddGeometry(pathMarker);
-      pathMarkerVisual->SetLocalScale(0.2, 0.2, 0.4);
-      
-      // Use the actual pose from the message
-      pathMarkerVisual->SetLocalPosition(this->pathData.poses(i).position().x(), this->pathData.poses(i).position().y(), this->pathData.poses(i).position().z());
-      pathMarkerVisual->SetLocalRotation(this->pathData.poses(i).orientation().x(), this->pathData.poses(i).orientation().y(), this->pathData.poses(i).orientation().z(), this->pathData.poses(i).orientation().w());
-      
-      // Color based on velocity -- TODO: make this actually work
-      auto material = this->scene->CreateMaterial();
-      auto twist = this->pathData.twists(i);
-      auto linear_velocity = std::sqrt(twist.linear().x() * twist.linear().x() + twist.linear().y() * twist.linear().y() + twist.linear().z() * twist.linear().z());
-      auto angular_velocity = std::sqrt(twist.angular().x() * twist.angular().x() + twist.angular().y() * twist.angular().y() + twist.angular().z() * twist.angular().z());
-      // normalize velocity to 0-1
-      auto linear_velocity_normalized = linear_velocity / 1.5; // need to normalize by max velocity
-      auto angular_velocity_normalized = angular_velocity / 1.5; // need to normalize by max velocity
-      auto red = 0.5 * linear_velocity_normalized + 0.5 * angular_velocity_normalized;
-      auto green = 1 - linear_velocity_normalized;
-      material->SetDiffuse(gz::math::Color(red, green, 0));
-      pathMarkerVisual->SetMaterial(material);
-      
-      this->pathVisual->AddChild(pathMarkerVisual);
+        if (marker)
+        {
+            marker->RemoveGeometries();
+            this->scene->DestroyVisual(marker);
+        }
     }
-    
-    this->scene->RootVisual()->AddChild(this->pathVisual);
-  }
+    this->pathMarkers.clear();
 
-  this->dirty = false;
+    if (this->showPath)
+    {
+        // Create a local copy of path data under lock
+        gz::custom_msgs::GeneratedPath localPathData;
+        {
+            std::lock_guard<std::mutex> lock(this->pathMutex);
+            localPathData = this->pathData;
+        }
+
+        // Calculate max linear and angular velocities
+        double max_linear_velocity = 0.0;
+        double max_angular_velocity = 0.0;
+        for (int i = 0; i < localPathData.twists_size(); ++i) {
+            auto twist = localPathData.twists(i);
+            max_linear_velocity = std::max(max_linear_velocity, std::sqrt(twist.linear().x() * twist.linear().x() + twist.linear().y() * twist.linear().y() + twist.linear().z() * twist.linear().z()));
+            max_angular_velocity = std::max(max_angular_velocity, std::sqrt(twist.angular().x() * twist.angular().x() + twist.angular().y() * twist.angular().y() + twist.angular().z() * twist.angular().z()));
+        }
+
+        if (max_linear_velocity == 0.0 && max_angular_velocity == 0.0) {
+            gzerr << "No path data to visualize" << std::endl;
+            return;
+        }
+
+        for (int i = 0; i < localPathData.poses_size(); ++i)
+        {
+            // Verify we have corresponding twist data
+            if (i >= localPathData.twists_size())
+                break;
+
+            auto pathMarker = this->scene->CreateCone();
+            if (!pathMarker)
+                continue;
+
+            auto pathMarkerVisual = this->scene->CreateVisual();
+            if (!pathMarkerVisual)
+                continue;
+
+            pathMarkerVisual->AddGeometry(pathMarker);
+            pathMarkerVisual->SetLocalScale(0.2, 0.2, 0.4);
+
+            // Set the position from the message
+            pathMarkerVisual->SetLocalPosition(
+                localPathData.poses(i).position().x(),
+                localPathData.poses(i).position().y(),
+                localPathData.poses(i).position().z());
+
+            // Use actual pose from the message
+            gz::math::Quaterniond yRotation(0.707, 0.0, 0.707, 0.0); // 90 degrees around y axis to align with the world frame
+            gz::math::Quaterniond originalRotation(
+                localPathData.poses(i).orientation().w(),
+                localPathData.poses(i).orientation().x(),
+                localPathData.poses(i).orientation().y(),
+                localPathData.poses(i).orientation().z());
+            // Combine rotations
+            gz::math::Quaterniond finalRotation = yRotation * originalRotation;
+            pathMarkerVisual->SetLocalRotation(finalRotation);
+
+            // Color based on velocity
+            auto material = this->scene->CreateMaterial();
+            if (!material)
+                continue;
+
+            auto twist = localPathData.twists(i);
+            auto linear_velocity = std::sqrt(
+                twist.linear().x() * twist.linear().x() +
+                twist.linear().y() * twist.linear().y() +
+                twist.linear().z() * twist.linear().z());
+            auto angular_velocity = std::sqrt(
+                twist.angular().x() * twist.angular().x() +
+                twist.angular().y() * twist.angular().y() +
+                twist.angular().z() * twist.angular().z());
+
+            auto linear_velocity_normalized = max_linear_velocity > 0.0 ? linear_velocity / max_linear_velocity : 0.0;
+            auto angular_velocity_normalized = max_angular_velocity > 0.0 ? angular_velocity / max_angular_velocity : 0.0;
+            auto red = 0.5 * linear_velocity_normalized + 0.5 * angular_velocity_normalized;
+            auto green = 1 - linear_velocity_normalized * 0.5 - angular_velocity_normalized * 0.5;
+            material->SetDiffuse(gz::math::Color(red, green, 0));
+            pathMarkerVisual->SetMaterial(material);
+
+            // Add to scene and store reference
+            this->scene->RootVisual()->AddChild(pathMarkerVisual);
+            this->pathMarkers.push_back(pathMarkerVisual);
+        }
+    }
+
+    this->dirty = false;
 }
 //! [performRenderingOperations]
 
@@ -189,6 +248,21 @@ void PathVisualizer::FindScene()
   }
 
   this->scene = scenePtr;
+}
+
+PathVisualizer::~PathVisualizer()
+{
+  // Remove existing path markers
+  for (auto &marker : this->pathMarkers)
+  {
+    if (marker)
+    {
+      marker->RemoveGeometries();
+      if (this->scene)
+        this->scene->DestroyVisual(marker);
+    }
+  }
+  this->pathMarkers.clear();
 }
 
 // Register this plugin

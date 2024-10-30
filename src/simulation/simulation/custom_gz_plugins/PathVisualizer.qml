@@ -15,4 +15,10 @@ Rectangle {
     anchors.horizontalCenter: parent.horizontalCenter
     anchors.verticalCenter: parent.verticalCenter
   }
+  Text {
+    text: qsTr("Number of Points: " + PathVisualizer.pathData.poses_size())
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.top: parent.top
+    anchors.topMargin: 30
+  }
 }

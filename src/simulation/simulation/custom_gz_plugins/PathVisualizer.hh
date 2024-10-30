@@ -4,9 +4,10 @@
 #include <gz/gui/qt.h>
 #include <gz/gui/Plugin.hh>
 #include <gz/rendering/Scene.hh>
-#include <gz/msgs.hh>
 #include <gz/transport.hh>
 #include <gz/custom_msgs/GeneratedPath.pb.h>
+#include <mutex>
+#include <vector>
 
 /// \brief Example of a GUI plugin that uses Gazebo Rendering.
 /// This plugin works with Gazebo GUI's MinimalScene or any plugin providing
@@ -36,6 +37,10 @@ class PathVisualizer : public gz::gui::Plugin
   /// render engine singleton.
   private: void FindScene();
 
+  /// \brief Destructor to clean up markers.
+  public:
+    ~PathVisualizer();
+
   /// \brief Marks when a new change has been requested.
   private: bool dirty{false};
 
@@ -45,15 +50,17 @@ class PathVisualizer : public gz::gui::Plugin
   /// \brief Flag to toggle path visibility.
   private: bool showPath{false};
 
-  /// \brief Pointer to the path visual.
-  private: gz::rendering::VisualPtr pathVisual{nullptr};
-
   /// \brief Subscriber for the path topic.
   private: gz::transport::Node node;
 
-  /// \brief Stored path data from latest message
+  /// \brief Stored path data from latest message (the actual protobuf message)
   private: gz::custom_msgs::GeneratedPath pathData;
 
+  /// \brief Mutex to protect path data
+  private: std::mutex pathMutex;
+
+  /// \brief Store individual marker visuals
+  private: std::vector<gz::rendering::VisualPtr> pathMarkers;
 };
 
 #endif
