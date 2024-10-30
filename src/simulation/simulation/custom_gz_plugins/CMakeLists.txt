@@ -10,7 +10,11 @@ find_package(gz-rendering8 REQUIRED)
 
 find_package(gz-cmake3 REQUIRED)
 find_package(gz-msgs10 REQUIRED)
+<<<<<<< HEAD
 find_package(gz-transport10 REQUIRED)
+=======
+find_package(gz-transport14 REQUIRED)
+>>>>>>> a66a39c (added gz-ros bridge for path topic + added subscription to PathVisuzlizer)
 
 # Define a variable 'GZ_MSGS_VER' holding the version number
 set(GZ_MSGS_VER ${gz-msgs10_VERSION_MAJOR})
@@ -54,8 +58,7 @@ target_link_libraries(PathVisualizer
   PRIVATE
     gz-gui8::gz-gui8
     gz-rendering8::gz-rendering8
-  PUBLIC
-    PathVisualizer-msgs
+    gz-transport14::gz-transport14
 )
 
 install(TARGETS PathVisualizer DESTINATION ${$GZ_SIM_SYSTEM_PLUGIN_PATH})

@@ -26,7 +26,6 @@
 #include <gz/rendering/RenderingIface.hh>
 #include <gz/rendering/Scene.hh>
 #include <gz/transport/Node.hh>
-#include <gz/custom_msgs/GeneratedPath.pb.h>
 
 #include "PathVisualizer.hh"
 
@@ -38,13 +37,11 @@ void PathVisualizer::LoadConfig(const tinyxml2::XMLElement * /*_pluginElem*/)
       gz::gui::MainWindow *>()->installEventFilter(this);
 
   // Initialize the path data vector with an arbitrary path in case there is no message
-  this->generatedPath = gz::custom_msgs::GeneratedPath();
+  this->pathData = gz::custom_msgs::GeneratedPath();
 
 
   // Subscribe to the path topic
-  auto node = gz::transport::NodePtr(new gz::transport::Node());
-  node->Init();
-  this->sub = node->Subscribe("~/generated_path", &PathVisualizer::PathUpdateCallback, this);
+  this->node.Subscribe("~/generated_path", &PathVisualizer::PathUpdateCallback, this);
 }
 
 /////////////////////////////////////////////////
@@ -74,7 +71,7 @@ void PathVisualizer::PathUpdateCallback(const gz::custom_msgs::GeneratedPath &_m
   // Extract waypoints from the message
   this->dirty = true;  // Mark for redraw
   // Store the path data for use in PerformRenderingOperations
-  this->generatedPath = _msg;
+  this->pathData = _msg;
 }
 
 /////////////////////////////////////////////////
@@ -107,7 +104,7 @@ void PathVisualizer::PerformRenderingOperations()
     this->pathVisual = this->scene->CreateVisual("path_visual");
     
     // Replace hardcoded points with message data
-    for (size_t i = 0; i < std::size(this->generatedPath.poses); i++)  // Use stored path data
+    for (size_t i = 0; i < this->pathData.poses_size(); i++)  // Use stored path data
     {
       auto pathMarker = this->scene->CreateCone();
       auto pathMarkerVisual = this->scene->CreateVisual();
@@ -115,12 +112,12 @@ void PathVisualizer::PerformRenderingOperations()
       pathMarkerVisual->SetLocalScale(0.2, 0.2, 0.4);
       
       // Use the actual pose from the message
-      pathMarkerVisual->SetLocalPosition(this->generatedPath.poses[i].position());
-      pathMarkerVisual->SetLocalRotation(this->generatedPath.poses[i].orientation());
+      pathMarkerVisual->SetLocalPosition(this->pathData.poses(i).position().x(), this->pathData.poses(i).position().y(), this->pathData.poses(i).position().z());
+      pathMarkerVisual->SetLocalRotation(this->pathData.poses(i).orientation().x(), this->pathData.poses(i).orientation().y(), this->pathData.poses(i).orientation().z(), this->pathData.poses(i).orientation().w());
       
       // Color based on velocity -- TODO: make this actually work
       auto material = this->scene->CreateMaterial();
-      auto twist = this->generatedPath.twists[i];
+      auto twist = this->pathData.twists(i);
       auto linear_velocity = std::sqrt(twist.linear().x() * twist.linear().x() + twist.linear().y() * twist.linear().y() + twist.linear().z() * twist.linear().z());
       auto angular_velocity = std::sqrt(twist.angular().x() * twist.angular().x() + twist.angular().y() * twist.angular().y() + twist.angular().z() * twist.angular().z());
       // normalize velocity to 0-1

@@ -11,7 +11,7 @@
     <depend>gz-gui8</depend>
     <depend>gz-plugin2</depend>
     <depend>gz-rendering8</depend>
-    <depend>gz-transport15</depend>
+    <depend>gz-transport14</depend>
     <depend>std_msgs</depend>
     <depend>geometry_msgs</depend>
     <buildtool_depend>cmake</buildtool_depend>
