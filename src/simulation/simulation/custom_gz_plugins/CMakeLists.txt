@@ -10,11 +10,7 @@ find_package(gz-rendering8 REQUIRED)
 
 find_package(gz-cmake3 REQUIRED)
 find_package(gz-msgs10 REQUIRED)
-<<<<<<< HEAD
-find_package(gz-transport10 REQUIRED)
-=======
 find_package(gz-transport14 REQUIRED)
->>>>>>> a66a39c (added gz-ros bridge for path topic + added subscription to PathVisuzlizer)
 
 # Define a variable 'GZ_MSGS_VER' holding the version number
 set(GZ_MSGS_VER ${gz-msgs10_VERSION_MAJOR})
