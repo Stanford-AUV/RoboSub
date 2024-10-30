@@ -64,51 +64,9 @@ class PathVisualizer : public gz::gui::Plugin
   private: gz::rendering::VisualPtr pathVisual{nullptr};
 
   /// \brief Subscriber for the path topic.
-  private: gazebo::transport::SubscriberPtr sub;
+  private: gz::transport::SubscriberPtr sub;
 
   /// \brief Stored path data from latest message
-  private: PoseTwistStampedPath pathData;
-
-  /// \brief Typedef for the path data
-  public: struct PoseTwistStampedPath {
-    
-  };
-
-  public: struct PoseTwistStamped {
-    Header header;
-    PoseStamped pose;
-    TwistStamped twist;
-  };
-
-  public: struct Header {
-    uint32 seq;
-    std::time timestamp;
-    std::string frame_id;
-  };
-
-  public: struct PoseStamped {
-    Header header;
-    Pose pose;
-  };  
-
-  public: struct TwistStamped {
-    Header header;
-    Twist twist;
-  };
-
-  public: struct Pose {
-    double x;
-    double y;
-    double z;
-  };
-
-  public: struct Twist {
-    double x;
-    double y;
-    double z;
-  };
-
-
-};
+  private: gz::custom_msgs::GeneratedPath pathData;
 
 #endif
