@@ -10,6 +10,7 @@ find_package(gz-rendering8 REQUIRED)
 
 find_package(gz-cmake3 REQUIRED)
 find_package(gz-msgs10 REQUIRED)
+find_package(gz-transport10 REQUIRED)
 
 # Define a variable 'GZ_MSGS_VER' holding the version number
 set(GZ_MSGS_VER ${gz-msgs10_VERSION_MAJOR})
@@ -32,6 +33,11 @@ gz_msgs_generate_messages(
   MSGS_PROTOS ${MSGS_PROTOS}
   # Depenency on gz-msgs
   DEPENDENCIES gz-msgs${GZ_MSGS_VER}::gz-msgs${GZ_MSGS_VER}
+
+)
+
+include_directories(
+  ${CMAKE_CURRENT_BINARY_DIR}/custom_gz_plugins-msgs_genmsg
 )
 
 set(CMAKE_AUTOMOC ON)
@@ -48,6 +54,8 @@ target_link_libraries(PathVisualizer
   PRIVATE
     gz-gui8::gz-gui8
     gz-rendering8::gz-rendering8
+  PUBLIC
+    PathVisualizer-msgs
 )
 
 install(TARGETS PathVisualizer DESTINATION ${$GZ_SIM_SYSTEM_PLUGIN_PATH})

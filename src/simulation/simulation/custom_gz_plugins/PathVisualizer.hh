@@ -22,6 +22,7 @@
 #include <gz/gui/Plugin.hh>
 #include <gz/rendering/Scene.hh>
 #include <gz/msgs.hh>
+#include <gz/transport.hh>
 
 /// \brief Example of a GUI plugin that uses Gazebo Rendering.
 /// This plugin works with Gazebo GUI's MinimalScene or any plugin providing
