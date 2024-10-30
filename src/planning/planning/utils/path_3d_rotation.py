@@ -152,172 +152,173 @@ class RotationSpline:
         angular_acc_y = self.spline_y(t_fine, 2)
         angular_acc_z = self.spline_z(t_fine, 2)
         return np.vstack((angular_acc_x, angular_acc_y, angular_acc_z)).T
-    
-# Fit splines to theta_x theta_y theta_z as a function of t
-quaternion_spline = RotationSpline(np.linspace(0, 1, len(x)), Rotation.from_euler("xyz", orientations, degrees=True).as_quat(), v_max=max_angular_velocity, a_max=max_angular_acceleration)
 
-new_xs.extend([quaternion_spline.t_x, quaternion_spline.t_y, quaternion_spline.t_z])
+if __name__ == "__main__":
+    # Fit splines to theta_x theta_y theta_z as a function of t
+    quaternion_spline = RotationSpline(np.linspace(0, 1, len(x)), Rotation.from_euler("xyz", orientations, degrees=True).as_quat(), v_max=max_angular_velocity, a_max=max_angular_acceleration)
 
-final_x = [0.0] # Create final time interval such that each individual interval is max of corresponding intervals for each spline
-for i in range(len(new_xs[0]) - 1):
-    final_x.append(final_x[i] + max(new_x[i+1] - new_x[i] for new_x in new_xs))
+    new_xs.extend([quaternion_spline.t_x, quaternion_spline.t_y, quaternion_spline.t_z])
 
-# Final update to splines with final_x
-splines = [
-    make_interp_spline_with_constraints(
-        final_x, var, k=5, bc_type=([(1, 0.0), (2, 0.0)], [(1, 0.0), (2, 0.0)]), v_max=max_velocity, a_max=max_acceleration
-    )[0] for var in dim_vars
-]
-quaternion_spline.update_t(final_x)
+    final_x = [0.0] # Create final time interval such that each individual interval is max of corresponding intervals for each spline
+    for i in range(len(new_xs[0]) - 1):
+        final_x.append(final_x[i] + max(new_x[i+1] - new_x[i] for new_x in new_xs))
 
-# Define a finer grid of t values for evaluation
-t_fine = np.linspace(0, final_x[-1], 100)
+    # Final update to splines with final_x
+    splines = [
+        make_interp_spline_with_constraints(
+            final_x, var, k=5, bc_type=([(1, 0.0), (2, 0.0)], [(1, 0.0), (2, 0.0)]), v_max=max_velocity, a_max=max_acceleration
+        )[0] for var in dim_vars
+    ]
+    quaternion_spline.update_t(final_x)
 
-# For angular velocities and accelerations:
-angular_velocities = quaternion_spline.angular_velocity(t_fine)
-angular_accelerations = quaternion_spline.angular_acceleration(t_fine)
+    # Define a finer grid of t values for evaluation
+    t_fine = np.linspace(0, final_x[-1], 100)
 
-# Compute positions
-positions = [spline(t_fine) for spline in splines]
-x_fine, y_fine, z_fine = positions
-orientations = quaternion_spline.as_euler(t_fine, order='xyz', degrees=True)
+    # For angular velocities and accelerations:
+    angular_velocities = quaternion_spline.angular_velocity(t_fine)
+    angular_accelerations = quaternion_spline.angular_acceleration(t_fine)
 
-
-# Compute velocities (first derivative)
-velocities = [spline(t_fine, 1) for spline in splines]
-v_x, v_y, v_z = velocities
-angular_velocities = quaternion_spline.angular_velocity(t_fine) #orientation_spline(t_fine, 1)
-
-# Compute accelerations (second derivative)
-accelerations = [spline(t_fine, 2) for spline in splines]
-a_x, a_y, a_z = accelerations
-angular_accelerations = quaternion_spline.angular_acceleration(t_fine) #orientation_spline(t_fine, 2)
-
-# Plot the results
-plt.figure(figsize=(10, 8))
-
-# Plot position
-plt.subplot(3, 2, 1)
-plt.plot(t_fine, x_fine, label="x")
-plt.plot(t_fine, y_fine, label="y")
-plt.plot(t_fine, z_fine, label="z")
-plt.xlabel("t")
-plt.ylabel("Position")
-plt.legend()
-
-# Plot velocity
-plt.subplot(3, 2, 3)
-plt.plot(t_fine, v_x, label="v_x")
-plt.plot(t_fine, v_y, label="v_y")
-plt.plot(t_fine, v_z, label="v_z")
-plt.xlabel("t")
-plt.ylabel("Velocity")
-plt.legend()
-
-# Plot acceleration
-plt.subplot(3, 2, 5)
-plt.plot(t_fine, a_x, label="a_x")
-plt.plot(t_fine, a_y, label="a_y")
-plt.plot(t_fine, a_z, label="a_z")
-plt.xlabel("t")
-plt.ylabel("Acceleration")
-plt.legend()
-
-# Plot orientation
-plt.subplot(3, 2, 2)
-roll, pitch, yaw = orientations.T
-plt.plot(t_fine, roll, label="Roll")
-plt.plot(t_fine, pitch, label="Pitch")
-plt.plot(t_fine, yaw, label="Yaw")
-plt.xlabel("t")
-plt.ylabel("Orientation")
-
-# Plot angular velocity
-plt.subplot(3, 2, 4)
-roll_rate, pitch_rate, yaw_rate = angular_velocities.T
-plt.plot(t_fine, roll_rate, label="Roll rate")
-plt.plot(t_fine, pitch_rate, label="Pitch rate")
-plt.plot(t_fine, yaw_rate, label="Yaw rate")
-plt.xlabel("t")
-plt.ylabel("Angular Velocity")
-
-# Plot angular acceleration
-plt.subplot(3, 2, 6)
-roll_acceleration, pitch_acceleration, yaw_acceleration = angular_accelerations.T
-plt.plot(t_fine, roll_acceleration, label="Roll acceleration")
-plt.plot(t_fine, pitch_acceleration, label="Pitch acceleration")
-plt.plot(t_fine, yaw_acceleration, label="Yaw acceleration")
-plt.xlabel("t")
-plt.ylabel("Angular Acceleration")
+    # Compute positions
+    positions = [spline(t_fine) for spline in splines]
+    x_fine, y_fine, z_fine = positions
+    orientations = quaternion_spline.as_euler(t_fine, order='xyz', degrees=True)
 
 
-plt.tight_layout()
-plt.show()
+    # Compute velocities (first derivative)
+    velocities = [spline(t_fine, 1) for spline in splines]
+    v_x, v_y, v_z = velocities
+    angular_velocities = quaternion_spline.angular_velocity(t_fine) #orientation_spline(t_fine, 1)
 
-plt.savefig("out/plot.png")
+    # Compute accelerations (second derivative)
+    accelerations = [spline(t_fine, 2) for spline in splines]
+    a_x, a_y, a_z = accelerations
+    angular_accelerations = quaternion_spline.angular_acceleration(t_fine) #orientation_spline(t_fine, 2)
 
-# Setup the figure and 3D axis
-fig = plt.figure()
-ax = fig.add_subplot(111, projection="3d")
+    # Plot the results
+    plt.figure(figsize=(10, 8))
 
-# Plot the path in 3D
-ax.plot(x_fine, y_fine, z_fine, label="Path (x, y, z)")
-ax.scatter(x, y, z, color="red", label="Points")
-(vehicle,) = ax.plot([], [], [], "bo", markersize=8, label="Vehicle")
+    # Plot position
+    plt.subplot(3, 2, 1)
+    plt.plot(t_fine, x_fine, label="x")
+    plt.plot(t_fine, y_fine, label="y")
+    plt.plot(t_fine, z_fine, label="z")
+    plt.xlabel("t")
+    plt.ylabel("Position")
+    plt.legend()
 
-# Set up the plot limits and labels
-ax.set_xlim(np.min(x_fine) - 0.5, np.max(x_fine) + 0.5)
-ax.set_ylim(np.min(y_fine) - 0.5, np.max(y_fine) + 0.5)
-ax.set_zlim(np.min(z_fine) - 0.5, np.max(z_fine) + 0.5)
-ax.set_xlabel("x")
-ax.set_ylabel("y")
-ax.set_zlabel("z")
-ax.legend()
+    # Plot velocity
+    plt.subplot(3, 2, 3)
+    plt.plot(t_fine, v_x, label="v_x")
+    plt.plot(t_fine, v_y, label="v_y")
+    plt.plot(t_fine, v_z, label="v_z")
+    plt.xlabel("t")
+    plt.ylabel("Velocity")
+    plt.legend()
+
+    # Plot acceleration
+    plt.subplot(3, 2, 5)
+    plt.plot(t_fine, a_x, label="a_x")
+    plt.plot(t_fine, a_y, label="a_y")
+    plt.plot(t_fine, a_z, label="a_z")
+    plt.xlabel("t")
+    plt.ylabel("Acceleration")
+    plt.legend()
+
+    # Plot orientation
+    plt.subplot(3, 2, 2)
+    roll, pitch, yaw = orientations.T
+    plt.plot(t_fine, roll, label="Roll")
+    plt.plot(t_fine, pitch, label="Pitch")
+    plt.plot(t_fine, yaw, label="Yaw")
+    plt.xlabel("t")
+    plt.ylabel("Orientation")
+
+    # Plot angular velocity
+    plt.subplot(3, 2, 4)
+    roll_rate, pitch_rate, yaw_rate = angular_velocities.T
+    plt.plot(t_fine, roll_rate, label="Roll rate")
+    plt.plot(t_fine, pitch_rate, label="Pitch rate")
+    plt.plot(t_fine, yaw_rate, label="Yaw rate")
+    plt.xlabel("t")
+    plt.ylabel("Angular Velocity")
+
+    # Plot angular acceleration
+    plt.subplot(3, 2, 6)
+    roll_acceleration, pitch_acceleration, yaw_acceleration = angular_accelerations.T
+    plt.plot(t_fine, roll_acceleration, label="Roll acceleration")
+    plt.plot(t_fine, pitch_acceleration, label="Pitch acceleration")
+    plt.plot(t_fine, yaw_acceleration, label="Yaw acceleration")
+    plt.xlabel("t")
+    plt.ylabel("Angular Acceleration")
 
 
-# Function to draw orientation (as a line or arrow)
-def draw_orientation(position, orientation):
-    """Draws the orientation of the vehicle at a given position using the quaternion."""
-    direction = Rotation.from_euler('xyz', orientation).apply([1, 0, 0])
-    end_point = position + 0.2 * direction  # Scale for visualization
-    return position, end_point
+    plt.tight_layout()
+    plt.show()
+
+    plt.savefig("out/plot.png")
+
+    # Setup the figure and 3D axis
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection="3d")
+
+    # Plot the path in 3D
+    ax.plot(x_fine, y_fine, z_fine, label="Path (x, y, z)")
+    ax.scatter(x, y, z, color="red", label="Points")
+    (vehicle,) = ax.plot([], [], [], "bo", markersize=8, label="Vehicle")
+
+    # Set up the plot limits and labels
+    ax.set_xlim(np.min(x_fine) - 0.5, np.max(x_fine) + 0.5)
+    ax.set_ylim(np.min(y_fine) - 0.5, np.max(y_fine) + 0.5)
+    ax.set_zlim(np.min(z_fine) - 0.5, np.max(z_fine) + 0.5)
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_zlabel("z")
+    ax.legend()
 
 
-# Plot a line representing the vehicle orientation
-(orientation_line,) = ax.plot([], [], [], "r-", lw=2)
+    # Function to draw orientation (as a line or arrow)
+    def draw_orientation(position, orientation):
+        """Draws the orientation of the vehicle at a given position using the quaternion."""
+        direction = Rotation.from_euler('xyz', orientation).apply([1, 0, 0])
+        end_point = position + 0.2 * direction  # Scale for visualization
+        return position, end_point
 
 
-# Initialization function: plot the background of each frame
-def init():
-    vehicle.set_data([], [])
-    vehicle.set_3d_properties([])
-    return (vehicle,)
+    # Plot a line representing the vehicle orientation
+    (orientation_line,) = ax.plot([], [], [], "r-", lw=2)
 
 
-# Animation function: this is called sequentially
-def animate(i):
-    # Update the vehicle position at frame i
-    vehicle.set_data([x_fine[i]], [y_fine[i]])
-    vehicle.set_3d_properties([z_fine[i]])
-
-    # Get the current quaternion and position
-    position = np.array([x_fine[i], y_fine[i], z_fine[i]])
-    orientation = Rotation.from_quat(quaternion_spline(t_fine[i])).as_euler('xyz')
-
-    # Draw orientation line
-    start, end = draw_orientation(position, orientation)
-    orientation_line.set_data([start[0], end[0]], [start[1], end[1]])
-    orientation_line.set_3d_properties([start[2], end[2]])
-
-    return vehicle, orientation_line
+    # Initialization function: plot the background of each frame
+    def init():
+        vehicle.set_data([], [])
+        vehicle.set_3d_properties([])
+        return (vehicle,)
 
 
-# Create the animation
-anim = FuncAnimation(
-    fig, animate, init_func=init, frames=len(t_fine), interval=20, blit=True
-)
+    # Animation function: this is called sequentially
+    def animate(i):
+        # Update the vehicle position at frame i
+        vehicle.set_data([x_fine[i]], [y_fine[i]])
+        vehicle.set_3d_properties([z_fine[i]])
 
-anim.save('out/animation.mp4', writer='ffmpeg')
+        # Get the current quaternion and position
+        position = np.array([x_fine[i], y_fine[i], z_fine[i]])
+        orientation = Rotation.from_quat(quaternion_spline(t_fine[i])).as_euler('xyz')
 
-# Show the animation
-plt.show()
+        # Draw orientation line
+        start, end = draw_orientation(position, orientation)
+        orientation_line.set_data([start[0], end[0]], [start[1], end[1]])
+        orientation_line.set_3d_properties([start[2], end[2]])
+
+        return vehicle, orientation_line
+
+
+    # Create the animation
+    anim = FuncAnimation(
+        fig, animate, init_func=init, frames=len(t_fine), interval=20, blit=True
+    )
+
+    anim.save('out/animation.mp4', writer='ffmpeg')
+
+    # Show the animation
+    plt.show()
