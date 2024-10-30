@@ -50,6 +50,7 @@ class CameraPublisher(Node):
 
             # Publish the frame
             self.pub.publish(self.bridge.cv2_to_imgmsg(frame, "bgr8"))
+            # Also publish depth frame to oak/depth/image_raw
 
             # Log every 100 frames
             if count % 100 == 0:
