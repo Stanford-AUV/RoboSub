@@ -6,8 +6,33 @@ endif()
 
 project(custom_gz_plugins)
 
-# Common to both plugins
 find_package(gz-rendering8 REQUIRED)
+
+find_package(gz-cmake3 REQUIRED)
+find_package(gz-msgs10 REQUIRED)
+
+# Define a variable 'GZ_MSGS_VER' holding the version number
+set(GZ_MSGS_VER ${gz-msgs10_VERSION_MAJOR})
+
+# Define a variable 'MSGS_PROTOS' listing the .proto files
+set(MSGS_PROTOS
+   ${CMAKE_CURRENT_SOURCE_DIR}/proto/gz/custom_msgs/GeneratedPath.proto
+)
+
+# Call 'gz_msgs_generate_messages()' to process the .proto file
+gz_msgs_generate_messages(
+  # The cmake target to be generated for libraries/executables to link
+  TARGET msgs
+  # The protobuf package to generate (Typically based on the path)
+  PROTO_PACKAGE "gz.custom_msgs"
+  # The path to the base directory of the proto files
+  # All import paths should be relative to this (eg gz/custom_msgs/vector3d.proto)
+  MSGS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/proto
+  # List of proto files to process
+  MSGS_PROTOS ${MSGS_PROTOS}
+  # Depenency on gz-msgs
+  DEPENDENCIES gz-msgs${GZ_MSGS_VER}::gz-msgs${GZ_MSGS_VER}
+)
 
 set(CMAKE_AUTOMOC ON)
 
@@ -20,7 +45,7 @@ add_library(PathVisualizer SHARED
   ${resources_RCC}
 )
 target_link_libraries(PathVisualizer
-  PUBLIC
+  PRIVATE
     gz-gui8::gz-gui8
     gz-rendering8::gz-rendering8
 )

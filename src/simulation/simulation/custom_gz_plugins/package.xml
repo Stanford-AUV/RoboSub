@@ -12,9 +12,12 @@
     <depend>gz-gui8</depend>
     <depend>gz-plugin2</depend>
     <depend>gz-rendering8</depend>
+    <depend>std_msgs</depend>
+    <depend>geometry_msgs</depend>
     <buildtool_depend>cmake</buildtool_depend>
     <exec_depend>rclpy</exec_depend>
     <exec_depend>std_msgs</exec_depend>
+    <exec_depend>geometry_msgs</exec_depend>
 
     <test_depend>ament_copyright</test_depend>
     <test_depend>ament_black</test_depend>

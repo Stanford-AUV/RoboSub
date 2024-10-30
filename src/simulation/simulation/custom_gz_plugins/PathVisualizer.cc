@@ -25,6 +25,8 @@
 #include <gz/rendering/RenderEngine.hh>
 #include <gz/rendering/RenderingIface.hh>
 #include <gz/rendering/Scene.hh>
+#include <gz/transport/Node.hh>
+#include <gz/custom_msgs/GeneratedPath.pb.h>
 
 #include "PathVisualizer.hh"
 
@@ -32,17 +34,24 @@
 void PathVisualizer::LoadConfig(const tinyxml2::XMLElement * /*_pluginElem*/)
 {
   // This is necessary to receive the Render event on eventFilter
-//! [connectToGuiEvent]
   gz::gui::App()->findChild<
       gz::gui::MainWindow *>()->installEventFilter(this);
-//! [connectToGuiEvent]
+
+  // Initialize the path data vector with an arbitrary path in case there is no message
+  this->pathData = 
+
+
+  // Subscribe to the path topic
+  auto node = gazebo::transport::NodePtr(new gazebo::transport::Node());
+  node->Init();
+  this->sub = node->Subscribe("~/path", &PathVisualizer::PathUpdateCallback, this);
 }
 
 /////////////////////////////////////////////////
 void PathVisualizer::TogglePath()
 {
   this->dirty = true;
-  this->showCube = !this->showCube;  // Toggle cube visibility
+  this->showPath = !this->showPath;  // Toggle path visibility
 }
 
 /////////////////////////////////////////////////
@@ -61,6 +70,13 @@ bool PathVisualizer::eventFilter(QObject *_obj, QEvent *_event)
 }
 //! [eventFilter]
 
+void PathVisualizer::PathUpdateCallback(const gz::custom_msgs::GeneratedPath &_msg) {
+  // Extract waypoints from the message
+  this->dirty = true;  // Mark for redraw
+  // Store the path data for use in PerformRenderingOperations
+  this->pathData = _msg;
+}
+
 /////////////////////////////////////////////////
 //! [performRenderingOperations]
 void PathVisualizer::PerformRenderingOperations()
@@ -78,21 +94,47 @@ void PathVisualizer::PerformRenderingOperations()
   if (nullptr == this->scene)
     return;
 
-  // Remove existing cube if any
-  if (this->cubeVisual)
+  // Remove existing path if any
+  if (this->pathVisual)
   {
-    this->scene->RootVisual()->RemoveChild(this->cubeVisual);
-    this->cubeVisual.reset();
+    this->scene->RootVisual()->RemoveChild(this->pathVisual);
+    this->pathVisual.reset();
   }
 
-  // Create and add a new cube if showCube is true
-  if (this->showCube)
+  // Create and add a new path if showPath is true
+  if (this->showPath)
   {
-    this->cubeVisual = this->scene->CreateVisual("cube_visual");
-    auto cubeMesh = this->scene->CreateBox();
-    this->cubeVisual->AddGeometry(cubeMesh);
-    this->cubeVisual->SetLocalPosition(5.0, 5.0, 1.0);  // Arbitrary position
-    this->scene->RootVisual()->AddChild(this->cubeVisual);
+    this->pathVisual = this->scene->CreateVisual("path_visual");
+    
+    // Replace hardcoded points with message data
+    for (size_t i = 0; i < std::size(this->pathData.poses); i++)  // Use stored path data
+    {
+      auto pathMarker = this->scene->CreateCone();
+      auto pathMarkerVisual = this->scene->CreateVisual();
+      pathMarkerVisual->AddGeometry(pathMarker);
+      pathMarkerVisual->SetLocalScale(0.2, 0.2, 0.4);
+      
+      // Use the actual pose from the message
+      pathMarkerVisual->SetLocalPosition(this->pathData.poses[i].position());
+      pathMarkerVisual->SetLocalRotation(this->pathData.poses[i].orientation());
+      
+      // Color based on velocity -- TODO: make this actually work
+      auto material = this->scene->CreateMaterial();
+      auto twist = this->pathData.twists[i];
+      auto linear_velocity = std::sqrt(twist.linear().x() * twist.linear().x() + twist.linear().y() * twist.linear().y() + twist.linear().z() * twist.linear().z());
+      auto angular_velocity = std::sqrt(twist.angular().x() * twist.angular().x() + twist.angular().y() * twist.angular().y() + twist.angular().z() * twist.angular().z());
+      // normalize velocity to 0-1
+      auto linear_velocity_normalized = linear_velocity / 1.5; // need to normalize by max velocity
+      auto angular_velocity_normalized = angular_velocity / 1.5; // need to normalize by max velocity
+      auto red = 0.5 * linear_velocity_normalized + 0.5 * angular_velocity_normalized;
+      auto green = 1 - linear_velocity_normalized;
+      material->SetDiffuse(gz::math::Color(red, green, 0));
+      pathMarkerVisual->SetMaterial(material);
+      
+      this->pathVisual->AddChild(pathMarkerVisual);
+    }
+    
+    this->scene->RootVisual()->AddChild(this->pathVisual);
   }
 
   this->dirty = false;

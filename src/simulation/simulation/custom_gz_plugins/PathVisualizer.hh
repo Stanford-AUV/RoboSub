@@ -21,6 +21,7 @@
 #include <gz/gui/qt.h>
 #include <gz/gui/Plugin.hh>
 #include <gz/rendering/Scene.hh>
+#include <gz/msgs.hh>
 
 /// \brief Example of a GUI plugin that uses Gazebo Rendering.
 /// This plugin works with Gazebo GUI's MinimalScene or any plugin providing
@@ -34,6 +35,9 @@ class PathVisualizer : public gz::gui::Plugin
 
   /// \brief Callback when user clicks button.
   public slots: void TogglePath();
+
+  /// \brief Callback for path update messages.
+  public slots: void PathUpdateCallback(const msgs::PoseTwistPath &_msg);
 
   /// \brief Callback for all installed event filters.
   /// \param[in] _obj Object that received the event
@@ -53,11 +57,58 @@ class PathVisualizer : public gz::gui::Plugin
   /// \brief Pointer to the rendering scene.
   private: gz::rendering::ScenePtr scene{nullptr};
 
-  /// \brief Flag to toggle cube visibility.
-  private: bool showCube{false};
+  /// \brief Flag to toggle path visibility.
+  private: bool showPath{false};
 
-  /// \brief Pointer to the cube visual.
-  private: gz::rendering::VisualPtr cubeVisual{nullptr};
+  /// \brief Pointer to the path visual.
+  private: gz::rendering::VisualPtr pathVisual{nullptr};
+
+  /// \brief Subscriber for the path topic.
+  private: gazebo::transport::SubscriberPtr sub;
+
+  /// \brief Stored path data from latest message
+  private: PoseTwistStampedPath pathData;
+
+  /// \brief Typedef for the path data
+  public: struct PoseTwistStampedPath {
+    
+  };
+
+  public: struct PoseTwistStamped {
+    Header header;
+    PoseStamped pose;
+    TwistStamped twist;
+  };
+
+  public: struct Header {
+    uint32 seq;
+    std::time timestamp;
+    std::string frame_id;
+  };
+
+  public: struct PoseStamped {
+    Header header;
+    Pose pose;
+  };  
+
+  public: struct TwistStamped {
+    Header header;
+    Twist twist;
+  };
+
+  public: struct Pose {
+    double x;
+    double y;
+    double z;
+  };
+
+  public: struct Twist {
+    double x;
+    double y;
+    double z;
+  };
+
+
 };
 
 #endif

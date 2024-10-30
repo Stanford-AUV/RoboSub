@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+import "gz/msgs10/path_pb2.proto";
+import "gz/msgs10/twist_pb2.proto";
+
+message GeneratedPath {
+    repeated gz.msgs.Path paths = 1;
+    repeated gz.msgs.Twist twists = 2;
+}
