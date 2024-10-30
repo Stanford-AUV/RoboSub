@@ -37,7 +37,7 @@ class PathVisualizer : public gz::gui::Plugin
   public slots: void TogglePath();
 
   /// \brief Callback for path update messages.
-  public slots: void PathUpdateCallback(const msgs::PoseTwistPath &_msg);
+  public slots: void PathUpdateCallback(const gz::custom_msgs::GeneratedPath &_msg);
 
   /// \brief Callback for all installed event filters.
   /// \param[in] _obj Object that received the event
