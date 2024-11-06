@@ -43,7 +43,7 @@ class YoloV8ROSNode(Node):
         cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
 
         # Run YOLO model on the image
-        results = self.model(cv_image)
+        results = self.model(cv_image, verbose=False)
 
         def xywh_to_bbox(xywh_list):
             [[x, y, w, h]] = xywh_list

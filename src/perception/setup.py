@@ -25,6 +25,7 @@ setup(
             f"image_publisher = perception.nodes.dummy_video:main",
             f"camera_publisher = perception.nodes.camera_video:main",
             f"yolov8_ros_node = perception.nodes.YOLONode:main",
+            f"to3dfrom2d = perception.nodes.detections_3d:main",
         ],
     },
 )

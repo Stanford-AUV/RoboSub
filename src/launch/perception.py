@@ -13,6 +13,12 @@ def generate_launch_description():
                 parameters=[],
             ),
             Node(
+                package="perception",
+                executable="to3dfrom2d",
+                output="screen",
+                parameters=[],
+            ),
+            Node(
                 package="perception",  # Replace with your package name
                 executable="yolov8_ros_node",  # The name of the executable (should match the entry point defined in setup.py)
                 output="screen",
