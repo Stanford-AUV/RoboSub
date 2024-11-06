@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 import rclpy
 from rclpy.node import Node
 import cv2
@@ -9,10 +8,10 @@ from cv_bridge import CvBridge
 import time
 
 
-class ImagePublisher(Node):
+class Video(Node):
     def __init__(self, file_path):
-        super().__init__("image_publisher")
-        self.get_logger().info("Video publisher node has been created!")
+        super().__init__("video")
+        self.get_logger().info("Video node has been created!")
 
         self.bridge = CvBridge()
         self.cap = cv2.VideoCapture(file_path)
@@ -30,7 +29,6 @@ class ImagePublisher(Node):
 
         self.frame_duration = 1.0 / self.fps  # Time between frames
 
-    def run(self):
         count = 0
         while self.cap.isOpened():
             ret, frame = self.cap.read()
@@ -56,14 +54,10 @@ class ImagePublisher(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-
-    file_path = "videoplayback.mp4"
-    ip = ImagePublisher("/workspaces/RoboSub/src/perception/videoplayback.mp4")
-
-    print("Publishing video frames...")
-    ip.run()
-
-    ip.destroy_node()
+    file_path = os.path.join(os.path.dirname(__file__), "videoplayback.mp4")
+    node = Video(file_path)
+    rclpy.spin(node)
+    node.destroy_node()
     rclpy.shutdown()
 
 

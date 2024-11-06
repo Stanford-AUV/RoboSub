@@ -7,7 +7,7 @@ def generate_launch_description():
         [
             Node(
                 package="perception",
-                executable="camera",
+                executable="test_video",
                 output="screen",
                 parameters=[],
             ),

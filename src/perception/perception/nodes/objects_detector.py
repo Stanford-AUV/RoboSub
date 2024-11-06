@@ -13,10 +13,10 @@ from vision_msgs.msg import (
 )
 
 
-class YoloV8ROSNode(Node):
+class ObjectsDetector(Node):
 
     def __init__(self):
-        super().__init__("yolov8_ros_node")
+        super().__init__("objects_detector")
 
         # Load the YOLO model
         self.model = YOLO("yolo11n.pt")  # Ensure the correct model path
@@ -32,7 +32,7 @@ class YoloV8ROSNode(Node):
 
         # Log to indicate that the node has started
         self.get_logger().info(
-            "YoloV8ROSNode is running and subscribing to image_raw topic"
+            "Objects detector is running and subscribing to image_raw topic"
         )
 
     def image_callback(self, msg):
@@ -98,16 +98,9 @@ class YoloV8ROSNode(Node):
 
 
 def main(args=None):
-    # Initialize the ROS2 Python client library
     rclpy.init(args=args)
-
-    # Create an instance of the YoloV8ROSNode
-    node = YoloV8ROSNode()
-
-    # Keep the node running, listening to messages
+    node = ObjectsDetector()
     rclpy.spin(node)
-
-    # Cleanup
     node.destroy_node()
     rclpy.shutdown()
     cv2.destroyAllWindows()
