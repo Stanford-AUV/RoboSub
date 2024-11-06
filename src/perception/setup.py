@@ -20,8 +20,8 @@ setup(
     entry_points={
         "console_scripts": [
             f"perception_node = perception.nodes.perception_node:main",
-            f"test_video = perception.nodes.test.video:main",
-            f"test_view_video = perception.nodes.test.view_video:main",
+            f"test.video = perception.nodes.test.video:main",
+            f"test.view_video = perception.nodes.test.view_video:main",
             f"camera = perception.nodes.camera:main",
             f"objects_detector = perception.nodes.objects_detector:main",
         ],
