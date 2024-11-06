@@ -31,7 +31,7 @@ When developing with ROS 2 and Gazebo, it's easy to suddenly be reading outdated
 
 1. Install VMWare Fusion (the free version, not the pro version).
 2. Download the Ubuntu ISO (either AMD or ARM depending on your computer) from https://cdimage.ubuntu.com/noble/daily-live/current/.
-3. Open VMWare and drag the downloaded ISO for installation.
+3. Open VMWare and drag the downloaded ISO for installation. MAKE SURE YOU SET THE DISK SIZE TO AT LEAST 30 GB!!!
 4. Press continue, then finish, and name your instance (leaving the default name is fine).
 5. Select "Try to install Ubuntu". Then click "Install Ubuntu" from the desktop.
 6. Proceed with the installation leaving everything as the default values.
