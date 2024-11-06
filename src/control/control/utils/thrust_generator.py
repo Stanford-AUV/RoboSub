@@ -1,3 +1,5 @@
+"""This module provides utilities for generating thrust configurations and converting forces to individual motor thrusts."""
+
 import numpy as np
 from geometry_msgs.msg import Wrench
 
