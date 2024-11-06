@@ -6,14 +6,11 @@ from cv_bridge import CvBridge
 from ultralytics import YOLO
 import cv2
 from vision_msgs.msg import (
-    BoundingBox2D,
     Detection2D,
     Detection2DArray,
     ObjectHypothesisWithPose,
     Pose2D,
 )
-
-# from geometry_msgs.msg import Pose2D
 
 
 class YoloV8ROSNode(Node):
