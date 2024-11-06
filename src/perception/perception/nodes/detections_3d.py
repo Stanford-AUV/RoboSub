@@ -8,6 +8,13 @@ import depthai as dai
 import time
 import cv2
 import numpy as np
+from vision_msgs.msg import (
+    BoundingBox2D,
+    Detection2D,
+    Detection2DArray,
+    ObjectHypothesisWithPose,
+    Pose2D,
+)
 
 MAX_DISTANCE = 3.0  # Maximum depth distance in meters
 
@@ -23,7 +30,7 @@ class To3DFrom2D(Node):
             Image, "oak/depth/image_raw", self.img_sub_callback, 10
         )
         self.det_sub = self.create_subscription(
-            Float32MultiArray,  # Assuming detection bounding boxes are published as a list of floats
+            Detection2DArray,  # Assuming detection bounding boxes are published as a list of floats
             "detections2d",
             self.det_sub_callback,
             10,
@@ -45,9 +52,25 @@ class To3DFrom2D(Node):
             self.run_filter()
 
     def det_sub_callback(self, msg):
-        self.detections = np.array(msg.data).reshape(-1, 4)
-        self.get_logger().info("Detections received")
-        if self.depth_map is not None:  # Ensure depth_map is set
+        # Reset the detections list and extract bounding boxes from the Detection2DArray message
+        self.detections = []
+        for detection in msg.detections:
+            # Access the bounding box from each Detection2D object
+            bounding_box = detection.bbox
+            x_center = (
+                bounding_box.center.x + bounding_box.size_x / 2
+            )  # Use center coordinates and size
+            y_center = bounding_box.center.y + bounding_box.size_y / 2
+            box_width = bounding_box.size_x
+            box_height = bounding_box.size_y
+
+            # Append the bounding box information (center x, y, width, height)
+            self.detections.append([x_center, y_center, box_width, box_height])
+
+        self.get_logger().info(f"Detections received: {self.detections}")
+
+        # Ensure depth_map is available before running the filter
+        if self.depth_map is not None:
             self.run_filter()
 
     def run_filter(self):
