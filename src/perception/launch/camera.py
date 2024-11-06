@@ -13,13 +13,7 @@ def generate_launch_description():
             ),
             Node(
                 package="perception",
-                executable="to3dfrom2d",
-                output="screen",
-                parameters=[],
-            ),
-            Node(
-                package="perception",
-                executable="objects_detector",
+                executable="test.view_video",
                 output="screen",
                 parameters=[],
             ),
