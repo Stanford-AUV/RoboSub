@@ -20,6 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            "path_generator = planning.nodes.path_generator:main",
+            "waypoint_test = planning.nodes.waypoint_test:main",
         ],
     },
 )
