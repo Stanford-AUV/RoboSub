@@ -22,6 +22,7 @@ Example:
         np.array([0, 0, 0])
     )
     state = State.from_odometry_msg(odom_msg)
+    state =  State.from_generatedpath_msg(path_msg, index)
 
 Dependencies:
     numpy
@@ -34,6 +35,9 @@ Author:
 Version:
     1.0.0
 """
+
+from msgs.msg import GeneratedPath
+
 from nav_msgs.msg import Odometry
 
 import numpy as np
@@ -100,7 +104,7 @@ class State():
                 msg.twist.twist.linear.z,
             ]
         )
-        orientation_world = sm.SE3.Quaternion(
+        orientation_world = sm.UnitQuaternion(
             s=msg.pose.pose.orientation.w,
             v=[
                 msg.pose.pose.orientation.x,
@@ -123,16 +127,11 @@ class State():
             angular_velocity_body
         )
 
-
     @staticmethod
-    def from_customPaths_msg(msg: Paths, index=0: int):
-        #Path Message:
-        #List of Poses 
-        #List of Twists 
+    def from_generatedpath_msg(msg: GeneratedPath, index=0):
+        """
+        Convert a GeneratedPath message with an index to a State object.
 
-        #Given an index, grab the path and twist at that index in the list, and return a state. 
-
-         """
         Parameters
         ----------
         msg : Paths
@@ -140,7 +139,8 @@ class State():
                 1. List of Pose messages
                 2. List of Twist messages
         index : int
-            The index of the path and twist we want to convert to the reference state. 
+            The index of the path and twist we want to convert to the
+            reference state.
             Default: 0
         """
         position_world = np.array(
@@ -179,8 +179,3 @@ class State():
             orientation_world,
             angular_velocity_body
         )
-
-        
-
-
-

@@ -46,11 +46,13 @@ class AbstractWrench():
         """
         self.force = force
         self.torque = torque
-        self.wrench_msg = Wrench(Vector3(force), Vector3(torque))
+        self.wrench_msg = Wrench(
+            force=Vector3(x=force[0], y=force[1], z=force[2]),
+            torque=Vector3(x=torque[0], y=torque[1], z=torque[2])
+        )
 
     def to_msg(self):
         """Convert the Wrench object to a ROS WrenchStamped message."""
         msg = WrenchStamped()
-        msg.header.stamp = Time().now().to_msg()
         msg.wrench = self.wrench_msg
         return msg
