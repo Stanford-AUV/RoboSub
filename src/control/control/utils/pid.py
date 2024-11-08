@@ -41,8 +41,7 @@ from geometry_msgs.msg import WrenchStamped
 
 import numpy as np
 
-import spatialmath as sm
-
+# import spatialmath as sm
 
 
 class PID():
@@ -105,8 +104,7 @@ class PID():
         self.max_integral_position = max_integral_position
         self.max_integral_orientation = max_integral_orientation
 
-
-        self.index = 0 # index of where we are in the paths 
+        self.index = 0  # index of where we are in the paths
 
     def reset(self):
         """
@@ -150,7 +148,7 @@ class PID():
         # Velocity error, body frame
         error_v_B = reference.velocity_body - state.velocity_body
         # Integral sum, clamped
-        self.integral_position += error_r_W * dt
+        self.integral_position = self.integral_position + error_r_W * dt
         self.integral_position = np.clip(
             self.integral_position,
             -self.max_integral_position,
@@ -164,12 +162,12 @@ class PID():
         # Orientation error, world frame, axis-angle form
         error_q_W = reference.orientation_world * \
             state.orientation_world.inv()
-        angle, axis = error_q_W.angle_axis()
+        angle, axis = error_q_W.angvec()
         error_q_W = axis * angle
         # Angular velocity error, body frame
         error_w_B = reference.angular_velocity_body - \
             state.angular_velocity_body
-        self.integral_orientation += error_q_W * dt
+        self.integral_orientation = self.integral_orientation + error_q_W * dt
         self.integral_orientation = np.clip(
             self.integral_orientation,
             -self.max_integral_orientation,

@@ -101,8 +101,8 @@ class Controller(Node):
         """
         with self.lock:
             self.cur_state = State.from_odometry_msg(msg)
-            self.get_logger().info('Current state updated')
-            self.update()
+            #self.get_logger().info('Current state updated')
+            self.update() if self.ref_state is not None else None
 
     def reference_callback(self, msg: Odometry):
         """
@@ -115,15 +115,22 @@ class Controller(Node):
         """
         with self.lock:
             self.ref_state = State.from_odometry_msg(msg)
-            self.get_logger().info('Reference state updated')
+            #self.get_logger().info('Reference state updated')
 
     def update(self):
         """Update the control signal and publish to the wrench topic."""
         newTime = self.get_clock().now()
-        dt = (newTime - self.time) / 1e9
+        dt = (newTime - self.time).nanoseconds / 1e9
         self.time = newTime
         wrench = self.policy.update(self.cur_state, self.ref_state, dt)
+        wrench.header.stamp = self.time.to_msg()
         self.control_publisher.publish(wrench)
+        if type(wrench).__name__ == 'Wrench':
+            self.get_logger().info(f'{type(wrench).__name__} ')
+        #self.get_logger().info(f'{type(wrench).__name__} ')
+        #self.get_logger().info(f'Control signal force: {wrench.wrench.force}')
+        #self.get_logger().info('Control signal published')
+        
 
 
 def main(args=None):
@@ -131,12 +138,12 @@ def main(args=None):
     rclpy.init(args=args)
 
     pid = PID(
-        kP_position=np.array([1, 1, 1]),
-        kD_position=np.array([1, 1, 1]),
-        kI_position=np.array([1, 1, 1]),
+        kP_position=np.array([0.5, 0.5, 0.5]),
+        kD_position=np.array([0, 0, 0]),
+        kI_position=np.array([0, 0, 0]),
         kP_orientation=np.array([1, 1, 1]),
-        kD_orientation=np.array([1, 1, 1]),
-        kI_orientation=np.array([1, 1, 1]),
+        kD_orientation=np.array([0, 0, 0]),
+        kI_orientation=np.array([0, 0, 0]),
         max_signal_position=np.array([1, 1, 1]),
         max_signal_orientation=np.array([1, 1, 1]),
         max_integral_position=np.array([1, 1, 1]),
