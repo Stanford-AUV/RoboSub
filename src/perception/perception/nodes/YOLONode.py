@@ -48,8 +48,8 @@ class YoloV8ROSNode(Node):
         def xywh_to_bbox(xywh_list):
             [[x, y, w, h]] = xywh_list
             # Calculate center coordinates
-            center_x = x + w / 2
-            center_y = y + h / 2
+            center_x = x
+            center_y = y
 
             # Set size_x and size_y
             size_x = float(w)
