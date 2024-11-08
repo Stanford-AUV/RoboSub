@@ -1,20 +1,7 @@
-"""
-Convert desired wrench to individual thruster thrusts.
+"""This module provides utilities for generating thrust configurations and converting forces to individual motor thrusts."""
 
-This module provides functions to compute the inverse thrust allocation matrix
-(TAM) and convert a desired wrench (force and torque) into individual thruster
-thrusts for a system with multiple thrusters.
+import numpy as np
 
-Dependencies:
-    geometry_msgs.msg.Wrench
-    numpy
-
-Author:
-    Scott Hickman
-
-Version:
-    1.0.0
-"""
 from geometry_msgs.msg import Wrench
 
 import numpy as np

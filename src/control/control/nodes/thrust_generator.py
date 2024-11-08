@@ -1,3 +1,5 @@
+"""This module contains the ThrustGenerator node which converts a desired thrust vector into the individual thruster magnitudes and directions."""
+
 import numpy as np
 import rclpy
 from geometry_msgs.msg import Wrench, WrenchStamped
@@ -15,6 +17,7 @@ class ThrustGenerator(Node):
     """This node converts a desired thrust vector into the individual thruster magnitudes and directions."""
 
     def __init__(self):
+        """Initialize the ThrustGenerator node."""
         super().__init__("thrust_generator")
 
         self.declare_parameter("timer_period", Parameter.Type.DOUBLE)
@@ -59,7 +62,7 @@ class ThrustGenerator(Node):
             self.get_parameter("history_depth").get_parameter_value().integer_value
         )
         self._thrusts_pub = self.create_publisher(
-            ThrustsStamped, f"thrusts", history_depth
+            ThrustsStamped, "thrusts", history_depth
         )
         self._wrench_sub = self.create_subscription(
             WrenchStamped, "wrench", self.wrench_callback, history_depth
@@ -74,6 +77,7 @@ class ThrustGenerator(Node):
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
     def timer_callback(self):
+        """Convert wrench to individual thruster magnitudes and publish them."""
         thrusts = total_force_to_individual_thrusts(self.TAM_inv, self.wrench)
         msg = ThrustsStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
@@ -83,11 +87,13 @@ class ThrustGenerator(Node):
         self._thrusts_pub.publish(msg)
 
     def wrench_callback(self, msg: WrenchStamped):
+        """Handle incoming wrench messages."""
         self.wrench = msg.wrench
         self.get_logger().info(f"Received wrench {self.wrench}")
 
 
 def main(args=None):
+    """Initialize and spin the ThrustGenerator node."""
     rclpy.init(args=args)
     node = ThrustGenerator()
     rclpy.spin(node)
