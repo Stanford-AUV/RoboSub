@@ -101,7 +101,7 @@ class Controller(Node):
         """
         with self.lock:
             self.cur_state = State.from_odometry_msg(msg)
-            #self.get_logger().info('Current state updated')
+            self.get_logger().info('Current state updated')
             self.update() if self.ref_state is not None else None
 
     def reference_callback(self, msg: Odometry):
@@ -125,12 +125,6 @@ class Controller(Node):
         wrench = self.policy.update(self.cur_state, self.ref_state, dt)
         wrench.header.stamp = self.time.to_msg()
         self.control_publisher.publish(wrench)
-        if type(wrench).__name__ == 'Wrench':
-            self.get_logger().info(f'{type(wrench).__name__} ')
-        #self.get_logger().info(f'{type(wrench).__name__} ')
-        #self.get_logger().info(f'Control signal force: {wrench.wrench.force}')
-        #self.get_logger().info('Control signal published')
-        
 
 
 def main(args=None):
@@ -138,10 +132,10 @@ def main(args=None):
     rclpy.init(args=args)
 
     pid = PID(
-        kP_position=np.array([0.5, 0.5, 0.5]),
+        kP_position=np.array([0.5, 0, 0]),
         kD_position=np.array([0, 0, 0]),
         kI_position=np.array([0, 0, 0]),
-        kP_orientation=np.array([1, 1, 1]),
+        kP_orientation=np.array([0, 0, 0]),
         kD_orientation=np.array([0, 0, 0]),
         kI_orientation=np.array([0, 0, 0]),
         max_signal_position=np.array([1, 1, 1]),
