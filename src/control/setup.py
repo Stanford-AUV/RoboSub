@@ -10,7 +10,7 @@ setup(
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml"]),
     ],
-    install_requires=["setuptools", "spatialmath-python"],
+    install_requires=["setuptools"],
     zip_safe=True,
     maintainer="ros",
     maintainer_email="scotthickmann21@gmail.com",
