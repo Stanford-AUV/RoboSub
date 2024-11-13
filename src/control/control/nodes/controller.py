@@ -63,17 +63,15 @@ class Controller(Node):
         policy
             The policy to use for the controller.
         """
-        super().__init__('controller')
+        super().__init__("controller")
 
         self.state_subscription = self.create_subscription(
-            Odometry, 'odometry', self.state_callback, 10
+            Odometry, "odometry", self.state_callback, 10
         )
         self.reference_subscription = self.create_subscription(
-            Odometry, 'path', self.reference_callback, 10
+            Odometry, "path", self.reference_callback, 10
         )
-        self.control_publisher = self.create_publisher(
-            WrenchStamped, 'wrench', 10
-        )
+        self.control_publisher = self.create_publisher(WrenchStamped, "wrench", 10)
 
         self.lock = threading.Lock()
 
@@ -86,7 +84,7 @@ class Controller(Node):
 
     def reset(self):
         """Reset the controller."""
-        self.get_logger.info('Resetting controller...')
+        self.get_logger.info("Resetting controller...")
         with self.lock:
             self.policy.reset()
 
@@ -101,7 +99,7 @@ class Controller(Node):
         """
         with self.lock:
             self.cur_state = State.from_odometry_msg(msg)
-            self.get_logger().info('Current state updated')
+            self.get_logger().info("Current state updated")
             self.update() if self.ref_state is not None else None
 
     def reference_callback(self, msg: Odometry):
@@ -115,7 +113,7 @@ class Controller(Node):
         """
         with self.lock:
             self.ref_state = State.from_odometry_msg(msg)
-            #self.get_logger().info('Reference state updated')
+            # self.get_logger().info('Reference state updated')
 
     def update(self):
         """Update the control signal and publish to the wrench topic."""
@@ -138,10 +136,10 @@ def main(args=None):
         kP_orientation=np.array([0, 0, 0]),
         kD_orientation=np.array([0, 0, 0]),
         kI_orientation=np.array([0, 0, 0]),
-        max_signal_position=np.array([1, 1, 1]),
-        max_signal_orientation=np.array([1, 1, 1]),
+        max_signal_force=np.array([1, 1, 1]),
+        max_signal_torque=np.array([1, 1, 1]),
         max_integral_position=np.array([1, 1, 1]),
-        max_integral_orientation=np.array([1, 1, 1])
+        max_integral_orientation=np.array([1, 1, 1]),
     )
 
     controller_node = Controller(pid)
@@ -149,7 +147,7 @@ def main(args=None):
     try:
         rclpy.spin(controller_node)
     except KeyboardInterrupt:
-        controller_node.get_logger().info('Shutting down controller...')
+        controller_node.get_logger().info("Shutting down controller...")
         pass
 
     controller_node.destroy_node()
@@ -157,5 +155,5 @@ def main(args=None):
     rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
