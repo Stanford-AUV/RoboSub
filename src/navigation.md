@@ -63,7 +63,7 @@ Contains test cases and testing scripts to validate the functionality of the pac
   Configuration file specifying metadata and options for Python packaging.
 
 - **`setup.py`**  
-  Build script to install the package and its dependencies.
+  Build script to install the package and its dependencies. <span style="color:#4488FF">When adding nodes, make sure to include them in the `entry_points` argument of `setup()`.</span>
 
 ---
 
