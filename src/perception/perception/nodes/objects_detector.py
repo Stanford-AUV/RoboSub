@@ -18,7 +18,7 @@ class ObjectsDetector(Node):
         super().__init__("objects_detector")
 
         # Load the YOLO model
-        self.model = YOLO("yolo11n.pt")  # Ensure the correct model path
+        self.model = YOLO("yolo11n.pt", verbose=False)  # Ensure the correct model path
 
         # Initialize the CvBridge to convert ROS Image messages to OpenCV format
         self.bridge = CvBridge()
@@ -39,7 +39,7 @@ class ObjectsDetector(Node):
         cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
 
         # Run YOLO model on the image
-        results = self.model(cv_image)
+        results = self.model(cv_image, verbose=False)
 
         def xywh_to_bbox(xywh_list):
             [[x, y, w, h]] = xywh_list
