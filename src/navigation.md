@@ -23,7 +23,7 @@
 ## Additional Directories
 
 - **`launch`**  
-  Contains ROS2 launch files to easily set up and execute various configurations and modules.
+  Contains ROS2 launch files to easily set up and execute various configurations and modules. When adding a new package or node, add file/nodes in this folder.
 
 - **`msgs`**  
   Defines custom ROS2 message types used for communication between nodes.
