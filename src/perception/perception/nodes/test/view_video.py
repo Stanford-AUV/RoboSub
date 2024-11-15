@@ -1,12 +1,15 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
+from vision_msgs.msg import Detection2DArray, Detection2D
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
 
 
 class ViewVideo(Node):
+    detections: list[Detection2D]
+
     def __init__(self):
         super().__init__("view_video")
         self.get_logger().info("ViewVideo node has been created!")
@@ -18,10 +21,40 @@ class ViewVideo(Node):
         self.depth_sub = self.create_subscription(
             Image, "oak/depth/image_raw", self.depth_callback, 10
         )
+        self.detections_2d_sub = self.create_subscription(
+            Detection2DArray, "detections2d", self.detections_2d_callback, 10
+        )
+        self.detections = []
 
     def rgb_callback(self, msg):
         # Convert ROS Image message to OpenCV image
         frame = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+
+        # Draw bounding boxes and labels on the frame
+        for detection in self.detections:
+            bbox = detection.bbox
+            x_min = int(bbox.center.position.x - bbox.size_x / 2)
+            y_min = int(bbox.center.position.y - bbox.size_y / 2)
+            x_max = int(bbox.center.position.x + bbox.size_x / 2)
+            y_max = int(bbox.center.position.y + bbox.size_y / 2)
+
+            # Draw rectangle around detected object
+            cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
+
+            # Display the label with confidence score
+            if detection.results:
+                label = detection.results[0].hypothesis.class_id
+                confidence = detection.results[0].hypothesis.score
+                label_text = f"{label}: {confidence:.2f}"
+                cv2.putText(
+                    frame,
+                    label_text,
+                    (x_min, y_min - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    (0, 255, 0),
+                    2,
+                )
 
         # Display the frame
         cv2.imshow("Video Stream", frame)
@@ -49,6 +82,9 @@ class ViewVideo(Node):
         if cv2.waitKey(1) & 0xFF == ord("q"):
             self.get_logger().info("Quitting depth display")
             rclpy.shutdown()
+
+    def detections_2d_callback(self, msg: Detection2DArray):
+        self.detections = msg.detections
 
 
 def main(args=None):

@@ -66,7 +66,9 @@ class ObjectsDetector(Node):
 
             # init objecthypothsis...
             objhypo = ObjectHypothesisWithPose()
-            objhypo.hypothesis.class_id = str(results[0].boxes[bbox_idx].cls)
+            class_id = int(results[0].boxes[bbox_idx].cls)
+            label_name = self.model.names[class_id]
+            objhypo.hypothesis.class_id = label_name
             objhypo.hypothesis.score = float(results[0].boxes[bbox_idx].conf)
             detection.results.append(objhypo)
 
@@ -77,23 +79,12 @@ class ObjectsDetector(Node):
             detection.bbox.size_x = bbox_info["size_x"]
             detection.bbox.size_y = bbox_info["size_y"]
 
-            # (opt) init source image
-
             # append detection to array
             detections_array.detections.append(detection)
 
         # Annotate the image with detections
         detections_array.header = msg.header
         self.pub.publish(detections_array)
-
-        annotated_frame = results[0].plot()
-
-        # Display the annotated frame (optional)
-        cv2.imshow("YOLOv8 Detections", annotated_frame)
-        cv2.waitKey(1)  # Wait for a brief moment to update the display
-
-        # (Optional) Save the annotated image as an output file if required
-        # cv2.imwrite('output_frame.jpg', annotated_frame)
 
 
 def main(args=None):
