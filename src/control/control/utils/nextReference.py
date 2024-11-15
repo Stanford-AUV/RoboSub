@@ -10,6 +10,7 @@ import numpy as np
 class nextReference:
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     def __init__ (self, currentState, path):
 =======
     def __init__ (self, cur_state, path):
@@ -17,6 +18,9 @@ class nextReference:
 =======
     def __init__ (self, currentState, path):
 >>>>>>> a0c291a (Update nextReference.py (#48))
+=======
+    def __init__ (self, cur_state, path):
+>>>>>>> 9f74931 (updates nextState to nextReference)
         self.cur_state = currentState
         self.path = path
         self.index = 0
@@ -25,6 +29,7 @@ class nextReference:
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     
 >>>>>>> 9f74931 (updates nextState to nextReference)
@@ -35,10 +40,14 @@ class nextReference:
 >>>>>>> 9f74931 (updates nextState to nextReference)
 =======
 >>>>>>> 5adde3d (updates nextState to nextReference)
+=======
+    
+>>>>>>> 9f74931 (updates nextState to nextReference)
     def initializer (self):
         self.path = None
         self.index = 0
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -51,6 +60,8 @@ class nextReference:
         else:
             self.index = newPath.size() - 1
 =======
+=======
+>>>>>>> 9f74931 (updates nextState to nextReference)
 =======
 >>>>>>> 9f74931 (updates nextState to nextReference)
     #in progress
@@ -60,6 +71,7 @@ class nextReference:
             if newPath[newIndex]:
         self.path = newPath
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> 9f74931 (updates nextState to nextReference)
 =======
     #naive
@@ -80,6 +92,8 @@ class nextReference:
 >>>>>>> 9f74931 (updates nextState to nextReference)
 =======
 >>>>>>> 5adde3d (updates nextState to nextReference)
+=======
+>>>>>>> 9f74931 (updates nextState to nextReference)
 
     def changeState (self, newState):
         self.cur_state = newState
@@ -88,6 +102,7 @@ class nextReference:
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     #index indicate the current path target
 =======
 >>>>>>> 9f74931 (updates nextState to nextReference)
@@ -99,6 +114,8 @@ class nextReference:
 =======
     #index indicate the current path target
 >>>>>>> 5adde3d (updates nextState to nextReference)
+=======
+>>>>>>> 9f74931 (updates nextState to nextReference)
     def getNextReference (self):
         if index < 0:
             index = 0
@@ -107,6 +124,7 @@ class nextReference:
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         distanceToNext = numpy.linalg.norm(currentState - self.path[self.index])
         distanceToPrevious = numpy.linalg.norm(currentState - self.path[self.index] - 1)
 
@@ -119,6 +137,8 @@ class nextReference:
 <<<<<<< HEAD
 <<<<<<< HEAD
 =======
+=======
+>>>>>>> 9f74931 (updates nextState to nextReference)
 =======
 >>>>>>> 9f74931 (updates nextState to nextReference)
         currentPoint = cur_state.pos
@@ -127,6 +147,7 @@ class nextReference:
                         (currentState.y - self.path[self.index].y ** 2) + 
                         (currentState.z - self.path[self.index].z) ** 2)
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
         distanceToNext = numpy.linalg.norm(currentState - self.path[self.index])
         distanceToPrevious = numpy.linalg.norm(currentState - self.path[self.index] - 1)
@@ -150,6 +171,16 @@ class nextReference:
         return path[self.index] 
 
 <<<<<<< HEAD
+>>>>>>> 9f74931 (updates nextState to nextReference)
+=======
+
+        distanceToPrevious = sqrt((currentState.x - self.path[self.index - 1].x) ** 2 + 
+                        (currentState.y - self.path[self.index - 1].y ** 2) + 
+                        (currentState.z - self.path[self.index - 1].z) ** 2)
+        if distanceToNext < distanceToPrevious and index < path.size() - 1:
+            index += 1
+        return path[self.index] 
+
 >>>>>>> 9f74931 (updates nextState to nextReference)
     def getDistance(point1, point2):
         return sqrt((point1.x - point2.x) ** 2 + 
@@ -157,6 +188,7 @@ class nextReference:
                         (point1.z - point2.z) ** 2)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     
 >>>>>>> 9f74931 (updates nextState to nextReference)
 =======
@@ -172,3 +204,6 @@ class nextReference:
 >>>>>>> 5adde3d (updates nextState to nextReference)
 =======
 >>>>>>> 766c5d4 (Path follower)
+=======
+    
+>>>>>>> 9f74931 (updates nextState to nextReference)
