@@ -5,17 +5,18 @@ import numpy as np
 #the index to be 0 if initially given less than 0, and it will be fixed at the max index when it's
 #at the end of path.
 
-class nextState:
-    def __init__ (self, currentState, path, index):
-        self.currentState = currentState
+class nextReference:
+    def __init__ (self, path, index):
         self.path = path
         self.index = index
+    
+    def initializer (self):
+        self.path = None
+        self.index = 0
 
-    def getNextReference (self):
+    def getNextReference (self, currentState):
         if index < 0:
             index = 0
-        
-
         distanceToNext = sqrt((currentState.x - self.path[self.index].x) ** 2 + 
                         (currentState.y - self.path[self.index].y ** 2) + 
                         (currentState.z - self.path[self.index].z) ** 2)
