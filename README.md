@@ -140,6 +140,13 @@ To use the Gazebo simulator, follow these steps:
 4. A window should pop up in the VM with the simulation environment displayed. Press play to start the simulation.
 5. To stop the simulation, press `Control` + `C` on the VSCode Terminal
 
+## Viewing the ROS Graph
+
+After launching a launch file, you can view the ROS graph of all nodes and topics currently active. To do so, run the following command in another Terminal:
+```bash
+ros2 run rqt_graph rqt_graph
+```
+
 ## Creating New Nodes
 
 Make sure to create new nodes inside the according package under the `nodes` directory. Make sure to also add that file in the `setup.py` file of the package.
