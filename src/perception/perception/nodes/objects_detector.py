@@ -27,7 +27,7 @@ class ObjectsDetector(Node):
         self.subscription = self.create_subscription(
             Image, "oak/rgb/image_raw", self.image_callback, 10
         )
-        self.pub = self.create_publisher(Detection2DArray, "/detections2d", 10)
+        self.pub = self.create_publisher(Detection2DArray, "detections2d", 10)
 
         # Log to indicate that the node has started
         self.get_logger().info(

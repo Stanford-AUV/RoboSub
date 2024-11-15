@@ -17,5 +17,11 @@ def generate_launch_description():
                 output="screen",
                 parameters=[],
             ),
+            Node(
+                package="perception",
+                executable="to3dfrom2d",
+                output="screen",
+                parameters=[],
+            ),
         ]
     )

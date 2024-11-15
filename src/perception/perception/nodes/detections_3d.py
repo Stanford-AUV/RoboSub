@@ -67,24 +67,6 @@ class To3DFrom2D(Node):
 
     def img_sub_callback(self, msg):
         self.depth_map = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
-        # fig, ax = plt.subplots()
-        # ax.imshow(self.depth_map, cmap="gray")  # Display the depth image
-        # center_pixel_x = self.depth_width // 2
-        # center_pixel_y = self.depth_height // 2
-        # circle_radius = (
-        #     self.depth_height // 2
-        # )  # You can adjust this radius for visibility
-        # circle = plt.Circle(
-        #     (center_pixel_x, center_pixel_y),
-        #     circle_radius,
-        #     color="red",
-        #     fill=False,
-        #     linewidth=2,
-        # )
-        # ax.add_patch(circle)
-        # plt.title("Depth Image with Center Circle")
-        # plt.show()
-
         self.run_filter()
 
     def det_sub_callback(self, msg):
