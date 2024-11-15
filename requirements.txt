@@ -1,5 +1,7 @@
-depthai
 numpy
+spatialmath-python
+casadi
+depthai
 scipy
 opencv-python
 casadi

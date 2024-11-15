@@ -65,7 +65,7 @@ class ThrustGenerator(Node):
             ThrustsStamped, "thrusts", history_depth
         )
         self._wrench_sub = self.create_subscription(
-            Wrench, "wrench", self.wrench_callback, history_depth
+            WrenchStamped, "wrench", self.wrench_callback, history_depth
         )
 
         timer_period = (
@@ -82,7 +82,8 @@ class ThrustGenerator(Node):
         msg = ThrustsStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.thrusts = thrusts.tolist()
-        self.get_logger().info(f"Publishing thrusts {msg.thrusts}")
+        #self.get_logger().info(f"Publishing wrench {self.wrench}")
+        #self.get_logger().info(f"Publishing thrusts {msg.thrusts}")
         self._thrusts_pub.publish(msg)
 
     def wrench_callback(self, msg: WrenchStamped):
