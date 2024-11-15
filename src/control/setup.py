@@ -20,6 +20,8 @@ setup(
     entry_points={
         "console_scripts": [
             "thrust_generator = control.nodes.thrust_generator:main",
-        ],
+            "controller = control.nodes.controller:main",
+            "test_path = control.nodes.test_path:main",
+        ]
     },
 )
