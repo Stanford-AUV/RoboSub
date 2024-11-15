@@ -20,7 +20,7 @@ class PathGenerator(Node):
         history_depth = (
             self.get_parameter("history_depth").get_parameter_value().integer_value
         )
-        
+
         self.waypoints_subscriber = self.create_subscription(
             Path, "waypoints", self.waypoints_callback, history_depth
         ) # Create test waypoints node 
