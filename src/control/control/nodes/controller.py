@@ -71,9 +71,15 @@ class Controller(Node):
         self.reference_subscription = self.create_subscription(
             Paths, 'path', self.reference_callback, 10
         )
+
+        self.reset_path_subscription = self.create_subscription(
+            Empty, 'reset_path', self.reset_path_index, 10
+        )
         self.control_publisher = self.create_publisher(
             WrenchStamped, 'wrench', 10
         )
+
+
 
         self.lock = threading.Lock()
 
@@ -89,6 +95,10 @@ class Controller(Node):
         self.get_logger.info('Resetting controller...')
         with self.lock:
             self.policy.reset()
+
+    def reset_path_index(self, msg):
+        self.get_logger().info('Resetting path index')
+        self.policy.reset_path_index()
 
     def state_callback(self, msg: Odometry):
         """

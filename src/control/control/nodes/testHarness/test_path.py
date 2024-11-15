@@ -27,6 +27,8 @@ class TestPath(Node):
         # Increment x position for the next publish
         self.x_position += 0.0
 
+    
+
 def main(args=None):
     rclpy.init(args=args)
     test_path = TestPath()

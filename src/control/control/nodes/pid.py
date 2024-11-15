@@ -46,73 +46,8 @@ import spatialmath as sm
 
 from src/msgs/msg/GeneratedPath.msg import Paths 
 
-class PID_config():
-    "Class to encapsulate PID parameters"
-    "Kp - proportional gain"
-    "Kd - derivative gain"
-    "Ki - integral gain"
-    "Three sets of gains for position, velocity, and orientation"
-    "Max signals : upper limits for the control signal"
-    def __init__(self, 
-                kP_position: np.ndarray,
-                kD_position: np.ndarray,
-                kI_position: np.ndarray,
-                kP_velocity: np.ndarray,
-                kD_velocity: np.ndarray,
-                kI_velocity: np.ndarray,
-                kP_orientation: np.ndarray,
-                kD_orientation: np.ndarray,
-                kI_orientation: np.ndarray,
-                kP_angular_velocity: np.ndarray,
-                kD_angular_velocity: np.ndarray,
-                kI_angular_velocity: np.ndarray,
-                max_signal_position: np.ndarray,
-                max_signal_velocity: np.ndarray,
-                max_signal_orientation: np.ndarray,
-                max_signal_angular_velocity: np.ndarray,
-                max_integral_position: np.ndarray,
-                max_integral_velocity: np.ndarray,
-                max_integral_orientation: np.ndarray,
-                max_integral_angular_velocity: np.ndarray):
-
-        self.kP_position = kP_position
-        self.kD_position = kD_position
-        self.kI_position = kI_position
-
-        self.kP_velocity = kP_velocity
-        self.kD_velocity = kD_velocity
-        self.kI_velocity = kI_velocity
-
-        self.kP_orientation = kP_orientation
-        self.kD_orientation = kD_orientation
-        self.kI_orientation = kI_orientation
-
-        self.kP_angular_velocity = kP_angular_velocity
-        self.kD_angular_velocity = kD_angular_velocity
-        self.kI_angular_velocity = kI_angular_velocity
-
-        self.integral_position = np.zeros(3)
-        self.integral_velocity = np.zeros(3)
-        self.integral_orientation = np.zeros(3)
-        self.integral_angular_velocity = np.zeros(3)
-
-        self.max_signal_position = max_signal_position
-        self.max_signal_orientation = max_signal_orientation
-        self.max_signal_velocity = max_signal_velocity
-        self.max_signal_angular_velocity = max_signal_angular_velocity
-
-        self.max_integral_position = max_integral_position
-        self.max_integral_orientation = max_integral_orientation
-        self.max_integral_velocity = max_integral_velocity
-        self.max_integral_angular_velocity = max_integral_angular_velocity
-
-
-
-    def update_PID_params(self, gain_type: str, new_values: np.ndarray, new_limits: float):
-        if hasattr(self, gain_type):
-            setattr(self, gain_type, new_values)
-        else:
-            raise ValueError("invalid gain type :(")
+from pid_config import PID_config
+    
         
 
 class PID():
@@ -149,6 +84,10 @@ class PID():
     def set_paths(self, paths: Paths):
         self.paths = paths
 
+    def reset_path_index(self):
+        self.index = 0
+        self.paths = None
+
 
     'The PID calculations for each of the four possible errors. Position, Velocity, Orientation, Angular Velocity.'
     'These functions are presently kept separate to prepare for ad hoc modifications to their calculations. It is possible to combine them into one function,' 
@@ -168,7 +107,6 @@ class PID():
         pTerm = self.config.kP_position * posError
         #Integral' 
         self.config.integral_position += posError * self.config.kI_position * dt
-        self.config.integral_position = self.clampIntegral(self.config.integral_position, self.config.max_integral_position)
         iTerm = self.config.integral_position 
         #Derivative' 
         dTerm = self.config.kD_position * (posError - self.lastPosError) / dt
@@ -187,7 +125,6 @@ class PID():
         pTerm = self.config.kP_velocity * velError
         #Integral' 
         self.config.integral_velocity += velError * self.config.kI_velocity * dt
-        self.config.integral_velocity = self.clampIntegral(self.config.integral_velocity, self.config.max_integral_velocity)
         iTerm = self.config.integral_velocity
         
         #Derivative' 
@@ -211,7 +148,6 @@ class PID():
         pTerm = self.config.kP_orientation * orientationError
         #Integral
         self.config.integral_orientation += orientationError * self.config.kI_orientation * dt
-        self.config.integral_orientation = self.clampIntegral(self.config.integral_orientation, self.config.max_integral_orientation)
         iTerm = self.config.integral_orientation
         #Derivative
         dTerm = self.config.kD_orientation * (orientationError - self.lastOrientationError) / dt
@@ -232,7 +168,6 @@ class PID():
         dTerm = self.config.kD_angular_velocity * (angVelError - self.lastangVelError) / dt 
         #Integrative
         self.config.integral_angular_velocity += angVelError * self.config.kI_angular_velocity * dt
-        self.config.integral_angular_velocity = self.clampIntegral(self.config.integral_angular_velocity, self.config.max_integral_angular_velocity)
         iTerm = self.config.integral_angular_velocity 
         #generate output
         output = propTerm + dTerm + iTerm 
@@ -240,9 +175,6 @@ class PID():
         self.lastangVelError = angVelError
 
         return output
-
-    def clampIntegral(self, integral, max_integral):
-        return np.clip(integral, -max_integral, max_integral)
         
 
 
@@ -280,13 +212,19 @@ class PID():
     def update(self, dt) -> WrenchStamped:
         
         if self.paths is None:
-            raise ValueError("No paths are set")
+            self.get_logger().warn("No paths set; skipping update.")
+            return None
+        elif self.cur_state is None:
+            self.get_logger().warn("No current state set; skipping update.")
+            return None
+        elif self.reference is None:
+            self.get_logger().warn("No reference state set; skipping update.")
+            return None
+        elif not np.isfinite(dt) or dt <= 0:
+            self.get_logger().warn("Invalid dt value; skipping update.")
+            return None
         else:
             update_index = self.areWeThereYet()
-
-        if self.cur_state is None or self.reference is None:
-            raise ValueError("Current state or reference state is not set")
-        else:
             force_body = self.calculatePosOutput(dt) + self.calculateVelOutput(dt)
             torque_body = self.calculateOrientationOutput(dt) + self.calculateAngularVelocityOutput(dt)
             wrench = AbstractWrench(force_body, torque_body)
