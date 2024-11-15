@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
@@ -6,29 +5,15 @@ from std_msgs.msg import Float32MultiArray
 from cv_bridge import CvBridge
 import numpy as np
 from vision_msgs.msg import Detection2DArray
-import depthai as dai
-import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from perception.utils.bounding_box import oriented_bounding_box
-
-MAX_DISTANCE = 10000  # Maximum depth distance in mm
 
 
 class To3DFrom2D(Node):
     def __init__(self):
         super().__init__("to3dfrom2d")
         self.bridge = CvBridge()
-
-        # Set depth and RGB image resolution
-        self.depth_width = 640
-        self.depth_height = 400
-        self.rgb_width = 4056
-        self.rgb_height = 3040
-
-        # Compute scaling factors
-        self.scale_x = self.depth_width / self.rgb_width
-        self.scale_y = self.depth_height / self.rgb_height
 
         # Retrieve camera intrinsics
         self.fx, self.fy, self.cx, self.cy = self.get_camera_intrinsics()
@@ -73,10 +58,10 @@ class To3DFrom2D(Node):
         self.detections = []
         for detection in msg.detections:
             bounding_box = detection.bbox
-            x_center = bounding_box.center.position.x * self.scale_x
-            y_center = bounding_box.center.position.y * self.scale_y
-            box_width = bounding_box.size_x * self.scale_x
-            box_height = bounding_box.size_y * self.scale_y
+            x_center = bounding_box.center.position.x
+            y_center = bounding_box.center.position.y
+            box_width = bounding_box.size_x
+            box_height = bounding_box.size_y
             self.detections.append([x_center, y_center, box_width, box_height])
 
         self.run_filter()
@@ -96,32 +81,16 @@ class To3DFrom2D(Node):
 
         for box in self.detections:
             x_center, y_center, box_width, box_height = box
-            top_left_x = int(x_center - box_width / 2)
-            top_left_y = int(y_center - box_height / 2)
-            bottom_right_x = int(x_center + box_width / 2)
-            bottom_right_y = int(y_center + box_height / 2)
-
-            # Ensure bounding box is within the depth map
-            cropped_depth = self.depth_map[
-                max(top_left_y, 0) : min(bottom_right_y, self.depth_height),
-                max(top_left_x, 0) : min(bottom_right_x, self.depth_width),
-            ]
-            if cropped_depth.size == 0:
-                continue
-
+            left_x = int(x_center - box_width / 2)
+            top_y = int(y_center - box_height / 2)
+            right_x = int(x_center + box_width / 2)
+            bottom_y = int(y_center + box_height / 2)
             points_3d = []
-            for i in range(cropped_depth.shape[0]):
-                for j in range(cropped_depth.shape[1]):
-                    depth_value = cropped_depth[i, j]
-                    if depth_value > MAX_DISTANCE or depth_value <= 0:
-                        continue
-
-                    x_3d, y_3d, z_3d = self.pixel_to_3d(
-                        top_left_x + j, top_left_y + i, depth_value
-                    )
+            for y in range(top_y, bottom_y):
+                for x in range(left_x, right_x):
+                    depth_value = self.depth_map[y, x]
+                    x_3d, y_3d, z_3d = self.pixel_to_3d(x, y, depth_value)
                     points_3d.append([x_3d, y_3d, z_3d])
-
-            # self.plot_center_sphere()
 
             self.compute_3d_bounding_box(points_3d)
 
@@ -147,15 +116,12 @@ class To3DFrom2D(Node):
 
         # TODO send msg
 
-    def run(self):
-        rclpy.spin(self)
-
 
 def main(args=None):
     rclpy.init(args=args)
-    to_3d_from_2d_node = To3DFrom2D()
-    to_3d_from_2d_node.run()
-    to_3d_from_2d_node.destroy_node()
+    node = To3DFrom2D()
+    rclpy.spin(node)
+    node.destroy_node()
     rclpy.shutdown()
 
 

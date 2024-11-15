@@ -3,7 +3,6 @@ from rclpy.node import Node
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import depthai as dai
-import time
 
 
 class Camera(Node):
@@ -38,6 +37,16 @@ class Camera(Node):
 
         if latestPacket["disp"] is not None:
             frameDisp = latestPacket["disp"].getFrame()
+            # maxDisparity = stereo.initialConfig.getMaxDisparity()
+            # TODO: Move to view cam
+            # # Optional, extend range 0..95 -> 0..255, for a better visualisation
+            # if 1:
+            #     frameDisp = (frameDisp * 255.0 / maxDisparity).astype(np.uint8)
+            # # Optional, apply false colorization
+            # if 1:
+            #     frameDisp = cv2.applyColorMap(frameDisp, cv2.COLORMAP_HOT)
+            # frameDisp = np.ascontiguousarray(frameDisp)
+            # cv2.imshow(depthWindowName, frameDisp)
             self.depth_pub.publish(
                 self.bridge.cv2_to_imgmsg(frameDisp, encoding="passthrough")
             )

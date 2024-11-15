@@ -1,4 +1,3 @@
-from typing import Optional
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
@@ -10,7 +9,6 @@ import numpy as np
 
 class ViewVideo(Node):
     detections: list[Detection2D]
-    frame_dims: Optional[tuple]
 
     def __init__(self):
         super().__init__("view_video")
@@ -27,13 +25,10 @@ class ViewVideo(Node):
             Detection2DArray, "detections2d", self.detections_2d_callback, 10
         )
         self.detections = []
-        self.frame_dims = None
 
     def rgb_callback(self, msg):
         # Convert ROS Image message to OpenCV image
         frame = self.bridge.imgmsg_to_cv2(msg, "bgr8")
-
-        self.frame_dims = frame.shape
 
         # Overlay BBOX
         self.overlay_bbox(frame)
@@ -47,9 +42,6 @@ class ViewVideo(Node):
             rclpy.shutdown()
 
     def depth_callback(self, msg):
-        if not self.frame_dims:
-            return
-
         # Convert ROS Image message to OpenCV image (RGB representation of depth)
         depth_frame = self.bridge.imgmsg_to_cv2(msg, "passthrough")
 
@@ -59,11 +51,6 @@ class ViewVideo(Node):
         )  # Can use cam_depth.initialConfig.getMaxDisparity() instead of 95
         depth_frame_tmp = (depth_frame * ratio).astype(np.uint8)
         depth_frame_color_map = cv2.applyColorMap(depth_frame_tmp, cv2.COLORMAP_JET)
-        self.get_logger().info(f"Shape: {depth_frame_color_map.shape}")
-        self.get_logger().info(f"Shape: {self.frame_dims}")
-        depth_frame_color_map = cv2.resize(
-            depth_frame_color_map, (self.frame_dims[1], self.frame_dims[0])
-        )
 
         # Overlay BBOX
         self.overlay_bbox(depth_frame_color_map)
