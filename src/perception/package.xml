@@ -3,11 +3,15 @@
 <package format="3">
   <name>perception</name>
   <version>0.0.0</version>
-  <description>Perception Node</description>
-  <maintainer email="yzd@stanford.edu">root</maintainer>
-  <license>Apache-2.0</license>
+  <description>This package is in charge of computing the position of various objects and sending them back to the planning package for processing. It interacts closely with the planning package, receiving commands about what to scan for, and responding with estimated positions accordingly.</description>
+  <maintainer email="scotthickmann21@gmail.com">ros</maintainer>
+  <license>TODO: License declaration</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+
   <test_depend>ament_copyright</test_depend>
-  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_black</test_depend>
   <test_depend>ament_pep257</test_depend>
   <test_depend>python3-pytest</test_depend>
   <depend>cv_bridge</depend>
