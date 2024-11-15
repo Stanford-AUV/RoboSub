@@ -8,11 +8,16 @@ import numpy as np
 #!!! IS THERE A .SIZE() METHOD FOR PATH TYPE???!!!
 
 class nextReference:
+<<<<<<< HEAD
     def __init__ (self, currentState, path):
+=======
+    def __init__ (self, cur_state, path):
+>>>>>>> 9f74931 (updates nextState to nextReference)
         self.cur_state = currentState
         self.path = path
         self.index = 0
         
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 =======
@@ -20,12 +25,16 @@ class nextReference:
 >>>>>>> 9f74931 (updates nextState to nextReference)
 =======
 >>>>>>> 5adde3d (updates nextState to nextReference)
+=======
+    
+>>>>>>> 9f74931 (updates nextState to nextReference)
     def initializer (self):
         self.path = None
         self.index = 0
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     #naive
     def changePath (self, newPath, newIndex):
         self.path = newPath
@@ -34,12 +43,15 @@ class nextReference:
         else:
             self.index = newPath.size() - 1
 =======
+=======
+>>>>>>> 9f74931 (updates nextState to nextReference)
     #in progress
     def changePath (self, newPath):
         newIndex = self.index
         if newIndex + 1 < newPath.size():
             if newPath[newIndex]:
         self.path = newPath
+<<<<<<< HEAD
 >>>>>>> 9f74931 (updates nextState to nextReference)
 =======
     #naive
@@ -50,10 +62,13 @@ class nextReference:
         else:
             self.index = newPath.size() - 1
 >>>>>>> 5adde3d (updates nextState to nextReference)
+=======
+>>>>>>> 9f74931 (updates nextState to nextReference)
 
     def changeState (self, newState):
         self.cur_state = newState
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
     #index indicate the current path target
@@ -62,10 +77,13 @@ class nextReference:
 =======
     #index indicate the current path target
 >>>>>>> 5adde3d (updates nextState to nextReference)
+=======
+>>>>>>> 9f74931 (updates nextState to nextReference)
     def getNextReference (self):
         if index < 0:
             index = 0
         
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
         distanceToNext = numpy.linalg.norm(currentState - self.path[self.index])
@@ -79,11 +97,14 @@ class nextReference:
 
 <<<<<<< HEAD
 =======
+=======
+>>>>>>> 9f74931 (updates nextState to nextReference)
         currentPoint = cur_state.pos
         
         distanceToNext = sqrt((currentState.x - self.path[self.index].x) ** 2 + 
                         (currentState.y - self.path[self.index].y ** 2) + 
                         (currentState.z - self.path[self.index].z) ** 2)
+<<<<<<< HEAD
 =======
         distanceToNext = numpy.linalg.norm(currentState - self.path[self.index])
         distanceToPrevious = numpy.linalg.norm(currentState - self.path[self.index] - 1)
@@ -95,11 +116,22 @@ class nextReference:
         return path[self.index] 
 
 <<<<<<< HEAD
+=======
+
+        distanceToPrevious = sqrt((currentState.x - self.path[self.index - 1].x) ** 2 + 
+                        (currentState.y - self.path[self.index - 1].y ** 2) + 
+                        (currentState.z - self.path[self.index - 1].z) ** 2)
+        if distanceToNext < distanceToPrevious and index < path.size() - 1:
+            index += 1
+        return path[self.index] 
+
+>>>>>>> 9f74931 (updates nextState to nextReference)
     def getDistance(point1, point2):
         return sqrt((point1.x - point2.x) ** 2 + 
                         (point1.y - point2.y ** 2) + 
                         (point1.z - point2.z) ** 2)
 
+<<<<<<< HEAD
     
 >>>>>>> 9f74931 (updates nextState to nextReference)
 =======
@@ -107,3 +139,6 @@ class nextReference:
 >>>>>>> 5adde3d (updates nextState to nextReference)
 =======
 >>>>>>> 766c5d4 (Path follower)
+=======
+    
+>>>>>>> 9f74931 (updates nextState to nextReference)
