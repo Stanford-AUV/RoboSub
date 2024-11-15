@@ -31,7 +31,7 @@ When developing with ROS 2 and Gazebo, it's easy to suddenly be reading outdated
 
 1. Install VMWare Fusion (the free version, not the pro version).
 2. Download the Ubuntu ISO (either AMD or ARM depending on your computer) from https://cdimage.ubuntu.com/noble/daily-live/current/.
-3. Open VMWare and drag the downloaded ISO for installation.
+3. Open VMWare and drag the downloaded ISO for installation. MAKE SURE YOU SET THE DISK SIZE TO AT LEAST 30 GB!!!
 4. Press continue, then finish, and name your instance (leaving the default name is fine).
 5. Select "Try to install Ubuntu". Then click "Install Ubuntu" from the desktop.
 6. Proceed with the installation leaving everything as the default values.
@@ -47,6 +47,22 @@ When developing with ROS 2 and Gazebo, it's easy to suddenly be reading outdated
 16. Follow steps 1 to 3 of https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user.
 17. Note the USER@HOST shown in the VM's Ubuntu Terminal. Then open a Terminal on your local computer (i.e. your Mac) and enter `ssh USER@HOST.local`.
 18. If you connect successfully, now type `logout`, and then type `ssh-keygen -t ed25519` leaving all fields as default. Finally type `ssh-copy-id -i ~/.ssh/id_ed25519.pub USER@HOST.local`, once more replacing USER and HOST with your own credentials.
+
+
+#### MacOS Camera Installation (Optional)
+
+To access the camera directly from within the Docker in the VM, in a Terminal on the VM (not VSCode!), run the following:
+```
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+followed by
+```
+echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="03e7", MODE="0666"' | sudo tee /etc/udev/rules.d/80-movidius.rules
+```
+
+Then, connect the camera to your laptop. Make sure when prompted on the VM that the camera points to Linux and not Mac.
+
+Contact kevinli7@stanford.edu if you encounter any issues.
 
 #### Part 2: Code Installation
 
@@ -123,6 +139,13 @@ To use the Gazebo simulator, follow these steps:
 3. Back on the VSCode Terminal, run `./sim.sh`
 4. A window should pop up in the VM with the simulation environment displayed. Press play to start the simulation.
 5. To stop the simulation, press `Control` + `C` on the VSCode Terminal
+
+## Viewing the ROS Graph
+
+After launching a launch file, you can view the ROS graph of all nodes and topics currently active. To do so, run the following command in another Terminal:
+```bash
+ros2 run rqt_graph rqt_graph
+```
 
 ## Creating New Nodes
 
