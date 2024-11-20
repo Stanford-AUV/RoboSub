@@ -153,6 +153,7 @@ class nextReference:
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 =======
 >>>>>>> 9f74931 (updates nextState to nextReference)
@@ -230,3 +231,5 @@ class nextReference:
 =======
     #
 >>>>>>> 5adde3d (updates nextState to nextReference)
+=======
+>>>>>>> 766c5d4 (Path follower)
