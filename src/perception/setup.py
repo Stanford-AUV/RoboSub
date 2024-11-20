@@ -25,6 +25,7 @@ setup(
             f"camera = perception.nodes.camera:main",
             f"objects_detector = perception.nodes.objects_detector:main",
             f"detections_3d_points = perception.nodes.detections_3d_points:main",
+            f"detections_3d_bbox = perception.nodes.detections_3d_bbox:main",
         ],
     },
 )
