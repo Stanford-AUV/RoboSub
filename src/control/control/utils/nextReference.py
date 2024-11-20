@@ -30,6 +30,7 @@ class nextReference:
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     
 >>>>>>> 9f74931 (updates nextState to nextReference)
@@ -43,10 +44,13 @@ class nextReference:
 =======
     
 >>>>>>> 9f74931 (updates nextState to nextReference)
+=======
+>>>>>>> 5adde3d (updates nextState to nextReference)
     def initializer (self):
         self.path = None
         self.index = 0
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -82,10 +86,16 @@ class nextReference:
     def changePath (self, newPath, newIndex):
         self.path = newPath
 >>>>>>> 5adde3d (updates nextState to nextReference)
+=======
+    #naive
+    def changePath (self, newPath, newIndex):
+        self.path = newPath
+>>>>>>> 5adde3d (updates nextState to nextReference)
         if (newIndex < newPath.size()):
             self.index = newIndex
         else:
             self.index = newPath.size() - 1
+<<<<<<< HEAD
 <<<<<<< HEAD
 >>>>>>> 5adde3d (updates nextState to nextReference)
 =======
@@ -94,6 +104,8 @@ class nextReference:
 >>>>>>> 5adde3d (updates nextState to nextReference)
 =======
 >>>>>>> 9f74931 (updates nextState to nextReference)
+=======
+>>>>>>> 5adde3d (updates nextState to nextReference)
 
     def changeState (self, newState):
         self.cur_state = newState
@@ -103,6 +115,7 @@ class nextReference:
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     #index indicate the current path target
 =======
 >>>>>>> 9f74931 (updates nextState to nextReference)
@@ -116,10 +129,14 @@ class nextReference:
 >>>>>>> 5adde3d (updates nextState to nextReference)
 =======
 >>>>>>> 9f74931 (updates nextState to nextReference)
+=======
+    #index indicate the current path target
+>>>>>>> 5adde3d (updates nextState to nextReference)
     def getNextReference (self):
         if index < 0:
             index = 0
         
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -173,14 +190,17 @@ class nextReference:
 <<<<<<< HEAD
 >>>>>>> 9f74931 (updates nextState to nextReference)
 =======
+=======
+        distanceToNext = numpy.linalg.norm(currentState - self.path[self.index])
+        distanceToPrevious = numpy.linalg.norm(currentState - self.path[self.index] - 1)
+>>>>>>> 5adde3d (updates nextState to nextReference)
 
-        distanceToPrevious = sqrt((currentState.x - self.path[self.index - 1].x) ** 2 + 
-                        (currentState.y - self.path[self.index - 1].y ** 2) + 
-                        (currentState.z - self.path[self.index - 1].z) ** 2)
-        if distanceToNext < distanceToPrevious and index < path.size() - 1:
+        if (distanceToNext < distanceToPrevious and self.index < path.size() - 1):
             index += 1
+
         return path[self.index] 
 
+<<<<<<< HEAD
 >>>>>>> 9f74931 (updates nextState to nextReference)
     def getDistance(point1, point2):
         return sqrt((point1.x - point2.x) ** 2 + 
@@ -207,3 +227,6 @@ class nextReference:
 =======
     
 >>>>>>> 9f74931 (updates nextState to nextReference)
+=======
+    #
+>>>>>>> 5adde3d (updates nextState to nextReference)
