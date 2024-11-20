@@ -10,6 +10,7 @@ from geometry_msgs.msg import PoseStamped, Twist, Vector3
 from msgs.msg import GeneratedPath  # Custom message import
 from vision_msgs.msg import BoundingBox3D
 
+from planning.utils.utils import *
 
 class Mission(Node):
     def __init__(self):
@@ -40,6 +41,90 @@ class Mission(Node):
         # Variables to store the latest pose and twist messages
         self.current_pose = PoseStamped()
         self.current_velocity = Twist()
+
+    def generate_path(self, input_path: Path):
+        """
+        Generate a new path based on the input path, publish it, and process the response.
+        
+        Args:
+            input_path (Path): The input path to process and generate the new path.
+        """
+        # Log the input path for debugging
+        self.get_logger().info(f"Received input path with {len(input_path.poses)} waypoints.")
+
+        # Publish the input path
+        self.publish_waypoints(input_path)
+
+        # Wait for the generated path to be received (optional, could use a flag or event)
+        self.get_logger().info("Waiting for generated path...")
+        timeout = 10  # Timeout in seconds
+        start_time = self.get_clock().now().nanoseconds
+        while not hasattr(self, "last_generated_path"):
+            current_time = self.get_clock().now().nanoseconds
+            if (current_time - start_time) / 1e9 > timeout:
+                self.get_logger().error("Timeout while waiting for generated path.")
+                return None
+            rclpy.spin_once(self, timeout_sec=0.1)
+
+        # Process the received generated path
+        generated_path = self.last_generated_path
+        self.get_logger().info(f"Generated path received with {len(generated_path.poses)} waypoints.")
+
+        return generated_path
+    
+    def follow_path(self, generated_path: GeneratedPath):
+        raise NotImplementedError("TODO Later")
+
+    def look_in_all_directions(self, overlap_percentage: float = 0.2):
+        """
+        Make the robot look in all directions using a Fibonacci sphere path.
+        
+        Args:
+            overlap_percentage (float): The percentage overlap between consecutive views.
+        """
+        self.get_logger().info(f"Starting to look in all directions with {overlap_percentage*100:.1f}% overlap.")
+
+        # Camera FOV in radians
+        fov_radians = math.radians(50)
+        half_fov = fov_radians / 2
+
+        # Calculate the number of points needed for full coverage with overlap
+        required_angle = fov_radians * (1 - overlap_percentage)
+        num_points = math.ceil(4 * math.pi / (required_angle**2))
+
+        self.get_logger().info(f"Using {num_points} points to cover the sphere.")
+
+        # Generate Fibonacci sphere points
+        directions = self._generate_fibonacci_sphere_points(num_points)
+
+        # Create a Path message for the directions
+        path_msg = Path()
+        path_msg.header.frame_id = "map"
+        path_msg.header.stamp = self.get_clock().now().to_msg()
+
+        for direction in directions:
+            # Convert spherical coordinates to quaternion for orientation
+            quaternion = self._direction_to_quaternion(direction)
+
+            # Create a PoseStamped for the orientation
+            pose = PoseStamped()
+            pose.header.frame_id = "map"
+            pose.pose.orientation.x = quaternion[0]
+            pose.pose.orientation.y = quaternion[1]
+            pose.pose.orientation.z = quaternion[2]
+            pose.pose.orientation.w = quaternion[3]
+
+            # Append to the path
+            path_msg.poses.append(pose)
+
+        # Use the `generate_path` method to publish and follow the generated path
+        self.generate_path(path_msg)
+
+        ##########################
+        # TODO: FOLLOW THE PATH #
+        ##########################
+
+        self.get_logger().info("Completed looking in all directions.")
 
     def publish_waypoints(self, path: Path):
         """Publish the waypoints on the waypoints topic."""
