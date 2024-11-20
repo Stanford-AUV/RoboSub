@@ -41,4 +41,4 @@ class nextReference:
 
         return path[self.index] 
 
-    #
+
