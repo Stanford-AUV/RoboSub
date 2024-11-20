@@ -20,7 +20,7 @@ def generate_launch_description():
             ),
             Node(
                 package="control",
-                executable="test_path",
+                executable="sim_tester",
                 parameters=[global_params],
             ),
         ]
