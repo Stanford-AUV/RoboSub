@@ -44,4 +44,5 @@ The goal of the control package is to closely follow a given reference trajector
 ---
 
 ## References  
-Will update later on.
+- [Controls Engineering in the FIRST Robotics Competition](https://file.tavsys.net/control/controls-engineering-in-frc.pdf)
+- [Probabilistic Robotics](https://github.com/yvonshong/Probabilistic-Robotics/blob/master/Probabilistic-Robotics-en.pdf)
