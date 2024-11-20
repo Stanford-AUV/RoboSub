@@ -25,23 +25,23 @@ The goal of the control package is to closely follow a given reference trajector
 ---
 
 ## Communication  
-- **Inputs**: [What messages or topics this module subscribes to.]
-- **Outputs**: [What messages or topics this module publishes.]
-- **Interconnections**: [How this module communicates with other modules/packages.]
+- **Inputs**: `'/odometry'`: Odometry; `'/path'`: GeneratedPath; `'/test_path'`: GeneratedPath, Odometry; `'/wrench'`: WrenchStamped
+- **Outputs**: `'/wrench'`: WrenchStamped, `'/thrusts'`: ThrustsStamped
+- **Interconnections**: This package receives a current state from our localization process and a reference trajectory from our planning process. We use this information to calculate our thrust and send out the individual thrust for each thruster. 
 
 ---
 
 ## Development Notes  
-- [List any important implementation notes, standards, or practices.]
+- The goal of the whole control package is to be modular and abstract. The controller logic should work for any type of control policy and path following algorithm. For each new algorithm implemented, they should all have the same functions that set and return data. Be sure to adhere to common Python best practices for style.
 - [Highlight cross-development considerations, dependencies, or constraints.]
 
 ---
 
 ## Testing  
-- [Outline testing strategies for this module.]
-- [Specify any integration tests with other modules.]
+- To run unit tests, run `./test.sh`. 
+- To run tests in simulation, follow the instructions [here](control/README.md)
 
 ---
 
 ## References  
-[List any relevant documentation, papers, or resources.]
+Will update later on.
