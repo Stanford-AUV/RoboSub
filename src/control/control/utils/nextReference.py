@@ -77,6 +77,7 @@ class nextReference:
         return path[self.index] 
 
 
+<<<<<<< HEAD
 =======
         currentPoint = cur_state.pos
         
@@ -104,3 +105,5 @@ class nextReference:
 =======
     #
 >>>>>>> 5adde3d (updates nextState to nextReference)
+=======
+>>>>>>> 766c5d4 (Path follower)
