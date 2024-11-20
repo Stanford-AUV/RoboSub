@@ -36,6 +36,7 @@
         "**/log": true
     },
     "cSpell.words": [
+        "arange",
         "athackst",
         "autopep",
         "cmake",
