@@ -24,7 +24,7 @@ setup(
             f"test.view_video = perception.nodes.test.view_video:main",
             f"camera = perception.nodes.camera:main",
             f"objects_detector = perception.nodes.objects_detector:main",
-            f"to3dfrom2d = perception.nodes.detections_3d:main",
+            f"detections_3d_points = perception.nodes.detections_3d_points:main",
         ],
     },
 )

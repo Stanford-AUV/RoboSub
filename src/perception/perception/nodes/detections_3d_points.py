@@ -15,9 +15,9 @@ from msgs.msg import Detection3DPointsArray, Detection3DPoints
 from perception.utils.bounding_box import oriented_bounding_box
 
 
-class To3DFrom2D(Node):
+class Detections3DPointsNode(Node):
     def __init__(self):
-        super().__init__("to3dfrom2d")
+        super().__init__("detections_3d_points")
         self.bridge = CvBridge()
 
         # Retrieve camera intrinsics
@@ -132,7 +132,7 @@ class To3DFrom2D(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = To3DFrom2D()
+    node = Detections3DPointsNode()
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()

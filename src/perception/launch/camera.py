@@ -25,7 +25,7 @@ def generate_launch_description():
             ),
             Node(
                 package="perception",
-                executable="to3dfrom2d",
+                executable="detections_3d_points",
                 output="screen",
                 parameters=[],
             ),
