@@ -1,1 +1,11 @@
+numpy
+spatialmath-python
 casadi
+depthai
+scipy
+opencv-python
+casadi
+torch
+torchvision
+torchaudio
+ultralytics

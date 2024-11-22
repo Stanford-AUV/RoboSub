@@ -20,7 +20,7 @@ class PathGenerator(Node):
         history_depth = (
             self.get_parameter("history_depth").get_parameter_value().integer_value
         )
-        
+
         self.waypoints_subscriber = self.create_subscription(
             Path, "waypoints", self.waypoints_callback, history_depth
         ) # Create test waypoints node 
@@ -72,6 +72,7 @@ class PathGenerator(Node):
 
     def publish_generated_path(self, positions, velocities, accelerations, orientations, angular_velocities, angular_accelerations):
         # NOTE: Positional shapes are n by 3, rotational shapes are 3 by n
+        self.get_logger().info("Generated path, sending back...")
 
         generated_path = GeneratedPath()  # Initialize the custom message
         generated_path.header.stamp = self.get_clock().now().to_msg()
@@ -83,6 +84,7 @@ class PathGenerator(Node):
             pose_stamped = PoseStamped()
             pose_stamped.header.stamp = generated_path.header.stamp
             pose_stamped.header.frame_id = generated_path.header.frame_id
+
             pose_stamped.pose.position.x = positions[0][i]
             pose_stamped.pose.position.y = positions[1][i]
             pose_stamped.pose.position.z = positions[2][i]

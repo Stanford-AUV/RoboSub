@@ -58,7 +58,15 @@
         "uncrustify",
         "Wextra",
         "Wpedantic",
-        "xmllint"
+        "xmllint",
+        "Odometry",
+        "ndarray",
+        "Khaled",
+        "Messai",
+        "pinv",
+        "nanosec",
+        "normv",
+        "qvmul"
     ],
     "cSpell.allowCompoundWords": true,
     "cSpell.ignorePaths": [
