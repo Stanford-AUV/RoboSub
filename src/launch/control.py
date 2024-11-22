@@ -23,5 +23,10 @@ def generate_launch_description():
                 executable="test_path",
                 parameters=[global_params],
             ),
+            Node(
+                package="control",
+                executable="logger",
+                parameters=[global_params],
+            ),
         ]
     )
