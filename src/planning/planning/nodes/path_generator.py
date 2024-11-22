@@ -71,6 +71,7 @@ class PathGenerator(Node):
         self.publish_generated_path(positions, velocities, accelerations, orientations, angular_velocities, angular_accelerations)
 
     def publish_generated_path(self, positions, velocities, accelerations, orientations, angular_velocities, angular_accelerations):
+        # NOTE: Positional shapes are n by 3, rotational shapes are 3 by n
         self.get_logger().info("Generated path, sending back...")
 
         generated_path = GeneratedPath()  # Initialize the custom message
@@ -78,14 +79,15 @@ class PathGenerator(Node):
         generated_path.header.frame_id = "map"  # Set the frame ID appropriately
 
         # Loop through each position and orientation to populate PoseStamped and Twist messages
-        for i in range(len(positions)):
+        for i in range(len(positions[0])):
             # Create and fill PoseStamped for position and orientation
             pose_stamped = PoseStamped()
             pose_stamped.header.stamp = generated_path.header.stamp
             pose_stamped.header.frame_id = generated_path.header.frame_id
-            pose_stamped.pose.position.x = positions[i][0]
-            pose_stamped.pose.position.y = positions[i][1]
-            pose_stamped.pose.position.z = positions[i][2]
+
+            pose_stamped.pose.position.x = positions[0][i]
+            pose_stamped.pose.position.y = positions[1][i]
+            pose_stamped.pose.position.z = positions[2][i]
 
             # Convert orientation (roll, pitch, yaw) back to quaternion for the Pose message
             orientation_quat = Rotation.from_euler('xyz', orientations[i], degrees=True).as_quat()
@@ -99,9 +101,9 @@ class PathGenerator(Node):
 
             # Create and fill Twist for velocity and angular velocity
             twist = Twist()
-            twist.linear.x = velocities[i][0]
-            twist.linear.y = velocities[i][1]
-            twist.linear.z = velocities[i][2]
+            twist.linear.x = velocities[0][i]
+            twist.linear.y = velocities[1][i]
+            twist.linear.z = velocities[2][i]
             twist.angular.x = angular_velocities[i][0]
             twist.angular.y = angular_velocities[i][1]
             twist.angular.z = angular_velocities[i][2]
