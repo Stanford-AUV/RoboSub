@@ -17,5 +17,11 @@ def generate_launch_description():
                 output="screen",
                 parameters=[],
             ),
+            Node(
+                package="perception",
+                executable="detections_3d_points",
+                output="screen",
+                parameters=[],
+            ),
         ]
     )

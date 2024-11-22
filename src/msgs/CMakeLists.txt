@@ -24,6 +24,7 @@ if(BUILD_TESTING)
 endif()
 
 find_package(geometry_msgs REQUIRED)
+find_package(vision_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
@@ -35,7 +36,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/DVLData.msg"
   "msg/DVLTarget.msg"
   "msg/DVLVelocity.msg"
-  DEPENDENCIES geometry_msgs std_msgs
+  "msg/Detection3DPoints.msg"
+  "msg/Detection3DPointsArray.msg"
+  DEPENDENCIES geometry_msgs vision_msgs std_msgs
 )
 
 ament_package()

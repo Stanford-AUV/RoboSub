@@ -13,6 +13,12 @@ def generate_launch_description():
             ),
             Node(
                 package="perception",
+                executable="objects_detector",
+                output="screen",
+                parameters=[],
+            ),
+            Node(
+                package="perception",
                 executable="test.view_video",
                 output="screen",
                 parameters=[],
