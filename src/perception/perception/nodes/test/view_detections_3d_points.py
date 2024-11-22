@@ -22,11 +22,6 @@ class ViewDetections3DPointsNode(Node):
 
         self.get_logger().info("Received detections")
 
-        # Initialization (outside the update function)
-        self.scatter = None  # Define this in the class init or setup
-        self.legend_items = {}  # Store legend handles
-
-        # In the function where detections are processed
         detections: List[Detection3DPoints] = msg.detections
 
         all_points = []
@@ -40,8 +35,10 @@ class ViewDetections3DPointsNode(Node):
                 label_text = "Unknown"
 
             # Extract points and downsample
-            points = np.array([[p.x, p.y, p.z] for p in detection.points])
-            downsampled_points = points[:: len(points) // 100]  # Take every 100th point
+            points = np.array(
+                [[p.x, p.y, p.z] for p in detection.points]
+            )  # Reverse Y-axis for camera alignment
+            downsampled_points = points[:: len(points) // 100]  # Downsample points
 
             # Aggregate points and labels for bulk updating
             all_points.append(downsampled_points)
@@ -53,32 +50,29 @@ class ViewDetections3DPointsNode(Node):
         else:
             combined_points = np.empty((0, 3))
 
-        # Plot or update points
-        if self.scatter is None:
-            # Initialize scatter plot
-            self.scatter = self.ax.scatter(
-                combined_points[:, 0],
-                combined_points[:, 1],
-                combined_points[:, 2],
-                c="blue",  # Color can vary
-                marker="o",
-            )
-        else:
-            # Update scatter plot data
-            self.scatter._offsets3d = (
-                combined_points[:, 0],
-                combined_points[:, 1],
-                combined_points[:, 2],
-            )
-
-        # Update legend (if required)
-        self.ax.legend(
-            self.legend_items.values(), self.legend_items.keys(), loc="upper right"
+        # Plot points with camera-aligned axes
+        self.ax.scatter(
+            combined_points[:, 0],  # X-axis: Horizontal
+            combined_points[:, 1],  # Y-axis: Vertical
+            combined_points[:, 2],  # Z-axis: Depth
+            c="blue",  # You can vary the color per label
+            marker="o",
         )
-        self.ax.set_xlabel("X")
-        self.ax.set_ylabel("Y")
-        self.ax.set_zlabel("Z")
-        plt.pause(0.001)  # Pause briefly for real-time updates
+
+        # Update plot labels and set view to camera perspective
+        self.ax.set_xlabel("X (Horizontal)")
+        self.ax.set_ylabel("Y (Vertical)")
+        self.ax.set_zlabel("Z (Depth)")
+        # self.ax.set_xlim([-10, 10])  # Adjust based on your expected range
+        # self.ax.set_ylim([-10, 10])
+        # self.ax.set_zlim([0, 20])
+
+        # Set view to align with the camera
+        self.ax.view_init(
+            elev=0, azim=0, vertical_axis="y"
+        )  # Camera view: Looking down Z-axis
+
+        plt.pause(0.1)  # Pause briefly for real-time updates
 
 
 def main(args=None):

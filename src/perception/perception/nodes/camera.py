@@ -17,7 +17,7 @@ class Camera(Node):
         self.rgb_pub = self.create_publisher(Image, "oak/rgb/image_raw", 10)
         self.depth_pub = self.create_publisher(Image, "oak/depth/image_raw", 10)
 
-        self.timer = self.create_timer(0.001, self.timer_callback)
+        self.timer = self.create_timer(1, self.timer_callback)
 
     def timer_callback(self):
         device = self.device

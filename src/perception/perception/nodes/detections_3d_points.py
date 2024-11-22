@@ -100,6 +100,7 @@ class Detections3DPointsNode(Node):
                 np.arange(top_y, bottom_y), np.arange(left_x, right_x), indexing="ij"
             )
             depths = self.depth_map[top_y:bottom_y, left_x:right_x]
+            # depths = np.ones(depths.shape)
             x_3d = (x_indices - self.cx) * depths / self.fx
             y_3d = (y_indices - self.cy) * depths / self.fy
             z_3d = depths
@@ -122,12 +123,6 @@ class Detections3DPointsNode(Node):
             detections3d_points_array.detections.append(detection3d)
 
         self.det_pub.publish(detections3d_points_array)
-
-    def pixel_to_3d(self, x, y, depth):
-        x_3d = (x - self.cx) * depth / self.fx
-        y_3d = (y - self.cy) * depth / self.fy
-        z_3d = depth
-        return x_3d, y_3d, z_3d
 
 
 def main(args=None):
