@@ -42,7 +42,7 @@ from nav_msgs.msg import Odometry
 
 import numpy as np
 
-import spatialmath as sm
+from spatialmath import UnitQuaternion
 
 
 class State():
@@ -57,7 +57,7 @@ class State():
     def __init__(self,
                  position_world: np.ndarray,
                  velocity_body: np.ndarray,
-                 orientation_world: sm.SE3,
+                 orientation_world: UnitQuaternion,
                  angular_velocity_body: np.ndarray):
         """
         Initialize a State object.
@@ -69,8 +69,9 @@ class State():
         velocity_body : np.ndarray
             A 3-vector representing the velocity of the robot in the body
             frame.
-        orientation_world : np.ndarray
-            A 4-vector representing the orientation of the robot in the world.
+        orientation_world : Quaternion
+            A spatialmath unit quaternion representing the orientation of the
+            robot in the world.
         angular_velocity_body : np.ndarray
             A 3-vector representing the angular velocity of the robot in the
             body frame.
@@ -104,7 +105,7 @@ class State():
                 msg.twist.twist.linear.z,
             ]
         )
-        orientation_world = sm.UnitQuaternion(
+        orientation_world = UnitQuaternion(
             s=msg.pose.pose.orientation.w,
             v=[
                 msg.pose.pose.orientation.x,
@@ -157,7 +158,7 @@ class State():
                 msg.twists[index].twist.linear.z,
             ]
         )
-        orientation_world = sm.SE3.Quaternion(
+        orientation_world = UnitQuaternion(
             s=msg.poses[index].pose.orientation.w,
             v=[
                 msg.poses[index].pose.orientation.x,

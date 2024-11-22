@@ -54,17 +54,17 @@ class PID:
     """
 
     def __init__(
-        self,
-        kP_position: np.ndarray,
-        kD_position: np.ndarray,
-        kI_position: np.ndarray,
-        kP_orientation: np.ndarray,
-        kD_orientation: np.ndarray,
-        kI_orientation: np.ndarray,
-        max_signal_force: np.ndarray,
-        max_signal_torque: np.ndarray,
-        max_integral_position: np.ndarray,
-        max_integral_orientation: np.ndarray,
+            self,
+            kP_position: np.ndarray,
+            kD_position: np.ndarray,
+            kI_position: np.ndarray,
+            kP_orientation: np.ndarray,
+            kD_orientation: np.ndarray,
+            kI_orientation: np.ndarray,
+            max_signal_force: np.ndarray,
+            max_signal_torque: np.ndarray,
+            max_integral_position: np.ndarray,
+            max_integral_orientation: np.ndarray,
     ):
         """
         Initialize the PID controller gains and limits.
@@ -118,7 +118,12 @@ class PID:
         self.integral_position = np.zeros(3)
         self.integral_orientation = np.zeros(3)
 
-    def update(self, state: State, reference: State, dt: float) -> WrenchStamped:
+    def update(
+            self,
+            state: State,
+            reference: State,
+            dt: float
+    ) -> WrenchStamped:
         """
         Compute the control signal.
 
@@ -156,8 +161,8 @@ class PID:
         force_world = (
             error_r_W * self.kP_position
             + error_v_B * self.kD_position
-            + self.integral_error * self.kI_position
-        )  # self.integral_position
+            + self.integral_position * self.kI_position
+        )
 
         # Orientation error, world frame, axis-angle form
         error_q_W = reference.orientation_world * state.orientation_world.inv()
