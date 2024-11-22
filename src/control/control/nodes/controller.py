@@ -125,7 +125,7 @@ class Controller(Node):
         self.ref_state = nextReference(
             self.cur_state, self.path
         )  # set ref_state to nextReference object
-        self.path_follower = self.ref_state.getNewPath(self.path)
+        self.path_follower = self.ref_state.path
 
         # this is my understanding of how Deren's code works but im not 100% sure as I dont have the code
         with self.lock:
