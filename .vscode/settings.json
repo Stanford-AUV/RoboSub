@@ -68,7 +68,9 @@
         "normv",
         "qvmul",
         "angvec",
-        "mplot"
+        "mplot",
+        "relim",
+        "signum"
     ],
     "cSpell.allowCompoundWords": true,
     "cSpell.ignorePaths": [
