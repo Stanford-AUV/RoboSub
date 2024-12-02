@@ -99,7 +99,6 @@ class Controller(Node):
         """
         with self.lock:
             self.cur_state = State.from_odometry_msg(msg)
-            self.get_logger().info("Current state updated")
             self.update() if self.ref_state is not None else None
 
     def reference_callback(self, msg: Odometry):
