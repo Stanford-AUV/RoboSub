@@ -23,5 +23,10 @@ def generate_launch_description():
                 executable="sim_tester",
                 parameters=[global_params],
             ),
+            Node(
+                package="control",
+                executable="logger",
+                parameters=[global_params],
+            ),
         ]
     )

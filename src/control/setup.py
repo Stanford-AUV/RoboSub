@@ -21,7 +21,8 @@ setup(
         "console_scripts": [
             "thrust_generator = control.nodes.thrust_generator:main",
             "controller = control.nodes.controller:main",
-            "sim_tester = control.nodes.sim_tester:main",
+            "test_path = control.nodes.test_path:main",
+            "logger = control.nodes.logger:main",
         ]
     },
 )
