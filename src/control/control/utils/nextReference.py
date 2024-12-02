@@ -9,10 +9,14 @@ import numpy as np
 
 class nextReference:
 <<<<<<< HEAD
+<<<<<<< HEAD
     def __init__ (self, currentState, path):
 =======
     def __init__ (self, cur_state, path):
 >>>>>>> 9f74931 (updates nextState to nextReference)
+=======
+    def __init__ (self, currentState, path):
+>>>>>>> a0c291a (Update nextReference.py (#48))
         self.cur_state = currentState
         self.path = path
         self.index = 0
