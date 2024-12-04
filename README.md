@@ -161,3 +161,10 @@ In case a `pep257` test fails, run the following to get more details about the e
 ```bash
 ament_pep257
 ```
+
+## Out of storage
+
+If you have less than 30 GB total on your machine, contact Scott Hickmann for how to resize to at least 30 GB. If you do have a max storage above 30 GB but still ran out of storage, make sure to clean up unused Docker files. You can do so by running the following command from the VM Terminal:
+```bash
+sudo docker system prune -a -f
+```
