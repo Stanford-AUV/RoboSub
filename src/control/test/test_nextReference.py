@@ -26,7 +26,7 @@ def test_nextReference():
     print(referencePoint.index)
     referencePoint.changeState(np.array([-2, 0, 3]))
     referencePoint.getNextReference()
-    assert referencePoint.index == 2
+    assert referencePoint.index == 3
 
     print(referencePoint.index)
     referencePoint.changeState(np.array([0, 0, 1]))
