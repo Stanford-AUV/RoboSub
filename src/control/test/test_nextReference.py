@@ -16,24 +16,29 @@ def test_nextReference():
 
     print(1)
     print(referencePoint.index)
-    assert referencePoint.index == 0
+    assert referencePoint.index == 1
 
     print(referencePoint.index)
     referencePoint.changeState(np.array([-2, -1, -2]))
-    assert referencePoint.index == 1
+    referencePoint.getNextReference()
+    assert referencePoint.index == 2
 
     print(referencePoint.index)
     referencePoint.changeState(np.array([-2, 0, 3]))
-    assert referencePoint.index == 1
+    referencePoint.getNextReference()
+    assert referencePoint.index == 3
 
     print(referencePoint.index)
     referencePoint.changeState(np.array([0, 0, 1]))
-    assert referencePoint.index == 2
+    referencePoint.getNextReference()
+    assert referencePoint.index == 3
 
     print(referencePoint.index)
     referencePoint.changeState(np.array([100, 100, 100]))
-    assert referencePoint.index == 2
+    referencePoint.getNextReference()
+    assert referencePoint.index == 3
 
     print(referencePoint.index)
     referencePoint.changeState(np.array([-100, -100, -100]))
-    assert referencePoint.index == 2
+    referencePoint.getNextReference()
+    assert referencePoint.index == 3
