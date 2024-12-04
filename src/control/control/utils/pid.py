@@ -99,7 +99,7 @@ class PID:
         self.kD_orientation = kD_orientation
         self.kI_orientation = kI_orientation
 
-        self.integral_position = np.array([0, 0, 0])
+        self.integral_error = np.array([0, 0, 0])
         self.integral_orientation = np.array([0, 0, 0])
         self.max_signal_force = max_signal_force
         self.max_signal_torque = max_signal_torque
@@ -115,7 +115,7 @@ class PID:
         This function is used to reset the accumulated integral error, which
         can be useful to avoid wind-up issues in the controller.
         """
-        self.integral_position = np.zeros(3)
+        self.integral_error = np.zeros(3)
         self.integral_orientation = np.zeros(3)
 
     def update(self, state: State, reference: State, dt: float) -> WrenchStamped:
@@ -146,9 +146,9 @@ class PID:
         # Velocity error, body frame
         error_v_B = reference.velocity_body - state.velocity_body
         # Integral sum, clamped
-        self.integral_position = self.integral_position + error_r_W * dt
-        self.integral_position = np.clip(
-            self.integral_position,
+        self.integral_error = self.integral_error + error_r_W * dt
+        self.integral_error = np.clip(
+            self.integral_error,
             -self.max_integral_position,
             self.max_integral_position,
         )

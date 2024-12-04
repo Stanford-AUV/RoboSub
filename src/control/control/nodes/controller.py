@@ -34,6 +34,8 @@ from geometry_msgs.msg import WrenchStamped
 
 from nav_msgs.msg import Odometry
 
+from msgs.msg import GeneratedPath
+
 import numpy as np
 
 import rclpy
@@ -66,11 +68,13 @@ class Controller(Node):
         super().__init__("controller")
 
         self.state_subscription = self.create_subscription(
-            Odometry, "odometry", self.state_callback, 10
+            Odometry, "odometry_state", self.state_callback, 10  # odometry
         )
+
         self.reference_subscription = self.create_subscription(
-            Odometry, "path", self.reference_callback, 10
+            GeneratedPath, "path", self.reference_callback, 10
         )
+
         self.control_publisher = self.create_publisher(WrenchStamped, "wrench", 10)
 
         self.lock = threading.Lock()
@@ -81,6 +85,9 @@ class Controller(Node):
 
         self.cur_state = None
         self.ref_state = None
+
+        self.path_follower = None
+        self.path = []
 
     def reset(self):
         """Reset the controller."""
@@ -102,18 +109,30 @@ class Controller(Node):
             self.get_logger().info("Current state updated")
             self.update() if self.ref_state is not None else None
 
-    def reference_callback(self, msg: Odometry):
+    def reference_callback(self, msg: GeneratedPath):
         """
         Update the reference state.
 
         Parameters
         ----------
-        msg : Odometry
+        msg : GeneratedPath
             The message containing the reference state.
         """
+
+        for i in range(len(msg.poses)):
+            self.path.append([msg.poses[i], msg.twists[i]])
+
+        self.ref_state = nextReference(
+            self.cur_state, self.path
+        )  # set ref_state to nextReference object
+        self.path_follower = self.ref_state.getNewPath(self.path)
+
+        # this is my understanding of how Deren's code works but im not 100% sure as I dont have the code
         with self.lock:
-            self.ref_state = State.from_odometry_msg(msg)
-            # self.get_logger().info('Reference state updated')
+            self.ref_state = (
+                self.path_follower.getNextReference()
+            )  # getNextReference should return
+        # the same four variables that from_generatedpath_msg returns
 
     def update(self):
         """Update the control signal and publish to the wrench topic."""
@@ -131,7 +150,7 @@ def main(args=None):
 
     pid = PID(
         kP_position=np.array([0.5, 0, 0]),
-        kD_position=np.array([0, 0, 0]),
+        kD_position=np.array([0, 0, 0]),  # 0, 0, 0
         kI_position=np.array([0, 0, 0]),
         kP_orientation=np.array([0, 0, 0]),
         kD_orientation=np.array([0, 0, 0]),
