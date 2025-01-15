@@ -64,24 +64,9 @@ def make_interp_spline_with_constraints(x, y, k=3, t=None, bc_type=None, v_max=N
 
     return make_interp_spline(x=x, y=y, k=k, t=t, bc_type=bc_type), x_new
 
-def create_path(x, y, z, theta_x, theta_y, theta_z):
-    # 5 example points (x, y, z, theta_x, theta_y, theta_z)
-    x = np.random.rand(5)
-    y = np.random.rand(5)
-    z = np.random.rand(5)
-    orientations = Rotation.random(5).as_euler("xyz", degrees=True)
-    # x = np.concatenate((x, [x[0]]))
-    # y = np.concatenate((y, [y[0]]))
-    # z = np.concatenate((z, [z[0]]))
-
-    # orientations = np.concatenate((orientations, [orientations[0]]))
-
+def create_path(x, y, z, theta_x, theta_y, theta_z, max_velocity = 1, max_acceleration = 1, max_angular_velocity = 1, max_angular_acceleration = 1):
+    orientations = Rotation.from_euler('xyz', np.column_stack((theta_x, theta_y, theta_z)), degrees=True).as_euler('xyz', degrees=True)
     dim_vars = (x, y, z)
-
-    max_velocity = 1
-    max_acceleration = 1
-    max_angular_velocity = 1
-    max_angular_acceleration = 1
 
     # Fit splines to x y z as a function of t
     splines = []

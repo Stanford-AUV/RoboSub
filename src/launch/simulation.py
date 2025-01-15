@@ -26,5 +26,11 @@ def generate_launch_description():
                 parameters=[global_params],
                 arguments=["--ros-args", "--log-level", "warn"],
             ),
+            Node(
+                package="simulation",
+                executable="path_bridge",
+                parameters=[global_params],
+                arguments=["--ros-args", "--log-level", "info"],
+            ),
         ]
     )
