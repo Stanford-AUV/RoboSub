@@ -7,6 +7,9 @@ import cv2
 import numpy as np
 
 
+SMALL_FACTOR = 0.1
+
+
 class ViewVideo(Node):
     detections: list[Detection2D]
 

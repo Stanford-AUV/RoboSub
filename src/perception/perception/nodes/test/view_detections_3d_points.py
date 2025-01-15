@@ -54,7 +54,7 @@ class ViewDetections3DPointsNode(Node):
 
             # Aggregate points and assign a color per label
             all_points.append(downsampled_points)
-            color = f"rgb({(label * 37) % 255}, {(label * 67) % 255}, {(label * 97) % 255})"  # Assign color based on label
+            color = f"rgb(255, 0, 0)"  # TODO: Assign color based on label
             all_labels.extend([label_text] * len(downsampled_points))
             all_colors.extend([color] * len(downsampled_points))
 
@@ -115,9 +115,16 @@ def create_dash_app(node):
                     xaxis_title="X (Horizontal)",
                     yaxis_title="Y (Vertical)",
                     zaxis_title="Z (Depth)",
-                    xaxis=dict(range=[-10, 10]),  # Adjust based on your environment
-                    yaxis=dict(range=[-10, 10]),
-                    zaxis=dict(range=[0, 20]),
+                    # xaxis=dict(range=[-10, 10]),  # Adjust based on your environment
+                    # yaxis=dict(range=[-10, 10]),
+                    # zaxis=dict(range=[0, 20]),
+                    camera=dict(
+                        up=dict(x=0, y=0, z=1),  # Z-axis as "up"
+                        eye=dict(
+                            x=0, y=0, z=-2
+                        ),  # Position the camera along the Z-axis
+                        center=dict(x=0, y=0, z=0),  # Center the camera at the origin
+                    ),
                 ),
                 margin=dict(l=0, r=0, b=0, t=40),  # Compact layout
             )

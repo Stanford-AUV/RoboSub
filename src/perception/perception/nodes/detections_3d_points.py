@@ -15,6 +15,9 @@ from msgs.msg import Detection3DPointsArray, Detection3DPoints
 from perception.utils.bounding_box import oriented_bounding_box
 
 
+SAMPLE_STEP = 4
+
+
 class Detections3DPointsNode(Node):
     def __init__(self):
         super().__init__("detections_3d_points")
@@ -73,6 +76,8 @@ class Detections3DPointsNode(Node):
             self.get_logger().info("Missing detections")
             return
 
+        # self.get_logger().info(f"Running filter on {len(self.detections)} detections")
+
         detections3d_points_array = Detection3DPointsArray()
         detections3d_points_array.header.stamp = self.get_clock().now().to_msg()
 
@@ -88,32 +93,26 @@ class Detections3DPointsNode(Node):
             top_y = max(0, int(y_center - box_height / 2))
             right_x = min(width, int(x_center + box_width / 2))
             bottom_y = min(height, int(y_center + box_height / 2))
-            # points_3d = []
-            # for y in range(top_y, bottom_y):
-            #     for x in range(left_x, right_x):
-            #         depth = self.depth_map[y, x]
-            #         x_3d = (x - self.cx) * depth / self.fx
-            #         y_3d = (y - self.cy) * depth / self.fy
-            #         z_3d = depth
-            #         points_3d.append([x_3d, y_3d, z_3d])
-            # Vectorized version of the above:
+
+            # Step size for every 20th point
             y_indices, x_indices = np.meshgrid(
-                np.arange(top_y, bottom_y), np.arange(left_x, right_x), indexing="ij"
+                np.arange(top_y, bottom_y, SAMPLE_STEP),
+                np.arange(left_x, right_x, SAMPLE_STEP),
+                indexing="ij",
             )
-            depths = self.depth_map[top_y:bottom_y, left_x:right_x] / 1000.0
-            y_indices, x_indices = np.meshgrid(
-                np.arange(top_y, bottom_y), np.arange(left_x, right_x), indexing="ij"
-            )
-            # depths = np.ones(depths.shape)
+            depths = self.depth_map[
+                top_y:bottom_y:SAMPLE_STEP, left_x:right_x:SAMPLE_STEP
+            ]
+
             valid_mask = depths > 0  # Filter invalid depths
             x_indices = x_indices[valid_mask]
             y_indices = y_indices[valid_mask]
             depths = depths[valid_mask]
 
-            x_3d = (x_indices - self.cx) * depths / self.fx_px
-            y_3d = (y_indices - self.cy) * depths / self.fx_px
+            x_3d = (x_indices - self.cx) * depths / -self.fx_px
+            y_3d = (y_indices - self.cy) * depths / -self.fx_px
             z_3d = depths
-            points_3d = np.stack((x_3d, y_3d, z_3d), axis=-1)  # .reshape(-1, 3)
+            points_3d = np.stack((x_3d, y_3d, z_3d), axis=-1)
 
             detection3d = Detection3DPoints()
             detection3d.header = detection.header

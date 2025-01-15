@@ -17,39 +17,35 @@ class Camera(Node):
         self.rgb_pub = self.create_publisher(Image, "oak/rgb/image_raw", 10)
         self.depth_pub = self.create_publisher(Image, "oak/depth/image_raw", 10)
 
-        self.timer = self.create_timer(1, self.timer_callback)
-
-    def timer_callback(self):
         device = self.device
         latestPacket = {}
         latestPacket["rgb"] = None
         latestPacket["disp"] = None
 
-        queueEvents = device.getQueueEvents(("rgb", "disp"))
-        for queueName in queueEvents:
-            packets = device.getOutputQueue(queueName).tryGetAll()
-            if len(packets) > 0:
-                latestPacket[queueName] = packets[-1]
+        while True:
+            queueEvents = device.getQueueEvents(("rgb", "disp"))
+            for queueName in queueEvents:
+                packets = device.getOutputQueue(queueName).tryGetAll()
+                if len(packets) > 0:
+                    latestPacket[queueName] = packets[-1]
 
-        if latestPacket["rgb"] is not None:
-            frameRgb = latestPacket["rgb"].getCvFrame()
-            self.rgb_pub.publish(self.bridge.cv2_to_imgmsg(frameRgb, "bgr8"))
-
-        if latestPacket["disp"] is not None:
-            frameDisp = latestPacket["disp"].getFrame()
-            # maxDisparity = stereo.initialConfig.getMaxDisparity()
-            # TODO: Move to view cam
-            # # Optional, extend range 0..95 -> 0..255, for a better visualisation
-            # if 1:
-            #     frameDisp = (frameDisp * 255.0 / maxDisparity).astype(np.uint8)
-            # # Optional, apply false colorization
-            # if 1:
-            #     frameDisp = cv2.applyColorMap(frameDisp, cv2.COLORMAP_HOT)
-            # frameDisp = np.ascontiguousarray(frameDisp)
-            # cv2.imshow(depthWindowName, frameDisp)
-            self.depth_pub.publish(
-                self.bridge.cv2_to_imgmsg(frameDisp, encoding="passthrough")
-            )
+            if latestPacket["rgb"] is not None and latestPacket["disp"] is not None:
+                frameRgb = latestPacket["rgb"].getCvFrame()
+                frameDisp = latestPacket["disp"].getFrame()
+                # maxDisparity = stereo.initialConfig.getMaxDisparity()
+                # TODO: Move to view cam
+                # # Optional, extend range 0..95 -> 0..255, for a better visualisation
+                # if 1:
+                #     frameDisp = (frameDisp * 255.0 / maxDisparity).astype(np.uint8)
+                # # Optional, apply false colorization
+                # if 1:
+                #     frameDisp = cv2.applyColorMap(frameDisp, cv2.COLORMAP_HOT)
+                # frameDisp = np.ascontiguousarray(frameDisp)
+                # cv2.imshow(depthWindowName, frameDisp)
+                self.rgb_pub.publish(self.bridge.cv2_to_imgmsg(frameRgb, "bgr8"))
+                self.depth_pub.publish(
+                    self.bridge.cv2_to_imgmsg(frameDisp, encoding="passthrough")
+                )
 
 
 def setup_device():

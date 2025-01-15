@@ -8,5 +8,7 @@ torch
 torchvision
 torchaudio
 ultralytics
-dash
 plotly
+ipywidgets
+nbformat
+dash
