@@ -8,7 +8,7 @@ import numpy as np
     #!!! IS THERE A .SIZE() METHOD FOR PATH TYPE???!!!
 
 class nextReference:
-    def __init__ (self, cur_state, path):
+    def __init__ (self, path, cur_state = np.array([0, 0, 0])):
         self.currentState = cur_state
         self.path = path
         if len(self.path) == 0:
