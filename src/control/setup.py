@@ -23,6 +23,7 @@ setup(
             "controller = control.nodes.controller:main",
             "test_path = control.nodes.test_path:main",
             "logger = control.nodes.logger:main",
+            "sim_tester = control.nodes.sim_tester:main",
         ]
     },
 )
