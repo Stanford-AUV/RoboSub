@@ -21,7 +21,7 @@ class Detections3DPointsNode(Node):
         self.bridge = CvBridge()
 
         # Retrieve camera intrinsics
-        self.fx, self.fy, self.cx, self.cy = self.get_camera_intrinsics()
+        self.fx_px, self.cx, self.cy = self.get_camera_intrinsics()
 
         # Subscriptions
         self.img_sub = self.create_subscription(
@@ -42,20 +42,18 @@ class Detections3DPointsNode(Node):
 
     def get_camera_intrinsics(self):
 
-        fx = 3221.85791015625
-        # Default fx:
-        fy = 3221.85791015625
-        # Default fy:
-        cx = 2105.731689453125
+        fx_px = 3050.27978515625
+        # Default f:
+        cx = 1993.59228515625
         # Default cx:
-        cy = 1528.2215576171875
+        cy = 1087.78369140625
         # Default cy:
 
         # self.get_logger().info(
         #     f"Retrieved camera intrinsics - fx: {fx}, fy: {fy}, cx: {cx}, cy: {cy}"
         # )
 
-        return fx, fy, cx, cy
+        return fx_px, cx, cy
 
     def img_sub_callback(self, msg):
         self.depth_map = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
@@ -76,6 +74,7 @@ class Detections3DPointsNode(Node):
             return
 
         detections3d_points_array = Detection3DPointsArray()
+        detections3d_points_array.header.stamp = self.get_clock().now().to_msg()
 
         for detection in self.detections:
             bounding_box = detection.bbox
@@ -83,10 +82,12 @@ class Detections3DPointsNode(Node):
             y_center = bounding_box.center.position.y
             box_width = bounding_box.size_x
             box_height = bounding_box.size_y
-            left_x = int(x_center - box_width / 2)
-            top_y = int(y_center - box_height / 2)
-            right_x = int(x_center + box_width / 2)
-            bottom_y = int(y_center + box_height / 2)
+
+            height, width = self.depth_map.shape
+            left_x = max(0, int(x_center - box_width / 2))
+            top_y = max(0, int(y_center - box_height / 2))
+            right_x = min(width, int(x_center + box_width / 2))
+            bottom_y = min(height, int(y_center + box_height / 2))
             # points_3d = []
             # for y in range(top_y, bottom_y):
             #     for x in range(left_x, right_x):
@@ -99,27 +100,27 @@ class Detections3DPointsNode(Node):
             y_indices, x_indices = np.meshgrid(
                 np.arange(top_y, bottom_y), np.arange(left_x, right_x), indexing="ij"
             )
-            depths = self.depth_map[top_y:bottom_y, left_x:right_x]
+            depths = self.depth_map[top_y:bottom_y, left_x:right_x] / 1000.0
+            y_indices, x_indices = np.meshgrid(
+                np.arange(top_y, bottom_y), np.arange(left_x, right_x), indexing="ij"
+            )
             # depths = np.ones(depths.shape)
-            x_3d = (x_indices - self.cx) * depths / self.fx
-            y_3d = (y_indices - self.cy) * depths / self.fy
+            valid_mask = depths > 0  # Filter invalid depths
+            x_indices = x_indices[valid_mask]
+            y_indices = y_indices[valid_mask]
+            depths = depths[valid_mask]
+
+            x_3d = (x_indices - self.cx) * depths / self.fx_px
+            y_3d = (y_indices - self.cy) * depths / self.fx_px
             z_3d = depths
-            points_3d = np.stack((x_3d, y_3d, z_3d), axis=-1).reshape(-1, 3)
+            points_3d = np.stack((x_3d, y_3d, z_3d), axis=-1)  # .reshape(-1, 3)
 
             detection3d = Detection3DPoints()
-            header = detection.header
-            detection3d.header = header
+            detection3d.header = detection.header
             detection3d.id = detection.id
             detection3d.results = detection.results
-            points = []
-            for x, y, z in points_3d:
-                point = Point()
-                point.x = x
-                point.y = y
-                point.z = z
-                points.append(point)
+            points = [Point(x=x, y=y, z=z) for x, y, z in points_3d]
             detection3d.points = points
-
             detections3d_points_array.detections.append(detection3d)
 
         self.det_pub.publish(detections3d_points_array)

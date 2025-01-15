@@ -3,84 +3,158 @@ from rclpy.node import Node
 import numpy as np
 from typing import List
 from msgs.msg import Detection3DPointsArray, Detection3DPoints
-import matplotlib.pyplot as plt
+from dash import Dash, dcc, html
+from dash.dependencies import Input, Output
+import plotly.graph_objects as go
+from threading import Thread
+import time
 
 
 class ViewDetections3DPointsNode(Node):
-    def __init__(self):
+    def __init__(self, app):
         super().__init__("view_detections_3d_points")
-        self.get_logger().info("ViewVideo node has been created!")
+        self.get_logger().info("ViewDetections3DPointsNode with Dash has been created!")
 
         self.sub = self.create_subscription(
             Detection3DPointsArray, "detections3d_points", self.callback, 10
         )
-        self.fig = plt.figure()
-        self.ax = self.fig.add_subplot(111, projection="3d")
+        self.app = app
+        # Initialize shared data (default empty values)
+        self.detections_data = {"points": np.empty((0, 3)), "colors": [], "labels": []}
 
     def callback(self, msg: Detection3DPointsArray):
-        self.ax.clear()
-
         self.get_logger().info("Received detections")
 
         detections: List[Detection3DPoints] = msg.detections
 
         all_points = []
         all_labels = []
-        for detection in detections:
+        all_colors = []
+
+        for i, detection in enumerate(detections):
+            # Extract label and confidence
             if detection.results:
                 label = detection.results[0].hypothesis.class_id
                 confidence = detection.results[0].hypothesis.score
                 label_text = f"{label}: {confidence:.2f}"
             else:
                 label_text = "Unknown"
+                label = -1  # Default for unknown classes
 
-            # Extract points and downsample
-            points = np.array(
-                [[p.x, p.y, p.z] for p in detection.points]
-            )  # Reverse Y-axis for camera alignment
-            downsampled_points = points[:: len(points) // 100]  # Downsample points
+            # Extract points
+            points = np.array([[p.x, p.y, p.z] for p in detection.points])
 
-            # Aggregate points and labels for bulk updating
+            # Skip if no points are available
+            if points.shape[0] == 0:
+                continue
+
+            # Downsample points dynamically
+            downsample_factor = max(1, len(points) // 100)  # Avoid zero division
+            downsampled_points = points[::downsample_factor]
+
+            # Aggregate points and assign a color per label
             all_points.append(downsampled_points)
+            color = f"rgb({(label * 37) % 255}, {(label * 67) % 255}, {(label * 97) % 255})"  # Assign color based on label
             all_labels.extend([label_text] * len(downsampled_points))
+            all_colors.extend([color] * len(downsampled_points))
 
-        # Combine all points into one array for faster plotting
+        # Combine all points for efficient plotting
         if all_points:
             combined_points = np.vstack(all_points)  # Shape (N, 3)
         else:
             combined_points = np.empty((0, 3))
+            all_colors = []
+            all_labels = []
 
-        # Plot points with camera-aligned axes
-        self.ax.scatter(
-            combined_points[:, 0],  # X-axis: Horizontal
-            combined_points[:, 1],  # Y-axis: Vertical
-            combined_points[:, 2],  # Z-axis: Depth
-            c="blue",  # You can vary the color per label
-            marker="o",
-        )
+        # Update shared data
+        self.detections_data = {
+            "points": combined_points,
+            "colors": all_colors,
+            "labels": all_labels,
+        }
 
-        # Update plot labels and set view to camera perspective
-        self.ax.set_xlabel("X (Horizontal)")
-        self.ax.set_ylabel("Y (Vertical)")
-        self.ax.set_zlabel("Z (Depth)")
-        # self.ax.set_xlim([-10, 10])  # Adjust based on your expected range
-        # self.ax.set_ylim([-10, 10])
-        # self.ax.set_zlim([0, 20])
 
-        # Set view to align with the camera
-        self.ax.view_init(
-            elev=0, azim=0, vertical_axis="y"
-        )  # Camera view: Looking down Z-axis
+def create_dash_app(node):
+    app = Dash(__name__)
 
-        plt.pause(0.1)  # Pause briefly for real-time updates
+    app.layout = html.Div(
+        [
+            html.H1("3D Point Cloud Viewer", style={"textAlign": "center"}),
+            dcc.Graph(id="3d-plot"),
+            dcc.Interval(
+                id="update-interval", interval=500, n_intervals=0
+            ),  # Update every 500ms
+        ]
+    )
+
+    @app.callback(
+        Output("3d-plot", "figure"),
+        [Input("update-interval", "n_intervals")],
+    )
+    def update_plot(n):
+        data = node.detections_data
+        points = data["points"]
+        colors = data["colors"]
+        labels = data["labels"]
+
+        if points.shape[0] > 0:
+            trace = go.Scatter3d(
+                x=points[:, 0],
+                y=points[:, 1],
+                z=points[:, 2],
+                mode="markers",
+                marker=dict(
+                    size=5,
+                    color=colors,  # Assign colors to each point
+                    opacity=0.8,
+                ),
+                text=labels,  # Show labels on hover
+            )
+            layout = go.Layout(
+                scene=dict(
+                    xaxis_title="X (Horizontal)",
+                    yaxis_title="Y (Vertical)",
+                    zaxis_title="Z (Depth)",
+                    xaxis=dict(range=[-10, 10]),  # Adjust based on your environment
+                    yaxis=dict(range=[-10, 10]),
+                    zaxis=dict(range=[0, 20]),
+                ),
+                margin=dict(l=0, r=0, b=0, t=40),  # Compact layout
+            )
+            return go.Figure(data=[trace], layout=layout)
+        else:
+            return go.Figure()
+
+    return app
+
+
+def ros2_thread(node):
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
 
 
 def main(args=None):
     rclpy.init(args=args)
-    node = ViewDetections3DPointsNode()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+
+    # Create ROS2 node
+    node = ViewDetections3DPointsNode(None)
+
+    # Create Dash app and pass the ROS2 node
+    app = create_dash_app(node)
+    app.config["suppress_callback_exceptions"] = True
+
+    # Set the node in the app
+    app.server.node = node
+
+    # Run ROS2 spin in a separate thread
+    ros_thread = Thread(target=ros2_thread, args=(node,))
+    ros_thread.start()
+
+    # Run Dash app
+    app.run_server(
+        debug=True, use_reloader=False
+    )  # Set `use_reloader=False` to prevent Dash reloading issues
 
 
 if __name__ == "__main__":
