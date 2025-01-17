@@ -1,6 +1,7 @@
 import rclpy
 from rclpy.node import Node
 import cv2
+from geometry_msgs.msg import Pose
 from vision_msgs.msg import (
     Detection3D,
     Detection3DArray,
@@ -12,7 +13,6 @@ import time
 import json
 
 
-# TODO: Publish the detections to a topic
 # TODO: Read parameters from model config file
 # TODO: Move display code to a separate node
 
@@ -21,6 +21,8 @@ class ObjectsLocalizer(Node):
 
     def __init__(self):
         super().__init__("objects_localizer")
+
+        self.pub = self.create_publisher(Detection3DArray, "detections3d", 10)
 
         # Use https://tools.luxonis.com for generating blob and config files from a PyTorch model (.pt). Set input image size to 416x416.
         nnBlobPath = "yolo11n_openvino_2022.1_6shave.blob"
@@ -176,6 +178,8 @@ class ObjectsLocalizer(Node):
                 # If the frame is available, draw bounding boxes on it and show the frame
                 height = frame.shape[0]
                 width = frame.shape[1]
+
+                ros_detections = Detection3DArray()
                 for detection in detections:
                     roiData = detection.boundingBoxMapping
 
@@ -189,6 +193,8 @@ class ObjectsLocalizer(Node):
                     ymin = int(topLeft.y)
                     xmax = int(bottomRight.x)
                     ymax = int(bottomRight.y)
+
+                    spatialCoordinates = detection.spatialCoordinates
 
                     cv2.rectangle(depthFrameColor, (xmin, ymin), (xmax, ymax), color, 1)
 
@@ -216,7 +222,7 @@ class ObjectsLocalizer(Node):
                     )
                     cv2.putText(
                         frame,
-                        f"X: {int(detection.spatialCoordinates.x)} mm",
+                        f"X: {int(spatialCoordinates.x)} mm",
                         (x1 + 10, y1 + 50),
                         cv2.FONT_HERSHEY_TRIPLEX,
                         0.5,
@@ -224,7 +230,7 @@ class ObjectsLocalizer(Node):
                     )
                     cv2.putText(
                         frame,
-                        f"Y: {int(detection.spatialCoordinates.y)} mm",
+                        f"Y: {int(spatialCoordinates.y)} mm",
                         (x1 + 10, y1 + 65),
                         cv2.FONT_HERSHEY_TRIPLEX,
                         0.5,
@@ -232,7 +238,7 @@ class ObjectsLocalizer(Node):
                     )
                     cv2.putText(
                         frame,
-                        f"Z: {int(detection.spatialCoordinates.z)} mm",
+                        f"Z: {int(spatialCoordinates.z)} mm",
                         (x1 + 10, y1 + 80),
                         cv2.FONT_HERSHEY_TRIPLEX,
                         0.5,
@@ -248,7 +254,7 @@ class ObjectsLocalizer(Node):
                     bottom_right = np.array([xmax, ymax, 1])
 
                     # Depth of the detected object
-                    z = detection.spatialCoordinates.z  # Depth in mm
+                    z = spatialCoordinates.z  # Depth in mm
 
                     # Transform corners to world coordinates
                     world_top_left = z * M_rgb_inv @ top_left
@@ -258,9 +264,23 @@ class ObjectsLocalizer(Node):
                     world_width = world_bottom_right[0] - world_top_left[0]
                     world_height = world_bottom_right[1] - world_top_left[1]
 
-                    self.get_logger().info(
-                        f"label: {label} x: {detection.spatialCoordinates.x} y: {detection.spatialCoordinates.x} z: {detection.spatialCoordinates.x} w: {world_width} h: {world_height}"
-                    )
+                    ros_detection = Detection3D()
+                    ros_objhypo = ObjectHypothesisWithPose()
+                    ros_objhypo.hypothesis.class_id = label
+                    ros_objhypo.hypothesis.score = detection.confidence
+                    ros_detection.results.append(ros_objhypo)
+
+                    ros_center = Pose()
+                    ros_center.position.x = spatialCoordinates.x / 1000.0  # in m
+                    ros_center.position.y = spatialCoordinates.y / 1000.0  # in m
+                    ros_center.position.z = spatialCoordinates.z / 1000.0  # in m
+
+                    ros_detection.bbox.center = ros_center
+                    ros_detection.bbox.size.x = world_width / 1000.0  # in m
+                    ros_detection.bbox.size.y = world_height / 1000.0  # in m
+                    ros_detection.bbox.size.z = 0.0
+
+                    ros_detections.detections.append(ros_detection)
 
                 cv2.putText(
                     frame,
@@ -272,6 +292,8 @@ class ObjectsLocalizer(Node):
                 )
                 cv2.imshow("depth", depthFrameColor)
                 cv2.imshow("rgb", frame)
+
+                self.pub.publish(ros_detections)
 
                 if cv2.waitKey(1) == ord("q"):
                     break
