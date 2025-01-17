@@ -1,6 +1,5 @@
 numpy
 spatialmath-python
-casadi
 depthai
 scipy
 opencv-python
@@ -9,3 +8,7 @@ torch
 torchvision
 torchaudio
 ultralytics
+plotly
+ipywidgets
+nbformat
+dash
