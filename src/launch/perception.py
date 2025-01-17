@@ -7,19 +7,7 @@ def generate_launch_description():
         [
             Node(
                 package="perception",
-                executable="camera",
-                output="screen",
-                parameters=[],
-            ),
-            Node(
-                package="perception",
-                executable="objects_detector",
-                output="screen",
-                parameters=[],
-            ),
-            Node(
-                package="perception",
-                executable="detections_3d_points",
+                executable="objects_localizer",
                 output="screen",
                 parameters=[],
             ),

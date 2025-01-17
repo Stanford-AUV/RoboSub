@@ -24,6 +24,7 @@ setup(
             f"test.view_video = perception.nodes.test.view_video:main",
             f"test.view_detections_3d_points = perception.nodes.test.view_detections_3d_points:main",
             f"camera = perception.nodes.camera:main",
+            f"objects_localizer = perception.nodes.objects_localizer:main",
             f"objects_detector = perception.nodes.objects_detector:main",
             f"detections_3d_points = perception.nodes.detections_3d_points:main",
             f"detections_3d_bbox = perception.nodes.detections_3d_bbox:main",
