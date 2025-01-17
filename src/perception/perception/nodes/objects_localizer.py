@@ -13,7 +13,6 @@ import time
 import json
 
 
-# TODO: Read parameters from model config file
 # TODO: Move display code to a separate node
 
 
@@ -29,10 +28,27 @@ class ObjectsLocalizer(Node):
         configPath = "yolo11n.json"
         syncNN = True
 
-        IMAGE_SIZE = 416
-
         with open(configPath) as f:
-            mappings = json.load(f)["mappings"]
+            config = json.load(f)
+
+        nnConfig = config.get("nn_config", {})
+
+        # parse input shape
+        if "input_size" in nnConfig:
+            W, H = tuple(map(int, nnConfig.get("input_size").split("x")))
+
+        # extract metadata
+        metadata = nnConfig.get("NN_specific_metadata", {})
+        classes = metadata.get("classes", {})
+        coordinates = metadata.get("coordinates", {})
+        anchors = metadata.get("anchors", {})
+        anchorMasks = metadata.get("anchor_masks", {})
+        iouThreshold = metadata.get("iou_threshold", {})
+        confidenceThreshold = metadata.get("confidence_threshold", {})
+
+        # parse labels
+        nnMappings = config.get("mappings", {})
+        labels = nnMappings.get("labels", {})
 
         # Create pipeline
         pipeline = dai.Pipeline()
@@ -55,7 +71,7 @@ class ObjectsLocalizer(Node):
         nnNetworkOut.setStreamName("nnNetwork")
 
         # Properties
-        camRgb.setPreviewSize(IMAGE_SIZE, IMAGE_SIZE)
+        camRgb.setPreviewSize(W, H)
         camRgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
         camRgb.setInterleaved(False)
         camRgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
@@ -74,23 +90,16 @@ class ObjectsLocalizer(Node):
         )
         stereo.setSubpixel(True)
 
+        # Network specific settings
+        spatialDetectionNetwork.setConfidenceThreshold(confidenceThreshold)
+        spatialDetectionNetwork.setNumClasses(classes)
+        spatialDetectionNetwork.setCoordinateSize(coordinates)
+        spatialDetectionNetwork.setAnchors(anchors)
+        spatialDetectionNetwork.setAnchorMasks(anchorMasks)
+        spatialDetectionNetwork.setIouThreshold(iouThreshold)
         spatialDetectionNetwork.setBlobPath(nnBlobPath)
-        spatialDetectionNetwork.setConfidenceThreshold(0.5)
+        spatialDetectionNetwork.setNumInferenceThreads(2)
         spatialDetectionNetwork.input.setBlocking(False)
-        spatialDetectionNetwork.setBoundingBoxScaleFactor(0.5)
-        spatialDetectionNetwork.setDepthLowerThreshold(100)
-        spatialDetectionNetwork.setDepthUpperThreshold(5000)
-
-        # Yolo specific parameters
-        spatialDetectionNetwork.setNumClasses(80)
-        spatialDetectionNetwork.setCoordinateSize(4)
-        spatialDetectionNetwork.setAnchors(
-            [10, 14, 23, 27, 37, 58, 81, 82, 135, 169, 344, 319]
-        )
-        spatialDetectionNetwork.setAnchorMasks(
-            {"side26": [1, 2, 3], "side13": [3, 4, 5]}
-        )
-        spatialDetectionNetwork.setIouThreshold(0.5)
 
         # Linking
         monoLeft.out.link(stereo.left)
@@ -114,9 +123,7 @@ class ObjectsLocalizer(Node):
         # Connect to device and start pipeline
         with dai.Device(pipeline) as device:
             calibData = device.readCalibration()
-            M_rgb = calibData.getCameraIntrinsics(
-                dai.CameraBoardSocket.CAM_A, IMAGE_SIZE, IMAGE_SIZE
-            )
+            M_rgb = calibData.getCameraIntrinsics(dai.CameraBoardSocket.CAM_A, W, H)
             M_rgb_inv = np.linalg.inv(M_rgb)
 
             self.get_logger().info(str(M_rgb))
@@ -203,7 +210,7 @@ class ObjectsLocalizer(Node):
                     x2 = int(detection.xmax * width)
                     y1 = int(detection.ymin * height)
                     y2 = int(detection.ymax * height)
-                    label = mappings["labels"][detection.label]
+                    label = labels[detection.label]
                     cv2.putText(
                         frame,
                         str(label),
