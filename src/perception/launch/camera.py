@@ -9,7 +9,9 @@ def generate_launch_description():
                 package="perception",
                 executable="objects_localizer",
                 output="screen",
-                parameters=[],
+                parameters=[
+                    {"view_detections": True},
+                ],
             ),
             Node(
                 package="perception",

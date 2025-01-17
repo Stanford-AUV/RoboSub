@@ -1,4 +1,5 @@
 import rclpy
+from rclpy import Parameter
 from rclpy.node import Node
 import cv2
 from geometry_msgs.msg import Pose
@@ -13,13 +14,18 @@ import time
 import json
 
 
-# TODO: Move display code to a separate node
-
-
 class ObjectsLocalizer(Node):
 
     def __init__(self):
         super().__init__("objects_localizer")
+
+        self.declare_parameter("view_detections", Parameter.Type.BOOL)
+        try:
+            view_detections = (
+                self.get_parameter("view_detections").get_parameter_value().bool_value
+            )
+        except:
+            view_detections = False
 
         self.pub = self.create_publisher(Detection3DArray, "detections3d", 10)
 
@@ -203,58 +209,63 @@ class ObjectsLocalizer(Node):
 
                     spatialCoordinates = detection.spatialCoordinates
 
-                    cv2.rectangle(depthFrameColor, (xmin, ymin), (xmax, ymax), color, 1)
-
-                    # Denormalize bounding box
-                    x1 = int(detection.xmin * width)
-                    x2 = int(detection.xmax * width)
-                    y1 = int(detection.ymin * height)
-                    y2 = int(detection.ymax * height)
                     label = labels[detection.label]
-                    cv2.putText(
-                        frame,
-                        str(label),
-                        (x1 + 10, y1 + 20),
-                        cv2.FONT_HERSHEY_TRIPLEX,
-                        0.5,
-                        255,
-                    )
-                    cv2.putText(
-                        frame,
-                        "{:.2f}".format(detection.confidence * 100),
-                        (x1 + 10, y1 + 35),
-                        cv2.FONT_HERSHEY_TRIPLEX,
-                        0.5,
-                        255,
-                    )
-                    cv2.putText(
-                        frame,
-                        f"X: {int(spatialCoordinates.x)} mm",
-                        (x1 + 10, y1 + 50),
-                        cv2.FONT_HERSHEY_TRIPLEX,
-                        0.5,
-                        255,
-                    )
-                    cv2.putText(
-                        frame,
-                        f"Y: {int(spatialCoordinates.y)} mm",
-                        (x1 + 10, y1 + 65),
-                        cv2.FONT_HERSHEY_TRIPLEX,
-                        0.5,
-                        255,
-                    )
-                    cv2.putText(
-                        frame,
-                        f"Z: {int(spatialCoordinates.z)} mm",
-                        (x1 + 10, y1 + 80),
-                        cv2.FONT_HERSHEY_TRIPLEX,
-                        0.5,
-                        255,
-                    )
 
-                    cv2.rectangle(
-                        frame, (x1, y1), (x2, y2), color, cv2.FONT_HERSHEY_SIMPLEX
-                    )
+                    if view_detections:
+                        cv2.rectangle(
+                            depthFrameColor, (xmin, ymin), (xmax, ymax), color, 1
+                        )
+
+                        # Denormalize bounding box
+                        x1 = int(detection.xmin * width)
+                        x2 = int(detection.xmax * width)
+                        y1 = int(detection.ymin * height)
+                        y2 = int(detection.ymax * height)
+
+                        cv2.putText(
+                            frame,
+                            str(label),
+                            (x1 + 10, y1 + 20),
+                            cv2.FONT_HERSHEY_TRIPLEX,
+                            0.5,
+                            255,
+                        )
+                        cv2.putText(
+                            frame,
+                            "{:.2f}".format(detection.confidence * 100),
+                            (x1 + 10, y1 + 35),
+                            cv2.FONT_HERSHEY_TRIPLEX,
+                            0.5,
+                            255,
+                        )
+                        cv2.putText(
+                            frame,
+                            f"X: {int(spatialCoordinates.x)} mm",
+                            (x1 + 10, y1 + 50),
+                            cv2.FONT_HERSHEY_TRIPLEX,
+                            0.5,
+                            255,
+                        )
+                        cv2.putText(
+                            frame,
+                            f"Y: {int(spatialCoordinates.y)} mm",
+                            (x1 + 10, y1 + 65),
+                            cv2.FONT_HERSHEY_TRIPLEX,
+                            0.5,
+                            255,
+                        )
+                        cv2.putText(
+                            frame,
+                            f"Z: {int(spatialCoordinates.z)} mm",
+                            (x1 + 10, y1 + 80),
+                            cv2.FONT_HERSHEY_TRIPLEX,
+                            0.5,
+                            255,
+                        )
+
+                        cv2.rectangle(
+                            frame, (x1, y1), (x2, y2), color, cv2.FONT_HERSHEY_SIMPLEX
+                        )
 
                     # Bounding box corners in pixel coordinates
                     top_left = np.array([xmin, ymin, 1])
@@ -289,21 +300,22 @@ class ObjectsLocalizer(Node):
 
                     ros_detections.detections.append(ros_detection)
 
-                cv2.putText(
-                    frame,
-                    "NN fps: {:.2f}".format(fps),
-                    (2, frame.shape[0] - 4),
-                    cv2.FONT_HERSHEY_TRIPLEX,
-                    0.4,
-                    color,
-                )
-                cv2.imshow("depth", depthFrameColor)
-                cv2.imshow("rgb", frame)
-
                 self.pub.publish(ros_detections)
 
-                if cv2.waitKey(1) == ord("q"):
-                    break
+                if view_detections:
+                    cv2.putText(
+                        frame,
+                        "NN fps: {:.2f}".format(fps),
+                        (2, frame.shape[0] - 4),
+                        cv2.FONT_HERSHEY_TRIPLEX,
+                        0.4,
+                        color,
+                    )
+                    cv2.imshow("depth", depthFrameColor)
+                    cv2.imshow("rgb", frame)
+
+                    if cv2.waitKey(1) == ord("q"):
+                        break
 
 
 def main(args=None):
