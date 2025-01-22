@@ -156,8 +156,8 @@ class PID:
         force_world = (
             error_r_W * self.kP_position
             + error_v_B * self.kD_position
-            + self.integral_error * self.kI_position
-        )  # self.integral_position
+            + self.integral_position * self.kI_position
+        )
 
         # Orientation error, world frame, axis-angle form
         error_q_W = reference.orientation_world * state.orientation_world.inv()

@@ -31,6 +31,7 @@ from control.utils.pid import PID
 from control.utils.state import State
 
 from geometry_msgs.msg import WrenchStamped
+from spatialmath.quaternion import UnitQuaternion
 
 from nav_msgs.msg import Odometry
 
@@ -80,7 +81,32 @@ class Controller(Node):
         self.policy = policy
 
         self.cur_state = None
-        self.ref_state = None
+
+        position_world = np.array(
+            [
+                1.0,
+                0.0,
+                0.0,
+            ]
+        )
+        velocity_body = np.array(
+            [
+                0.0,
+                0.0,
+                0.0,
+            ]
+        )
+        orientation_world = UnitQuaternion.Rx(0)
+        angular_velocity_body = np.array(
+            [
+                0.0,
+                0.0,
+                0.0,
+            ]
+        )
+        self.ref_state = State(
+            position_world, velocity_body, orientation_world, angular_velocity_body
+        )
 
     def reset(self):
         """Reset the controller."""
@@ -129,8 +155,8 @@ def main(args=None):
     rclpy.init(args=args)
 
     pid = PID(
-        kP_position=np.array([0.5, 0, 0]),
-        kD_position=np.array([0, 0, 0]),
+        kP_position=np.array([5, 0, 0]),
+        kD_position=np.array([20, 0, 0]),
         kI_position=np.array([0, 0, 0]),
         kP_orientation=np.array([0, 0, 0]),
         kD_orientation=np.array([0, 0, 0]),
