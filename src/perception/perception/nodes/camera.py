@@ -109,6 +109,17 @@ def setup_device():
 
     camRgb.setMeshSource(dai.CameraProperties.WarpMeshSource.CALIBRATION)
 
+    # stereo.setSubpixel(True)
+
+    # stereo.initialConfig.setSpeckleFilter(enable=True, speckleRange=50)
+    # stereo.initialConfig.setTemporalFilter(enable=True)
+    # stereo.initialConfig.setSpatialFilter(
+    #     enable=True, holeFillingRadius=2, numIterations=1
+    # )
+    # stereo.initialConfig.setDepthThreshold(minRange=200, maxRange=1000)
+    stereo.initialConfig.setMedianFilter(dai.MedianFilter.KERNEL_7x7)
+    # stereo.initialConfig.setInvalidDepthThreshold(1000)
+
     # Connect to device and start pipeline
     return device, pipeline
 
