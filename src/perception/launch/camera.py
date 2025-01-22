@@ -7,13 +7,15 @@ def generate_launch_description():
         [
             Node(
                 package="perception",
-                executable="camera",
+                executable="objects_localizer",
                 output="screen",
-                parameters=[],
+                parameters=[
+                    {"view_detections": True},
+                ],
             ),
             Node(
                 package="perception",
-                executable="test.view_video",
+                executable="test.view_detections_3d",
                 output="screen",
                 parameters=[],
             ),

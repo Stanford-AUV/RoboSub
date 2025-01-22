@@ -1,4 +1,5 @@
 from setuptools import find_packages, setup
+import os
 
 package_name = "simulation"
 
@@ -22,6 +23,7 @@ setup(
             "thrusters = simulation.nodes.thrusters:main",
             "sensors = simulation.nodes.sensors:main",
             "dvl_bridge = simulation.nodes.dvl_bridge:main",
+            "path_bridge = simulation.nodes.path_bridge:main",
         ],
     },
 )
