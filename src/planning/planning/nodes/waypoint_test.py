@@ -10,11 +10,12 @@ import json
 
 from scipy.spatial.transform import Rotation
 
+
 class WaypointTest(Node):
     def __init__(self):
-        super().__init__('waypoint_test')
+        super().__init__("waypoint_test")
 
-        self.declare_parameter('waypoints_topic', 'path')
+        self.declare_parameter("waypoints_topic", "path")
         self.declare_parameter("history_depth", Parameter.Type.INTEGER)
 
         history_depth = (
@@ -27,22 +28,25 @@ class WaypointTest(Node):
 
         self.generated_path_subscriber = self.create_subscription(
             GeneratedPath, "generated_path", self.generated_path_callback, history_depth
-        ) # Create test waypoints node 
+        )  # Create test waypoints node
 
         self.get_logger().info("WaypointTest node has been started.")
-        
-        time.sleep(5) # Wait for path generator node to wake up
 
-        self.publish_random_waypoints()
-        # Uncomment below to read from JSON file
-        #self.publish_waypoints_from_json("/workspaces/RoboSub/src/planning/planning/nodes/test_waypoints.json")
+        self.timer = self.create_timer(5, self.publish)
 
         self.get_logger().info("WaypointTest node has been tested.")
+
+    def publish(self):
+        # self.publish_random_waypoints()
+        # Uncomment below to read from JSON file
+        self.publish_waypoints_from_json(
+            "/workspaces/RoboSub/src/planning/planning/nodes/test_waypoints.json"
+        )
 
     def publish_random_waypoints(self):
         # Create a GivenPath message
         path_msg = Path()
-        path_msg.header.frame_id = 'map'
+        path_msg.header.frame_id = "map"
         path_msg.header.stamp = self.get_clock().now().to_msg()
 
         # Generate random PoseStamped and Twist objects
@@ -50,9 +54,9 @@ class WaypointTest(Node):
         for _ in range(num_waypoints):
             # Create a random PoseStamped
             pose_stamped = PoseStamped()
-            pose_stamped.header.frame_id = 'map'
+            pose_stamped.header.frame_id = "map"
             pose_stamped.header.stamp = self.get_clock().now().to_msg()
-            
+
             # Random position
             pose_stamped.pose.position.x = random.uniform(-10.0, 10.0)
             pose_stamped.pose.position.y = random.uniform(-10.0, 10.0)
@@ -64,7 +68,9 @@ class WaypointTest(Node):
             yaw = random.uniform(-180, 180)
 
             # Convert roll, pitch, yaw to quaternion
-            orientation_quat = Rotation.from_euler('xyz', [roll, pitch, yaw], degrees=True).as_quat()
+            orientation_quat = Rotation.from_euler(
+                "xyz", [roll, pitch, yaw], degrees=True
+            ).as_quat()
             pose_stamped.pose.orientation.x = orientation_quat[0]
             pose_stamped.pose.orientation.y = orientation_quat[1]
             pose_stamped.pose.orientation.z = orientation_quat[2]
@@ -84,21 +90,21 @@ class WaypointTest(Node):
 
     def publish_waypoints_from_json(self, json_file_path):
         try:
-            with open(json_file_path, 'r') as f:
+            with open(json_file_path, "r") as f:
                 data = json.load(f)
-            
+
             # Create a Path message
             path_msg = Path()
-            path_msg.header.frame_id = 'map'
+            path_msg.header.frame_id = "map"
             path_msg.header.stamp = self.get_clock().now().to_msg()
-            
+
             # Loop through waypoints in the JSON file
             for waypoint in data["waypoints"]:
                 # Create PoseStamped for position and orientation
                 pose_stamped = PoseStamped()
-                pose_stamped.header.frame_id = 'map'
+                pose_stamped.header.frame_id = "map"
                 pose_stamped.header.stamp = self.get_clock().now().to_msg()
-                
+
                 # Set position
                 pose_stamped.pose.position.x = waypoint["position"]["x"]
                 pose_stamped.pose.position.y = waypoint["position"]["y"]
@@ -108,12 +114,14 @@ class WaypointTest(Node):
                 roll = waypoint["orientation"]["roll"]
                 pitch = waypoint["orientation"]["pitch"]
                 yaw = waypoint["orientation"]["yaw"]
-                orientation_quat = Rotation.from_euler('xyz', [roll, pitch, yaw], degrees=True).as_quat()
+                orientation_quat = Rotation.from_euler(
+                    "xyz", [roll, pitch, yaw], degrees=True
+                ).as_quat()
                 pose_stamped.pose.orientation.x = orientation_quat[0]
                 pose_stamped.pose.orientation.y = orientation_quat[1]
                 pose_stamped.pose.orientation.z = orientation_quat[2]
                 pose_stamped.pose.orientation.w = orientation_quat[3]
-                
+
                 # Append pose to the path message
                 path_msg.poses.append(pose_stamped)
 
@@ -128,6 +136,7 @@ class WaypointTest(Node):
         except json.JSONDecodeError:
             self.get_logger().error(f"Error decoding JSON file: {json_file_path}")
 
+
 def main(args=None):
     rclpy.init(args=args)
     node = WaypointTest()
@@ -135,5 +144,6 @@ def main(args=None):
     node.destroy_node()
     rclpy.shutdown()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

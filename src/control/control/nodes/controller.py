@@ -70,7 +70,7 @@ class Controller(Node):
             Odometry, "odometry", self.state_callback, 10
         )
         self.reference_subscription = self.create_subscription(
-            Odometry, "path", self.reference_callback, 10
+            Odometry, "waypoint", self.reference_callback, 10
         )
         self.control_publisher = self.create_publisher(WrenchStamped, "wrench", 10)
 
@@ -81,32 +81,7 @@ class Controller(Node):
         self.policy = policy
 
         self.cur_state = None
-
-        position_world = np.array(
-            [
-                1.0,
-                1.0,
-                0.0,
-            ]
-        )
-        velocity_body = np.array(
-            [
-                0.0,
-                0.0,
-                0.0,
-            ]
-        )
-        orientation_world = UnitQuaternion.Rz(np.pi / 2)
-        angular_velocity_body = np.array(
-            [
-                0.0,
-                0.0,
-                0.0,
-            ]
-        )
-        self.ref_state = State(
-            position_world, velocity_body, orientation_world, angular_velocity_body
-        )
+        self.ref_state = None
 
     def reset(self):
         """Reset the controller."""
@@ -138,7 +113,7 @@ class Controller(Node):
         """
         with self.lock:
             self.ref_state = State.from_odometry_msg(msg)
-            # self.get_logger().info('Reference state updated')
+            self.get_logger().info("Reference state updated")
 
     def update(self):
         """Update the control signal and publish to the wrench topic."""
@@ -158,8 +133,8 @@ def main(args=None):
         kP_position=np.array([5, 5, 5]),
         kD_position=np.array([11, 11, 11]),
         kI_position=np.array([0, 0, 0]),
-        kP_orientation=np.array([0.1, 0.1, 0.1]),
-        kD_orientation=np.array([3, 3, 3]),
+        kP_orientation=np.array([0, 0, 0]),
+        kD_orientation=np.array([0, 0, 0]),
         kI_orientation=np.array([0, 0, 0]),
         max_signal_force=np.array([1, 1, 1]),
         max_signal_torque=np.array([1, 1, 1]),
