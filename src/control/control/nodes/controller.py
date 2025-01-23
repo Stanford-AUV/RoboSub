@@ -156,7 +156,7 @@ def main(args=None):
 
     pid = PID(
         kP_position=np.array([5, 0, 0]),
-        kD_position=np.array([20, 0, 0]),
+        kD_position=np.array([11, 0, 0]),
         kI_position=np.array([0, 0, 0]),
         kP_orientation=np.array([0, 0, 0]),
         kD_orientation=np.array([0, 0, 0]),
