@@ -85,8 +85,8 @@ class Controller(Node):
         position_world = np.array(
             [
                 1.0,
-                0.0,
-                0.0,
+                1.0,
+                2.0,
             ]
         )
         velocity_body = np.array(
@@ -155,8 +155,8 @@ def main(args=None):
     rclpy.init(args=args)
 
     pid = PID(
-        kP_position=np.array([5, 0, 0]),
-        kD_position=np.array([11, 0, 0]),
+        kP_position=np.array([5, 5, 5]),
+        kD_position=np.array([11, 11, 11]),
         kI_position=np.array([0, 0, 0]),
         kP_orientation=np.array([0, 0, 0]),
         kD_orientation=np.array([0, 0, 0]),
