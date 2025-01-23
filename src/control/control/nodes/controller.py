@@ -86,7 +86,7 @@ class Controller(Node):
             [
                 1.0,
                 1.0,
-                2.0,
+                0.0,
             ]
         )
         velocity_body = np.array(
@@ -96,7 +96,7 @@ class Controller(Node):
                 0.0,
             ]
         )
-        orientation_world = UnitQuaternion.Rx(0)
+        orientation_world = UnitQuaternion.Rz(np.pi / 2)
         angular_velocity_body = np.array(
             [
                 0.0,
@@ -158,8 +158,8 @@ def main(args=None):
         kP_position=np.array([5, 5, 5]),
         kD_position=np.array([11, 11, 11]),
         kI_position=np.array([0, 0, 0]),
-        kP_orientation=np.array([0, 0, 0]),
-        kD_orientation=np.array([0, 0, 0]),
+        kP_orientation=np.array([0.1, 0.1, 0.1]),
+        kD_orientation=np.array([3, 3, 3]),
         kI_orientation=np.array([0, 0, 0]),
         max_signal_force=np.array([1, 1, 1]),
         max_signal_torque=np.array([1, 1, 1]),
