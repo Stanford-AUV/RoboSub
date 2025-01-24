@@ -20,7 +20,9 @@
     <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster">
     </plugin>
     <plugin filename="gz-sim-buoyancy-system" name="gz::sim::systems::Buoyancy">
-      <uniform_fluid_density>1000</uniform_fluid_density>
+      <uniform_fluid_density>1025</uniform_fluid_density>
+      <buoyancy_volume>0.02146</buoyancy_volume>
+      <buoyancy_center>0 0 0</buoyancy_center>
     </plugin>
 
     <gui fullscreen="0">
@@ -229,24 +231,24 @@
       <!-- Hydrodynamics plugin-->
       <plugin filename="gz-sim-hydrodynamics-system" name="gz::sim::systems::Hydrodynamics">
         <link_name>base_link</link_name>
-        <xDotU>-0.04876161</xDotU>
-        <yDotV>-1.26324739</yDotV>
-        <zDotW>-1.26324739</zDotW>
+        <xDotU>-0.0011</xDotU>
+        <yDotV>-0.028</yDotV>
+        <zDotW>-0.028</zDotW>
         <kDotP>0</kDotP>
-        <mDotQ>-0.3346</mDotQ>
-        <nDotR>-0.3346</nDotR>
-        <xUabsU>-0.62282</xUabsU>
-        <xU>-5</xU>
-        <yVabsV>-60.127</yVabsV>
-        <yV>-5</yV>
-        <zWabsW>-6.0127</zWabsW>
-        <zW>-100</zW>
-        <kPabsP>-0.001916</kPabsP>
-        <kP>-1</kP>
-        <mQabsQ>-6.32698957</mQabsQ>
-        <mQ>-1</mQ>
-        <nRabsR>-6.32698957</nRabsR>
-        <nR>-1</nR>
+        <mDotQ>-0.0075</mDotQ>
+        <nDotR>-0.0075</nDotR>
+        <xUabsU>-0.014</xUabsU>
+        <xU>-0.11</xU>
+        <yVabsV>-1.35</yVabsV>
+        <yV>-0.11</yV>
+        <zWabsW>-0.135</zWabsW>
+        <zW>-2.25</zW>
+        <kPabsP>-0.000043</kPabsP>
+        <kP>-0.022</kP>
+        <mQabsQ>-0.142</mQabsQ>
+        <mQ>-0.022</mQ>
+        <nRabsR>-0.142</nRabsR>
+        <nR>-0.022</nR>
       </plugin>
 
     </include>

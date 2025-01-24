@@ -1,16 +1,148 @@
 {
     "waypoints": [
         {
-            "position": {"x": 0.0, "y": 0.0, "z": 1.0},
-            "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+            "position": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 1.0
+            },
+            "orientation": {
+                "roll": 0.0,
+                "pitch": 0.0,
+                "yaw": 0.0
+            }
         },
         {
-            "position": {"x": 1.0, "y": 0.0, "z": 1.0},
-            "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+            "position": {
+                "x": 10.0,
+                "y": 0.0,
+                "z": 1.0
+            },
+            "orientation": {
+                "roll": 0.0,
+                "pitch": 0.0,
+                "yaw": 0.0
+            }
         },
         {
-            "position": {"x": 1.0, "y": 1.0, "z": 1.0},
-            "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 1.57}
+            "position": {
+                "x": 10.0,
+                "y": 0.0,
+                "z": 1.0
+            },
+            "orientation": {
+                "roll": 0.0,
+                "pitch": 0.0,
+                "yaw": 1.57
+            }
+        },
+        {
+            "position": {
+                "x": 10.0,
+                "y": 10.0,
+                "z": 1.0
+            },
+            "orientation": {
+                "roll": 0.0,
+                "pitch": 0.0,
+                "yaw": 1.57
+            }
+        },
+        {
+            "position": {
+                "x": 10.0,
+                "y": 10.0,
+                "z": 1.0
+            },
+            "orientation": {
+                "roll": 0.0,
+                "pitch": 0.0,
+                "yaw": 3.14
+            }
+        },
+        {
+            "position": {
+                "x": 0.0,
+                "y": 10.0,
+                "z": 1.0
+            },
+            "orientation": {
+                "roll": 0.0,
+                "pitch": 0.0,
+                "yaw": 3.14
+            }
+        },
+        {
+            "position": {
+                "x": 0.0,
+                "y": 10.0,
+                "z": 1.0
+            },
+            "orientation": {
+                "roll": 0.0,
+                "pitch": 1.57,
+                "yaw": 3.14
+            }
+        },
+        {
+            "position": {
+                "x": 5.0,
+                "y": 5.0,
+                "z": 5.0
+            },
+            "orientation": {
+                "roll": 0.0,
+                "pitch": 1.57,
+                "yaw": 3.14
+            }
+        },
+        {
+            "position": {
+                "x": 5.0,
+                "y": 5.0,
+                "z": 5.0
+            },
+            "orientation": {
+                "roll": 1.57,
+                "pitch": 1.57,
+                "yaw": 3.14
+            }
+        },
+        {
+            "position": {
+                "x": 5.0,
+                "y": 5.0,
+                "z": 10.0
+            },
+            "orientation": {
+                "roll": 1.57,
+                "pitch": 1.57,
+                "yaw": 3.14
+            }
+        },
+        {
+            "position": {
+                "x": 5.0,
+                "y": 5.0,
+                "z": 10.0
+            },
+            "orientation": {
+                "roll": 1.57,
+                "pitch": 1.57,
+                "yaw": 0.0
+            }
+        },
+        {
+            "position": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 10.0
+            },
+            "orientation": {
+                "roll": 1.57,
+                "pitch": 1.57,
+                "yaw": 0.0
+            }
         }
     ]
 }
