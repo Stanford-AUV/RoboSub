@@ -3,6 +3,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import depthai as dai
+import numpy as np
 
 
 class Camera(Node):
@@ -11,128 +12,137 @@ class Camera(Node):
         self.get_logger().info("DepthAI camera publisher node has been created!")
 
         self.device = device
-
-        # ROS2 publisher
         self.bridge = CvBridge()
+
+        # ROS2 publishers
         self.rgb_pub = self.create_publisher(Image, "oak/rgb/image_raw", 10)
         self.depth_pub = self.create_publisher(Image, "oak/depth/image_raw", 10)
 
-        device = self.device
-        latestPacket = {}
-        latestPacket["rgb"] = None
-        latestPacket["disp"] = None
+        # Store the latest packets
+        self.latest_packet = {"rgb": None, "disp": None}
 
-        while True:
-            queueEvents = device.getQueueEvents(("rgb", "disp"))
-            for queueName in queueEvents:
-                packets = device.getOutputQueue(queueName).tryGetAll()
-                if len(packets) > 0:
-                    latestPacket[queueName] = packets[-1]
+        # Timer for publishing frames
+        self.timer = self.create_timer(0.033, self.process_and_publish_frames)  # 30 FPS
 
-            if latestPacket["rgb"] is not None and latestPacket["disp"] is not None:
-                frameRgb = latestPacket["rgb"].getCvFrame()
-                frameDisp = latestPacket["disp"].getFrame()
-                # maxDisparity = stereo.initialConfig.getMaxDisparity()
-                # TODO: Move to view cam
-                # # Optional, extend range 0..95 -> 0..255, for a better visualisation
-                # if 1:
-                #     frameDisp = (frameDisp * 255.0 / maxDisparity).astype(np.uint8)
-                # # Optional, apply false colorization
-                # if 1:
-                #     frameDisp = cv2.applyColorMap(frameDisp, cv2.COLORMAP_HOT)
-                # frameDisp = np.ascontiguousarray(frameDisp)
-                # cv2.imshow(depthWindowName, frameDisp)
-                self.rgb_pub.publish(self.bridge.cv2_to_imgmsg(frameRgb, "bgr8"))
-                self.depth_pub.publish(
-                    self.bridge.cv2_to_imgmsg(frameDisp, encoding="passthrough")
-                )
+    def process_and_publish_frames(self):
+        # Get queue events
+        queue_events = self.device.getQueueEvents(("rgb", "disp"))
+        for queue_name in queue_events:
+            packets = self.device.getOutputQueue(queue_name).tryGetAll()
+            if len(packets) > 0:
+                self.latest_packet[queue_name] = packets[-1]
+
+        # Check if both RGB and depth frames are available
+        if (
+            self.latest_packet["rgb"] is not None
+            and self.latest_packet["disp"] is not None
+        ):
+            frame_rgb = self.latest_packet["rgb"].getCvFrame()
+            frame_disp = self.latest_packet["disp"].getFrame()
+
+            # Publish frames and log their shapes
+            self.get_logger().info(f"Publishing RGB frame of shape: {frame_rgb.shape}")
+            self.get_logger().info(
+                f"Publishing Depth frame of shape: {frame_disp.shape}"
+            )
+
+            self.rgb_pub.publish(self.bridge.cv2_to_imgmsg(frame_rgb, "bgr8"))
+            self.depth_pub.publish(
+                self.bridge.cv2_to_imgmsg(frame_disp, encoding="passthrough")
+            )
 
 
-def setup_device():
-    fps = 30
-
+def create_pipeline(fps):
     # The disparity is computed at this resolution, then upscaled to RGB resolution
-    monoResolution = dai.MonoCameraProperties.SensorResolution.THE_720_P
+    # monoResolution = dai.MonoCameraProperties.SensorResolution.THE_720_P
 
     # Create pipeline
     pipeline = dai.Pipeline()
-    device = dai.Device()
-    queueNames = []
 
     # Define sources and outputs
-    camRgb = pipeline.create(dai.node.Camera)
+    # camRgb = pipeline.create(dai.node.ColorCamera)
     left = pipeline.create(dai.node.MonoCamera)
     right = pipeline.create(dai.node.MonoCamera)
     stereo = pipeline.create(dai.node.StereoDepth)
 
-    rgbOut = pipeline.create(dai.node.XLinkOut)
-    disparityOut = pipeline.create(dai.node.XLinkOut)
+    # rgbOut = pipeline.create(dai.node.XLinkOut)
+    # disparityOut = pipeline.create(dai.node.XLinkOut)
 
-    rgbOut.setStreamName("rgb")
-    queueNames.append("rgb")
-    disparityOut.setStreamName("disp")
-    queueNames.append("disp")
+    # rgbOut.setStreamName("rgb")
+    # disparityOut.setStreamName("disp")
 
-    # Properties
-    rgbCamSocket = dai.CameraBoardSocket.CAM_A
+    # RGB Camera Properties
+    # camRgb.setBoardSocket(dai.CameraBoardSocket.RGB)
+    # camRgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
+    # camRgb.setFps(fps)
 
-    camRgb.setBoardSocket(rgbCamSocket)
-    camRgb.setSize(1280, 720)
-    camRgb.setFps(fps)
+    # Mono Cameras Properties
+    # left.setResolution(monoResolution)
+    # left.setBoardSocket(dai.CameraBoardSocket.LEFT)
+    # left.setFps(fps)
 
-    # For now, RGB needs fixed focus to properly align with depth.
-    # This value was used during calibration
-    try:
-        calibData = device.readCalibration2()
-        lensPosition = calibData.getLensPosition(rgbCamSocket)
-        if lensPosition:
-            camRgb.initialControl.setManualFocus(lensPosition)
-    except:
-        raise
-    left.setResolution(monoResolution)
-    left.setCamera("left")
-    left.setFps(fps)
-    right.setResolution(monoResolution)
-    right.setCamera("right")
-    right.setFps(fps)
+    # right.setResolution(monoResolution)
+    # right.setBoardSocket(dai.CameraBoardSocket.RIGHT)
+    # right.setFps(fps)
 
-    stereo.setDefaultProfilePreset(dai.node.StereoDepth.PresetMode.HIGH_DENSITY)
-    # LR-check is required for depth alignment
-    stereo.setLeftRightCheck(True)
-    stereo.setDepthAlign(rgbCamSocket)
+    # StereoDepth Properties
+    # stereo.setDefaultProfilePreset(dai.node.StereoDepth.PresetMode.HIGH_DENSITY)
+    # stereo.setLeftRightCheck(True)  # Enable Left-Right Check to reduce artifacts
+    # stereo.setSubpixel(True)  # Improves depth precision
+    # stereo.setDepthAlign(
+    #     dai.CameraBoardSocket.RGB
+    # )  # Align depth map with RGB perspective
 
-    # Linking
-    camRgb.video.link(rgbOut.input)
-    left.out.link(stereo.left)
-    right.out.link(stereo.right)
-    stereo.disparity.link(disparityOut.input)
-
-    camRgb.setMeshSource(dai.CameraProperties.WarpMeshSource.CALIBRATION)
-
-    # stereo.setSubpixel(True)
-
+    # Filters
     # stereo.initialConfig.setSpeckleFilter(enable=True, speckleRange=50)
-    # stereo.initialConfig.setTemporalFilter(enable=True)
+    # stereo.initialConfig.setTemporalFilter(enable=True, alpha=0.4, delta=50)
     # stereo.initialConfig.setSpatialFilter(
     #     enable=True, holeFillingRadius=2, numIterations=1
     # )
-    # stereo.initialConfig.setDepthThreshold(minRange=200, maxRange=1000)
-    stereo.initialConfig.setMedianFilter(dai.MedianFilter.KERNEL_7x7)
-    # stereo.initialConfig.setInvalidDepthThreshold(1000)
+    # stereo.initialConfig.setDepthThreshold(
+    #     minRange=300, maxRange=12000
+    # )  # 30 cm to 12 m
+    # stereo.initialConfig.setMedianFilter(dai.MedianFilter.KERNEL_7x7)
 
-    # Connect to device and start pipeline
-    return device, pipeline
+    # Linking
+    # camRgb.video.link(rgbOut.input)  # Link RGB camera output to RGB XLinkOut
+    left.out.link(stereo.left)  # Link left mono camera to StereoDepth
+    right.out.link(stereo.right)  # Link right mono camera to StereoDepth
+    # stereo.disparity.link(
+    #     disparityOut.input
+    # )  # Link stereo depth output to disparity XLinkOut
+
+    return pipeline
 
 
-def main(args=None):
-    rclpy.init(args=args)
-    device, pipeline = setup_device()
-    with device:
-        device.startPipeline(pipeline)
-        node = Camera(device)
-        rclpy.spin(node)
-        node.destroy_node()
-        rclpy.shutdown()
+def main():
+    rclpy.init()
+
+    # Set FPS for the cameras
+    fps = 30
+
+    # Create DepthAI pipeline and device
+    pipeline = create_pipeline(fps)
+    device = dai.Device(pipeline)
+
+    # Set fixed focus for RGB camera based on calibration data
+    try:
+        calibData = device.readCalibration2()
+        lensPosition = calibData.getLensPosition(dai.CameraBoardSocket.RGB)
+        if lensPosition:
+            device.getInputQueue("rgb").send(
+                dai.CameraControl().setManualFocus(lensPosition)
+            )
+    except Exception as e:
+        raise RuntimeError("Failed to read calibration data or set focus.") from e
+
+    # Create and spin the Camera node
+    camera_node = Camera(device)
+    rclpy.spin(camera_node)
+
+    # Clean up
+    camera_node.destroy_node()
+    rclpy.shutdown()
 
 
 if __name__ == "__main__":
