@@ -21,6 +21,7 @@ setup(
         "console_scripts": [
             "thrusters = hardware.nodes.thrusters:main",
             "sensors = hardware.nodes.sensors:main",
+            "arduino = hardware.nodes.arduino:main",
         ],
     },
 )
