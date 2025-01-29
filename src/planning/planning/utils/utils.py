@@ -1,7 +1,7 @@
 import math
 from scipy.spatial.transform import Rotation
 
-def _direction_to_quaternion(self, direction):
+def direction_to_quaternion(direction):
     """
     Convert a direction vector to a quaternion.
     
@@ -21,9 +21,9 @@ def _direction_to_quaternion(self, direction):
     quaternion = rotation.as_quat()
     return quaternion
 
-def _generate_fibonacci_sphere_points(self, num_points: int):
+def generate_fibonacci_sphere_points(num_points: int):
     """
-    Generate points on a sphere using the Fibonacci sphere algorithm.
+    Generate points on a sphere using a more uniform distribution to cover the whole sphere.
     
     Args:
         num_points (int): Number of points to generate.
@@ -32,16 +32,21 @@ def _generate_fibonacci_sphere_points(self, num_points: int):
         List of tuples representing directions as (x, y, z).
     """
     points = []
-    phi = math.pi * (3 - math.sqrt(5))  # Golden angle in radians
+    phi = math.pi * (3 - math.sqrt(5))  # Golden angle in radians, this helps spread the points
 
     for i in range(num_points):
+        # Uniformly distribute points on the sphere
         y = 1 - (i / float(num_points - 1)) * 2  # y goes from 1 to -1
         radius = math.sqrt(1 - y * y)  # Radius at y
 
-        theta = phi * i  # Angle around the sphere
+        # Apply the golden angle to theta
+        theta = phi * i  # Golden angle
+
+        # Coordinates
         x = math.cos(theta) * radius
         z = math.sin(theta) * radius
 
         points.append((x, y, z))
+    
     return points
 
