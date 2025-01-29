@@ -12,3 +12,5 @@ plotly
 ipywidgets
 nbformat
 dash
+pyserial
+dvl

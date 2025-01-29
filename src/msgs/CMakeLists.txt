@@ -25,10 +25,12 @@ endif()
 
 find_package(geometry_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/MTi200Data.msg"
   "msg/GeneratedPath.msg"
   "msg/PWMsStamped.msg"
   "msg/ThrustsStamped.msg"
@@ -38,7 +40,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/DVLVelocity.msg"
   "msg/Detection3DPoints.msg"
   "msg/Detection3DPointsArray.msg"
-  DEPENDENCIES geometry_msgs vision_msgs std_msgs
+  DEPENDENCIES geometry_msgs vision_msgs sensor_msgs std_msgs
 )
 
 ament_package()
