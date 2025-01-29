@@ -36,7 +36,7 @@
         "**/log": true
     },
     "cSpell.words": [
-        "RTPS",
+        "arange",
         "athackst",
         "autopep",
         "cmake",
@@ -45,9 +45,18 @@
         "DCMAKE",
         "deque",
         "devcontainer",
+        "disp",
         "ints",
+        "Khaled",
+        "Messai",
+        "nanosec",
+        "ndarray",
         "noqa",
+        "normv",
+        "Odometry",
+        "pinv",
         "pytest",
+        "qvmul",
         "rclcpp",
         "rclpy",
         "repos",
@@ -58,15 +67,7 @@
         "uncrustify",
         "Wextra",
         "Wpedantic",
-        "xmllint",
-        "Odometry",
-        "ndarray",
-        "Khaled",
-        "Messai",
-        "pinv",
-        "nanosec",
-        "normv",
-        "qvmul"
+        "xmllint"
     ],
     "cSpell.allowCompoundWords": true,
     "cSpell.ignorePaths": [
@@ -84,4 +85,5 @@
     ],
     "python.defaultInterpreterPath": "/home/ros/env/bin/python",
     "autoDocstring.docstringFormat": "numpy",
+    "cmake.sourceDirectory": "/workspaces/RoboSub/src/simulation/simulation/custom_gz_plugins",
 }
