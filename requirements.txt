@@ -13,4 +13,3 @@ ipywidgets
 nbformat
 dash
 pyserial
-dvl
