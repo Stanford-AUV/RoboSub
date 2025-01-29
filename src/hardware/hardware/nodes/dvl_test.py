@@ -59,12 +59,8 @@ if __name__ == "__main__":
             # Blocking call to wait for key pressed to end program
             KEY = input("Press Enter to stop\n")
 
-        # else:
-        #     print(
-        #         "Failed to open {0} - make sure it is not used by any other program".format(
-        #             PORT
-        #         )
-        #     )
+        else:
+            print("error")
 
         # Unregister
         DVL.unregister_all_callbacks()
