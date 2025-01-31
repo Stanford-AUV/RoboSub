@@ -2,9 +2,9 @@
 """
 
 import datetime
-from packets import AppLayerPacket
-from commands import BinaryCommands, check_response
-from system import (
+from .packets import AppLayerPacket
+from .commands import BinaryCommands, check_response
+from .system import (
     SystemInfo,
     SystemComponents,
     SystemFeatures,
@@ -12,7 +12,7 @@ from system import (
     SystemTests,
     FftData,
 )
-from commands import ResponseStatusType, CommandIdType
+from .commands import ResponseStatusType, CommandIdType
 
 
 class Dvl:
@@ -100,15 +100,17 @@ class Dvl:
         self._system_tests = SystemTests()
         self._system_setup = SystemSetup()
         self._system_info = SystemInfo()
-        self._system_componets = SystemComponents()
+        self._system_components = SystemComponents()
         self._system_features = SystemFeatures()
         self._fft_data = FftData(None)
         self.last_err = ResponseStatusType.SUCCESS
+        # print("RAN")
         if self.log_all_data and self.working_folder is not None:
             name = "COM" + "_"
             self._commands.all_data_logger.open_file(self.working_folder, name, ".txt")
         self._commands.reset()
         port_opened = self._commands.port.open(com, baud_rate)
+        # print("OPEN", com, baud_rate, port_opened)
         self._is_connected = port_opened
         if port_opened:
             # Check if we can communicate with Wayfinder

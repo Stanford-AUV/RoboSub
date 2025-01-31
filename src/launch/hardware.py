@@ -13,6 +13,11 @@ def generate_launch_description():
                 executable="imu",
                 parameters=[global_params],
             ),
+            Node(
+                package="hardware",
+                executable="dvl_test",
+                parameters=[global_params],
+            ),
             # Node(
             #     package="hardware",
             #     executable="xyz",

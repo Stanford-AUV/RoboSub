@@ -9,8 +9,8 @@ import struct
 import datetime
 from enum import Enum, auto
 import numpy as np
-from packets import AppLayerPacket, AppLayerIdType, calc_checksum
-from util import Setting, indent_string
+from .packets import AppLayerPacket, AppLayerIdType, calc_checksum
+from .util import Setting, indent_string
 
 
 class DateTime:

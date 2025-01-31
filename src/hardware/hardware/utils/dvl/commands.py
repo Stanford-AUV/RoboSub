@@ -5,9 +5,9 @@ from enum import Enum
 import datetime
 import struct
 from queue import Queue, Empty
-from packets import PhysicalLayerPacket, AppLayerPacket, PacketDecoder, AppLayerIdType
-from util import DataLogger, SerialPort
-from system import (
+from .packets import PhysicalLayerPacket, AppLayerPacket, PacketDecoder, AppLayerIdType
+from .util import DataLogger, SerialPort
+from .system import (
     SystemInfo,
     SystemFeatures,
     SystemSetup,

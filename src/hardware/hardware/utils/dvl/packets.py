@@ -2,7 +2,7 @@
 """
 
 from enum import Enum
-from util import print_bytes, print_bytearray, indent_string
+from .util import print_bytes, print_bytearray, indent_string
 
 
 class AppLayerIdType(Enum):

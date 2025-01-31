@@ -1,66 +1,101 @@
-"""Example usage for DVL driver, from data_example.py
-"""
+import rclpy
+from rclpy.node import Node
+from msgs.msg import DVLData, DVLBeam, DVLTarget, DVLVelocity
+from std_msgs.msg import Header
+from geometry_msgs.msg import Vector3
 
-import sys
-import os
-
-# Get the absolute path to the module
-module_path = os.path.abspath("/workspaces/RoboSub/src/hardware/hardware/utils/dvl")
-sys.path.append(module_path)
-
-from dvl import Dvl
-from system import OutputData
+from hardware.utils.dvl.system import OutputData
+from hardware.utils.dvl.dvl import Dvl
+import numpy as np
 
 
-def update_data(output_data: OutputData, obj):
-    """Prints data time to screen"""
-    del obj
-    if output_data is not None:
-        time = output_data.get_date_time()
-        txt = time.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-        print("Got data {0}".format(txt))
+class DVLROSBridge(Node):
+    def __init__(self, port="/dev/ttyUSB0", baudrate=115200):
+        super().__init__("dvl_ros_bridge")
+
+        # ROS publisher
+        self.publisher = self.create_publisher(DVLData, "/gz/dvl", 10)
+
+        # Connect to DVL
+        self.dvl = Dvl(port, baudrate)
+        if not self.dvl.is_connected():
+            self.get_logger().error("Failed to connect to DVL.")
+            return
+
+        # Register the callback function to process DVL data
+        self.dvl.register_ondata_callback(self.update_data)
+
+        # Start pinging
+        if not self.dvl.exit_command_mode():
+            self.get_logger().error("Failed to start pinging")
+
+    def update_data(self, output_data: OutputData, obj):
+        """Callback function to process and publish DVL data."""
+        del obj
+        if output_data is None:
+            return
+
+        # Extract timestamp
+        timestamp = self.get_clock().now().to_msg()
+
+        # Extract raw values from settings
+        settings = output_data.get_settings()
+        data_dict = {setting.name: setting.value for setting in settings}
+
+        # Construct DVLData message
+        dvl_msg = DVLData()
+        dvl_msg.header = Header()
+        dvl_msg.header.stamp = timestamp
+
+        # Set velocity information
+        dvl_velocity = DVLVelocity()
+        dvl_velocity.reference = 0  # Unknown reference frame
+        dvl_velocity.mean = Vector3(
+            x=data_dict.get("Velocity X", 0.0),
+            y=data_dict.get("Velocity Y", 0.0),
+            z=data_dict.get("Velocity Z", 0.0),
+        )
+        dvl_velocity.covariance = np.eye(3).flatten().tolist()  # Covariance unknown
+
+        # Set DVL target
+        dvl_target = DVLTarget()
+        dvl_target.type = 0  # Unknown target type
+        dvl_target.range_mean = data_dict.get("Mean range", 0.0)
+
+        # Set beam data
+        beam_ids = [1, 2, 3, 4]
+        dvl_msg.beams = []
+        for beam_id in beam_ids:
+            beam = DVLBeam()
+            beam.id = beam_id
+            beam.range_mean = data_dict.get(f"Beam {beam_id} range", 0.0)
+            beam.locked = True  # Assume locked unless otherwise known
+
+            # Beam velocity (not explicitly given in your data)
+            beam.velocity = DVLVelocity()
+            beam.velocity.reference = 0  # Unknown reference
+            beam.velocity.mean = Vector3(x=0.0, y=0.0, z=0.0)
+            beam.velocity.covariance = np.eye(3).flatten().tolist()
+
+            dvl_msg.beams.append(beam)
+
+        # Assign message values
+        dvl_msg.type = 0  # Unknown type
+        dvl_msg.velocity = dvl_velocity
+        dvl_msg.target = dvl_target
+
+        # Publish message
+        self.publisher.publish(dvl_msg)
+        self.get_logger().info(f"Published DVL data: {str(dvl_msg)}")
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = DVLROSBridge()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
 
 
 if __name__ == "__main__":
-    # PORT = input("Please enter your port number (e.g. '1' for COM1) =  ")
-    # PORT = "COM" + PORT
-
-    # Connect to serial port
-    with Dvl("/dev/ttyUSB0", 115200) as DVL:
-
-        if DVL.is_connected():
-
-            # Get user system setup
-            if DVL.get_setup():
-                # Print setup
-                print(DVL.system_setup)
-
-            # Stop pinging
-            if not DVL.enter_command_mode():
-                print("Failed to stop pinging")
-
-            # Reset to factory defaults (requires Wayfinder to be in 'command mode')
-            if not DVL.reset_to_defaults():
-                print("Failed to reset to factory defaults")
-
-            # Collect data - make sure working folder exists
-            if not DVL.start_logging("c:/temp", "DVL"):
-                print("Failed to start logging")
-            else:
-                print("Data logged to {0}".format(DVL.get_log_file_name()))
-
-            # Register callback function
-            DVL.register_ondata_callback(update_data)
-
-            # Start pinging
-            if not DVL.exit_command_mode():
-                print("Failed to start pinging")
-
-            # Blocking call to wait for key pressed to end program
-            KEY = input("Press Enter to stop\n")
-
-        else:
-            print("error")
-
-        # Unregister
-        DVL.unregister_all_callbacks()
+    main()

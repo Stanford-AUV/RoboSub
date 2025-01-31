@@ -23,6 +23,7 @@ setup(
             # "sensors = hardware.nodes.sensors:main",
             "thrusters = hardware.nodes.thrusters:main",
             "imu = hardware.nodes.imu:main",
+            "dvl_test = hardware.nodes.dvl_test:main"
         ],
     },
 )
