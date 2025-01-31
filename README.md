@@ -178,3 +178,15 @@ If you encounter the following error:
 Could not load the Qt platform plugin "xcb"
 ```
 Try rebooting the VM from the VM Terminal. Then restart the Docker container and things should run again.
+
+### Unable to connect to a sensor
+
+1. Make sure when you connect the sensor to your computer, you select "Connect to Linux" when prompted by the VM.
+2. If this still fails, run the following code within your VSCode Terminal, followed by the port of the device:
+```bash
+sudo chmod a+rw PORT
+```
+For example:
+```
+sudo chmod a+rw /dev/ttyACM0
+```
