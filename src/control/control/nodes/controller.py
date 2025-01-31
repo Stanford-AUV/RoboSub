@@ -130,14 +130,12 @@ def main(args=None):
     rclpy.init(args=args)
 
     pid = PID(
-        kP_position=np.array([2.5, 2.5, 1.5]),  # Further reduced Z-axis gains
-        kD_position=np.array([4.0, 4.0, 2.0]),
-        kI_position=np.array(
-            [0.03, 0.03, 0.15]
-        ),  # Smaller integrals for faster response
-        kP_orientation=np.array([1.8, 1.8, 2.2]),  # Lower orientation gains
-        kD_orientation=np.array([4.0, 4.0, 5.0]),  # Reduced rotational damping
-        kI_orientation=np.array([0.15, 0.15, 0.2]),  # Conservative integrals
+        kP_position=np.array([11, 11, 6]),
+        kD_position=np.array([6, 6, 3]),
+        kI_position=np.array([0, 0, 0]),
+        kP_orientation=np.array([5.0, 5.0, 8.0]),  # Increased orientation gains
+        kD_orientation=np.array([3.0, 3.0, 5.0]),  # Added damping
+        kI_orientation=np.array([0, 0, 0]),
         max_signal_force=np.array([20.0, 20.0, 20.0]),
         max_signal_torque=np.array([10.0, 10.0, 10.0]),
         max_integral_position=np.array([1.5, 1.5, 2.0]),

@@ -7,6 +7,7 @@
             <pose>0 0 0 0 0 0</pose>
             <inertial>
                 <mass>22</mass>
+                <pose>0 0 0.1 0 0 0</pose>
                 <inertia>
                     <ixx>0.467</ixx>
                     <ixy>0.000000</ixy>
@@ -26,7 +27,7 @@
             <collision name='base_collision'>
                 <geometry>
                     <box>
-                        <size>0.3 0.3 0.25</size>
+                        <size>0.3 0.3 0.29</size>
                     </box>
                 </geometry>
             </collision>
