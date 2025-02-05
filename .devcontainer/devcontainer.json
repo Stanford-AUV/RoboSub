@@ -17,6 +17,7 @@
 		"--ipc=host",
 		"--privileged",
 		"--volume=/dev/bus/usb:/dev/bus/usb",
+		"--volume=/dev/ttyUSB0:/dev/ttyUSB0",
 		"--device-cgroup-rule=c 189:* rmw"
 		// uncomment to use intel iGPU
 		// "--device=/dev/dri"
