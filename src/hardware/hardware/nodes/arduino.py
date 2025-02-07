@@ -3,6 +3,8 @@ import rclpy
 from rclpy.node import Node
 from msgs.msg import PWMsStamped
 from typing import List
+from rclpy import Parameter
+import numpy as np
 
 
 class Arduino(Node):
@@ -12,50 +14,60 @@ class Arduino(Node):
 
         self.zero_thrust = 1500
 
-        self.thrusters_count = 8
+        self.declare_parameter("history_depth", Parameter.Type.INTEGER)
+        self.declare_parameter("thruster_count", Parameter.Type.INTEGER)
+
+        self.thruster_count = (
+            self.get_parameter("thruster_count").get_parameter_value().integer_value
+        )
+
+        history_depth = (
+            self.get_parameter("history_depth").get_parameter_value().integer_value
+        )
         self._pwms_sub = self.create_subscription(
-            PWMsStamped, "pwms", self.pwms_callback, 10
+            PWMsStamped, "pwms", self.pwms_callback, history_depth
         )
 
         try:
-            self.portName = serial.Serial(
-                "/dev/ttyUSB_teensy", baudrate=9600, timeout=1
-            )
-            self.get_logger().info(
-                f"Serial port /dev/ttyUSB_teensy opened successfully."
-            )
+            # NOTE: If this fails, run the following command:
+            # sudo chmod a+rw /dev/ttyACM0
+            port = "/dev/ttyACM0"
+            self.portName = serial.Serial(port, baudrate=9600, timeout=1)
+            self.get_logger().info(f"Serial port {port} opened successfully.")
         except serial.SerialException as e:
             self.get_logger().error(f"Failed to open serial port: {e}")
-            return
+            raise e
 
         # TODO: Request temperature and humidity in a timer
 
     def get_servo_command(self, index: int, pwm: int):
         servo_number = index + 2
+        if pwm == 0:
+            pwm = self.zero_thrust
         command = f"{servo_number} {pwm}\n"
-        self.get_logger().info(command)
         return command
 
-    def pwms_callback(self, msg: PWMsStamped):
+    def pwms_callback(self, msg: PWMsStamped, log=True):
+        if log:
+            self.get_logger().info(f"PWMs received {msg.pwms}")
         pwms: List[int] = msg.pwms.tolist()
-        for i, pwm in enumerate(pwms):
-            command = self.get_servo_command(index=i, pwm=pwm)
-            try:
-                self.portName.write(command.encode())
-            except serial.SerialException as e:
-                self.get_logger().error(f"Failed to write to serial port: {e}")
+        commands = [
+            self.get_servo_command(index=i, pwm=pwm) for i, pwm in enumerate(pwms)
+        ]
+        try:
+            self.portName.write("".join(commands).encode())
+        except serial.SerialException as e:
+            self.get_logger().error(f"Failed to write to serial port: {e}")
+        response = self.portName.readlines()
+        for i, response in enumerate(response):
+            response = response.decode().strip()
+            if response != "Successfully set servo":
+                self.get_logger().error(f"Thruster index {i}: {response}")
 
     def kill_motors(self):
-        self.get_logger().info("Kill command received")
-        result = True
-        for i in range(self.thrusters_count):
-            command = self.get_servo_command(index=i, pwm=self.zero_thrust)
-            try:
-                self.portName.write(command.encode())
-            except serial.SerialException as e:
-                self.get_logger().error(f"Failed to write to serial port: {e}")
-                result = False
-        return result
+        msgs = PWMsStamped()
+        msgs.pwms = np.array([0] * self.thruster_count, dtype=np.int16)
+        self.pwms_callback(msgs, log=False)
 
 
 def main(args=None):
@@ -65,9 +77,9 @@ def main(args=None):
     try:
         rclpy.spin(arduino)
     except KeyboardInterrupt:
-        pass
+        arduino.kill_motors()
+        return
 
-    arduino.kill_motors()
     arduino.destroy_node()
     rclpy.shutdown()
 

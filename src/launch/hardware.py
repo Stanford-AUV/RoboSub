@@ -18,10 +18,23 @@ def generate_launch_description():
                 executable="dvl",
                 parameters=[global_params],
             ),
-            # Node(
-            #     package="hardware",
-            #     executable="xyz",
-            #     parameters=[global_params],
-            # ),
+            Node(
+                package="control",
+                executable="thrust_generator",
+                parameters=[global_params],
+                arguments=["--ros-args", "--log-level", "warn"],
+            ),
+            Node(
+                package="hardware",
+                executable="thrusters",
+                parameters=[global_params],
+                arguments=["--ros-args", "--log-level", "warn"],
+            ),
+            Node(
+                package="hardware",
+                executable="arduino",
+                parameters=[global_params],
+                arguments=["--ros-args"],
+            ),
         ]
     )

@@ -162,6 +162,18 @@ In case a `pep257` test fails, run the following to get more details about the e
 ament_pep257
 ```
 
+## Manual Control
+
+In a first Terminal, run:
+```bash
+ros2 launch src/launch/manual.py
+```
+
+In a second Terminal, run:
+```bash
+ros2 run manual keyboard
+```
+
 ## FAQ
 
 ### Out of storage
@@ -178,3 +190,15 @@ If you encounter the following error:
 Could not load the Qt platform plugin "xcb"
 ```
 Try rebooting the VM from the VM Terminal. Then restart the Docker container and things should run again.
+
+### Unable to connect to a sensor
+
+1. Make sure when you connect the sensor to your computer, you select "Connect to Linux" when prompted by the VM.
+2. If this still fails, run the following code within your VSCode Terminal, followed by the port of the device:
+```bash
+sudo chmod a+rw PORT
+```
+For example:
+```
+sudo chmod a+rw /dev/ttyACM0
+```
