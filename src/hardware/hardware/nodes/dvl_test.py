@@ -41,6 +41,29 @@ class DVLROSBridge(Node):
         # Extract raw values from settings
         settings = output_data.get_settings()
         data_dict = {setting.name: setting.value for setting in settings}
+        self.get_logger().info(str(data_dict))
+
+        # {'Count': 0,
+        #  'Date': '2025/02/06',
+        #  'Time': '20:33:42.380',
+        #  'Coordinate': 'XYZ',
+        #  'Velocity X': nan,
+        #  'Velocity Y': nan,
+        #  'Velocity Z': nan,
+        #  'Velocity Err': nan,
+        #  'Beam 1 range': nan,
+        #  'Beam 2 range': nan,
+        #  'Beam 3 range': nan,
+        #  'Beam 4 range': nan,
+        #  'Mean range': nan,
+        #  'Speed of sound': 1500.0,
+        #  'Input voltage': 12.010638236999512,
+        #  'Transmit voltage': 35.282958984375,
+        #  'Current': 0.35809072852134705,
+        #  'Status': 255,
+        #  'BIT count': 1,
+        #  'BIT codes': 236
+        # }
 
         # Construct DVLData message
         dvl_msg = DVLData()
@@ -50,17 +73,33 @@ class DVLROSBridge(Node):
         # Set velocity information
         dvl_velocity = DVLVelocity()
         dvl_velocity.reference = 0  # Unknown reference frame
-        dvl_velocity.mean = Vector3(
-            x=data_dict.get("Velocity X", 0.0),
-            y=data_dict.get("Velocity Y", 0.0),
-            z=data_dict.get("Velocity Z", 0.0),
-        )
-        dvl_velocity.covariance = np.eye(3).flatten().tolist()  # Covariance unknown
+        x = data_dict["Velocity X"]
+        if np.isnan(x):
+            self.get_logger().error("Velocity X is nan")
+            x = 0.0
+        y = data_dict["Velocity Y"]
+        if np.isnan(y):
+            self.get_logger().error("Velocity Y is nan")
+            y = 0.0
+        z = data_dict["Velocity Z"]
+        if np.isnan(z):
+            self.get_logger().error("Velocity Z is nan")
+            z = 0.0
+        dvl_velocity.mean = Vector3(x, y, z)
+        err = data_dict["Velocity Err"]
+        if np.isnan(err):
+            self.get_logger().error("Velocity Err is nan")
+            err = 0.05
+        dvl_velocity.covariance = np.eye(3) * (err**2)
 
         # Set DVL target
         dvl_target = DVLTarget()
         dvl_target.type = 0  # Unknown target type
-        dvl_target.range_mean = data_dict.get("Mean range", 0.0)
+        r = data_dict["Mean range"]
+        if np.isnan(r):
+            self.get_logger().error("Mean range is nan")
+            r = 0.0
+        dvl_target.range_mean = r
 
         # Set beam data
         beam_ids = [1, 2, 3, 4]
@@ -68,14 +107,35 @@ class DVLROSBridge(Node):
         for beam_id in beam_ids:
             beam = DVLBeam()
             beam.id = beam_id
-            beam.range_mean = data_dict.get(f"Beam {beam_id} range", 0.0)
+            br = data_dict[f"Beam {beam_id} range"]
+            if np.isnan(br):
+                self.get_logger().error(f"Beam {beam_id} range is nan")
+                br = 0.0
+            beam.range_mean = br
             beam.locked = True  # Assume locked unless otherwise known
 
             # Beam velocity (not explicitly given in your data)
             beam.velocity = DVLVelocity()
             beam.velocity.reference = 0  # Unknown reference
-            beam.velocity.mean = Vector3(x=0.0, y=0.0, z=0.0)
-            beam.velocity.covariance = np.eye(3).flatten().tolist()
+            err = data_dict["Velocity Err"]
+            if np.isnan(err):
+                self.get_logger().error("Velocity Err is nan")
+                err = 0.05
+            if beam_id == 1:
+                beam.velocity.mean = Vector3(
+                    x=data_dict.get("Velocity X", 0.0), y=0.0, z=0.0
+                )
+            if beam_id == 2:
+                beam.velocity.mean = Vector3(
+                    x=0.0, y=data_dict.get("Velocity Y", 0.0), z=0.0
+                )
+            if beam_id == 3:
+                beam.velocity.mean = Vector3(
+                    x=0.0, y=0.0, z=data_dict.get("Velocity Z", 0.0)
+                )
+            else:
+                beam.velocity.mean = Vector3(x=err, y=err, z=err)
+            beam.velocity.covariance = np.eye(3) * (err**2)
 
             dvl_msg.beams.append(beam)
 
