@@ -89,25 +89,12 @@ class ObjectsLocalizer(Node):
 
         # setting node configs
         stereo.setDefaultProfilePreset(dai.node.StereoDepth.PresetMode.HIGH_DENSITY)
+        # Align depth map to the perspective of RGB camera, on which inference is done
         stereo.setDepthAlign(dai.CameraBoardSocket.CAM_A)
         stereo.setOutputSize(
             monoLeft.getResolutionWidth(), monoLeft.getResolutionHeight()
         )
         stereo.setSubpixel(True)
-
-        # Apply Filters
-        config = stereo.initialConfig.get()
-
-        config.postProcessing.speckleFilter.enable = True
-        config.postProcessing.speckleFilter.speckleRange = 50
-        config.postProcessing.temporalFilter.enable = True
-        config.postProcessing.spatialFilter.enable = True
-        config.postProcessing.spatialFilter.holeFillingRadius = 2
-        config.postProcessing.spatialFilter.numIterations = 1
-        config.postProcessing.thresholdFilter.minRange = 300
-        config.postProcessing.thresholdFilter.maxRange = 6000
-
-        stereo.initialConfig.setMedianFilter(dai.MedianFilter.KERNEL_7x7)
 
         # Network specific settings
         spatialDetectionNetwork.setConfidenceThreshold(confidenceThreshold)
@@ -131,6 +118,7 @@ class ObjectsLocalizer(Node):
             camRgb.preview.link(xoutRgb.input)
 
         spatialDetectionNetwork.out.link(xoutNN.input)
+
         stereo.depth.link(spatialDetectionNetwork.inputDepth)
         spatialDetectionNetwork.passthroughDepth.link(xoutDepth.input)
         spatialDetectionNetwork.outNetwork.link(nnNetworkOut.input)
@@ -197,32 +185,137 @@ class ObjectsLocalizer(Node):
                     fps = counter / (current_time - startTime)
                     counter = 0
                     startTime = current_time
-                    self.get_logger().info(f"FPS: {fps}")
 
-                # Publish Detection3DArray to 'detections3d' topic
-                detections = Detection3DArray()
-                # Assuming detections are obtained in a valid format, add them to the array
-                for detection in inDet.detections:
-                    detection3d = Detection3D()
-                    self.get_logger().info(str(detection.label))
+                detections = inDet.detections
 
-                    # detection_class = classes[detection.label]
-                    # detection_coordinates = coordinates.get(detection.label, (0, 0))
-                    custom_id = f"this is a temporary id"
+                # If the frame is available, draw bounding boxes on it and show the frame
+                height = frame.shape[0]
+                width = frame.shape[1]
 
-                    detection3d.id = custom_id
-                    # detection3d.label = detection.label
-                    # detection3d.confidence = detection.confidence
-                    # detection3d.spatial_coordinates = detection.spatial_coordinates
+                ros_detections = Detection3DArray()
+                for detection in detections:
+                    roiData = detection.boundingBoxMapping
 
-                    # Append the detection to the detections array
-                    detections.detections.append(detection3d)
+                    roi = roiData.roi
+                    roi = roi.denormalize(
+                        depthFrameColor.shape[1], depthFrameColor.shape[0]
+                    )
+                    topLeft = roi.topLeft()
+                    bottomRight = roi.bottomRight()
+                    xmin = int(topLeft.x)
+                    ymin = int(topLeft.y)
+                    xmax = int(bottomRight.x)
+                    ymax = int(bottomRight.y)
 
-                self.pub.publish(detections)
+                    spatialCoordinates = detection.spatialCoordinates
 
-                cv2.imshow("depth", depthFrameColor)
-                if cv2.waitKey(1) == ord("q"):
-                    break
+                    label = labels[detection.label]
+
+                    if view_detections:
+                        cv2.rectangle(
+                            depthFrameColor, (xmin, ymin), (xmax, ymax), color, 1
+                        )
+
+                        # Denormalize bounding box
+                        x1 = int(detection.xmin * width)
+                        x2 = int(detection.xmax * width)
+                        y1 = int(detection.ymin * height)
+                        y2 = int(detection.ymax * height)
+
+                        cv2.putText(
+                            frame,
+                            str(label),
+                            (x1 + 10, y1 + 20),
+                            cv2.FONT_HERSHEY_TRIPLEX,
+                            0.5,
+                            255,
+                        )
+                        cv2.putText(
+                            frame,
+                            "{:.2f}".format(detection.confidence * 100),
+                            (x1 + 10, y1 + 35),
+                            cv2.FONT_HERSHEY_TRIPLEX,
+                            0.5,
+                            255,
+                        )
+                        cv2.putText(
+                            frame,
+                            f"X: {int(spatialCoordinates.x)} mm",
+                            (x1 + 10, y1 + 50),
+                            cv2.FONT_HERSHEY_TRIPLEX,
+                            0.5,
+                            255,
+                        )
+                        cv2.putText(
+                            frame,
+                            f"Y: {int(spatialCoordinates.y)} mm",
+                            (x1 + 10, y1 + 65),
+                            cv2.FONT_HERSHEY_TRIPLEX,
+                            0.5,
+                            255,
+                        )
+                        cv2.putText(
+                            frame,
+                            f"Z: {int(spatialCoordinates.z)} mm",
+                            (x1 + 10, y1 + 80),
+                            cv2.FONT_HERSHEY_TRIPLEX,
+                            0.5,
+                            255,
+                        )
+
+                        cv2.rectangle(
+                            frame, (x1, y1), (x2, y2), color, cv2.FONT_HERSHEY_SIMPLEX
+                        )
+
+                    # Bounding box corners in pixel coordinates
+                    top_left = np.array([xmin, ymin, 1])
+                    bottom_right = np.array([xmax, ymax, 1])
+
+                    # Depth of the detected object
+                    z = spatialCoordinates.z  # Depth in mm
+
+                    # Transform corners to world coordinates
+                    world_top_left = z * M_rgb_inv @ top_left
+                    world_bottom_right = z * M_rgb_inv @ bottom_right
+
+                    # Calculate world dimensions
+                    world_width = world_bottom_right[0] - world_top_left[0]
+                    world_height = world_bottom_right[1] - world_top_left[1]
+
+                    ros_detection = Detection3D()
+                    ros_objhypo = ObjectHypothesisWithPose()
+                    ros_objhypo.hypothesis.class_id = label
+                    ros_objhypo.hypothesis.score = detection.confidence
+                    ros_detection.results.append(ros_objhypo)
+
+                    ros_center = Pose()
+                    ros_center.position.x = spatialCoordinates.x / 1000.0  # in m
+                    ros_center.position.y = spatialCoordinates.y / 1000.0  # in m
+                    ros_center.position.z = spatialCoordinates.z / 1000.0  # in m
+
+                    ros_detection.bbox.center = ros_center
+                    ros_detection.bbox.size.x = world_width / 1000.0  # in m
+                    ros_detection.bbox.size.y = world_height / 1000.0  # in m
+                    ros_detection.bbox.size.z = 0.0
+
+                    ros_detections.detections.append(ros_detection)
+
+                self.pub.publish(ros_detections)
+
+                if view_detections:
+                    cv2.putText(
+                        frame,
+                        "NN fps: {:.2f}".format(fps),
+                        (2, frame.shape[0] - 4),
+                        cv2.FONT_HERSHEY_TRIPLEX,
+                        0.4,
+                        color,
+                    )
+                    cv2.imshow("depth", depthFrameColor)
+                    cv2.imshow("rgb", frame)
+
+                    if cv2.waitKey(1) == ord("q"):
+                        break
 
 
 def main(args=None):
