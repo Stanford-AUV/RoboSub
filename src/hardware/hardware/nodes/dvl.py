@@ -4,8 +4,8 @@ from msgs.msg import DVLData, DVLBeam, DVLTarget, DVLVelocity
 from std_msgs.msg import Header
 from geometry_msgs.msg import Vector3
 
-from hardware.utils.dvl.system import OutputData
-from hardware.utils.dvl.dvl import Dvl
+from hardware.utils.dvl_utils.system import OutputData
+from hardware.utils.dvl_utils.dvl_connect import Dvl
 import numpy as np
 
 
@@ -122,17 +122,23 @@ class DVLROSBridge(Node):
                 self.get_logger().error("Velocity Err is nan")
                 err = 0.05
             if beam_id == 1:
-                beam.velocity.mean = Vector3(
-                    x=data_dict.get("Velocity X", 0.0), y=0.0, z=0.0
-                )
+                vx = data_dict["Velocity X"]
+                if np.isnan(vx):
+                    self.get_logger().error("Velocity X is nan")
+                    vx = 0.0
+                beam.velocity.mean = Vector3(x=vx, y=0.0, z=0.0)
             if beam_id == 2:
-                beam.velocity.mean = Vector3(
-                    x=0.0, y=data_dict.get("Velocity Y", 0.0), z=0.0
-                )
+                vy = data_dict["Velocity Y"]
+                if np.isnan(vy):
+                    self.get_logger().error("Velocity Y is nan")
+                    vy = 0.0
+                beam.velocity.mean = Vector3(x=0.0, y=vy, z=0.0)
             if beam_id == 3:
-                beam.velocity.mean = Vector3(
-                    x=0.0, y=0.0, z=data_dict.get("Velocity Z", 0.0)
-                )
+                vz = data_dict["Velocity Z"]
+                if np.isnan(vz):
+                    self.get_logger().error("Velocity Z is nan")
+                    vz = 0.0
+                beam.velocity.mean = Vector3(x=0.0, y=0.0, z=vz)
             else:
                 beam.velocity.mean = Vector3(x=err, y=err, z=err)
             beam.velocity.covariance = np.eye(3) * (err**2)

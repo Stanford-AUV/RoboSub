@@ -15,7 +15,7 @@ def generate_launch_description():
             ),
             Node(
                 package="hardware",
-                executable="dvl_test",
+                executable="dvl",
                 parameters=[global_params],
             ),
             # Node(
