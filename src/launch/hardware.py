@@ -8,7 +8,16 @@ global_params = os.path.join(os.path.dirname(__file__), "params", "global.yaml")
 def generate_launch_description():
     return LaunchDescription(
         [
-            # Note: this node is for testing purposes only
+            Node(
+                package="hardware",
+                executable="imu",
+                parameters=[global_params],
+            ),
+            Node(
+                package="hardware",
+                executable="dvl",
+                parameters=[global_params],
+            ),
             Node(
                 package="control",
                 executable="thrust_generator",
