@@ -1,6 +1,4 @@
 from setuptools import setup, find_packages
-
-
 import dvl_utils
 
 setup(
