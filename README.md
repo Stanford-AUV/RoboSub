@@ -162,6 +162,18 @@ In case a `pep257` test fails, run the following to get more details about the e
 ament_pep257
 ```
 
+## Manual Control
+
+In a first Terminal, run:
+```bash
+ros2 launch src/launch/manual.py
+```
+
+In a second Terminal, run:
+```bash
+ros2 run manual keyboard
+```
+
 ## FAQ
 
 ### Out of storage
