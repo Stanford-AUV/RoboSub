@@ -23,8 +23,8 @@
       thruster_3: [+1, -1, 0]
       thruster_4: [0, 0, +1]
       thruster_5: [0, 0, -1]
-      thruster_6: [0, 0, +1]
-      thruster_7: [0, 0, -1]
+      thruster_6: [0, 0, -1]
+      thruster_7: [0, 0, +1]
 /sensors:
   ros__parameters:
     slop: 0.001
