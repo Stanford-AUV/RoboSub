@@ -1,0 +1,1 @@
+chmod a+rw /dev/ttyACM0 # This is the port for the Teensy
