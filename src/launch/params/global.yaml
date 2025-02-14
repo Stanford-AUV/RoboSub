@@ -17,14 +17,14 @@
       thruster_7: [-0.115, -0.165, -0.0925]
     # Thruster orientations (pointing in the direction of positive thrust; z axis can be changed accordingly)
     thruster_orientations:
-      thruster_0: [+1, -1, 0]
+      thruster_0: [-1, +1, 0]
       thruster_1: [+1, +1, 0]
-      thruster_2: [+1, +1, 0]
+      thruster_2: [-1, -1, 0]
       thruster_3: [+1, -1, 0]
       thruster_4: [0, 0, +1]
-      thruster_5: [0, 0, +1]
+      thruster_5: [0, 0, -1]
       thruster_6: [0, 0, +1]
-      thruster_7: [0, 0, +1]
+      thruster_7: [0, 0, -1]
 /sensors:
   ros__parameters:
     slop: 0.001
