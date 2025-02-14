@@ -4,8 +4,6 @@ import numpy as np
 
 from geometry_msgs.msg import Wrench
 
-import numpy as np
-
 
 def thruster_configs_to_TAM_inv(
     thruster_count: int,
