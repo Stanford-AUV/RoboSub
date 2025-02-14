@@ -7,24 +7,24 @@
   ros__parameters:
     # Thruster positions in body frame
     thruster_positions:
-      thruster_1: [+0.272, +0.22, -0.14]
-      thruster_2: [-0.272, +0.22, -0.14]
-      thruster_3: [-0.272, -0.22, -0.14]
-      thruster_4: [+0.272, -0.22, -0.14]
-      thruster_5: [+0.272, -0.22, +0.00]
-      thruster_6: [+0.272, +0.22, +0.00]
-      thruster_7: [-0.272, +0.22, +0.00]
-      thruster_8: [-0.272, -0.22, +0.00]
+      thruster_0: [+0.2025, +0.1825, +0.0925]
+      thruster_1: [+0.2025, -0.1825, +0.0925]
+      thruster_2: [-0.2025, +0.1825, +0.0925]
+      thruster_3: [-0.2025, -0.1825, +0.0925]
+      thruster_4: [+0.115, +0.165, -0.0925]
+      thruster_5: [+0.115, -0.165, -0.0925]
+      thruster_6: [-0.115, +0.165, -0.0925]
+      thruster_7: [-0.115, -0.165, -0.0925]
     # Thruster orientations (pointing in the direction of positive thrust; z axis can be changed accordingly)
     thruster_orientations:
-      thruster_1: [0, 0, 1]
-      thruster_2: [0, 0, -1]
-      thruster_3: [0, 0, 1]
-      thruster_4: [0, 0, -1]
-      thruster_5: [-1, -1, 0]
-      thruster_6: [1, -1, 0]
-      thruster_7: [-1, -1, 0]
-      thruster_8: [1, -1, 0]
+      thruster_0: [+1, -1, 0]
+      thruster_1: [+1, +1, 0]
+      thruster_2: [+1, +1, 0]
+      thruster_3: [+1, -1, 0]
+      thruster_4: [0, 0, +1]
+      thruster_5: [0, 0, +1]
+      thruster_6: [0, 0, +1]
+      thruster_7: [0, 0, +1]
 /sensors:
   ros__parameters:
     slop: 0.001
