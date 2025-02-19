@@ -178,7 +178,7 @@
         <namespace>auv</namespace>
         <joint_name>thruster_0</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
-        <fluid_density>1000</fluid_density>
+        <fluid_density>1025</fluid_density>
         <propeller_diameter>0.2</propeller_diameter>
       </plugin>
 

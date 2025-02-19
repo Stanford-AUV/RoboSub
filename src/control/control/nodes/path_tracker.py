@@ -58,7 +58,7 @@ class PathTracker(Node):
         angle_diff = 2.0 * math.acos(dot)
 
         # If within 0.1 meter threshold *and* orientation difference < 0.1 rad, advance to next waypoint
-        if (distance < 0.1 and angle_diff < 0.1) or self.path_index == 0:
+        if distance < 0.1 and angle_diff < 0.2:
             self.next_waypoint()
 
     def path_callback(self, msg: GeneratedPath):

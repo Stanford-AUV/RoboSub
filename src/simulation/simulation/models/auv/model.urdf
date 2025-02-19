@@ -164,7 +164,7 @@
         </link>
 
         <link name='box_2'>
-            <pose>-0.2025 0.1825 0.0925 3.1415926536 -1.5707963268 0.7853981634</pose>            <!-- Position adjustment needed -->
+            <pose>-0.2025 0.1825 0.0925 0 -1.5707963268 0.7853981634</pose>            <!-- Position adjustment needed -->
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -266,7 +266,7 @@
         </link>
 
         <link name='box_5'>
-            <pose>0.115 -0.165 -0.0925 0 0 0</pose>            <!-- Position adjustment needed -->
+            <pose>0.115 -0.165 -0.0925 3.1415926536 0 0</pose>            <!-- Position adjustment needed -->
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -300,7 +300,7 @@
         </link>
 
         <link name="box_6">
-            <pose>-0.115 +0.165 -0.0925 0 0 0</pose>
+            <pose>-0.115 +0.165 -0.0925 3.1415926536 0 0</pose>
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -437,7 +437,7 @@
             <parent>base_link</parent>
             <child>box_4</child>
             <axis>
-                <xyz>0 0 1</xyz>
+                <xyz>0 0 -1</xyz>
                 <use_parent_model_frame>1</use_parent_model_frame>
                 <limit>
                     <lower>-1e+12</lower>
@@ -485,7 +485,7 @@
             <parent>base_link</parent>
             <child>box_7</child>
             <axis>
-                <xyz>0 0 1</xyz>
+                <xyz>0 0 -1</xyz>
                 <use_parent_model_frame>1</use_parent_model_frame>
                 <limit>
                     <lower>-1e+12</lower>
