@@ -106,6 +106,13 @@ One built, you can proceed to the [running section](#running).
 
 ## Running
 
+### Running hardware module
+
+Make sure to give your computer/the Orin permission to connect to the necessary external devices by running:
+```bash
+./ports.sh
+```
+
 ### Running multiple ROS nodes at once through a launch file (preferred method)
 
 Run:
