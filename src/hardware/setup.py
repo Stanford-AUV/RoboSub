@@ -25,7 +25,6 @@ setup(
             "imu = hardware.nodes.imu:main",
             "dvl = hardware.nodes.dvl:main",
             "sensors = hardware.nodes.sensors:main",
-            "arduino = hardware.nodes.arduino:main",
         ],
     },
 )
