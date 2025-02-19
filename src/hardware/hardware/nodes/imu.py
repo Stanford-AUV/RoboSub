@@ -80,6 +80,8 @@ class IMU(Node):
         transformed_msg.linear_acceleration.y = transformed_linear_acceleration[1]
         transformed_msg.linear_acceleration.z = transformed_linear_acceleration[2]
 
+        print("hi")
+
         return transformed_msg
 
 
