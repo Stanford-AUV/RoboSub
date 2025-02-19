@@ -6,6 +6,12 @@
   gz_type_name: "gz.msgs.Clock"
   direction: BIDIRECTIONAL
 
+- ros_topic_name: "gz/thruster_0"
+  gz_topic_name: "/model/auv/joint/thruster_0/cmd_thrust"
+  ros_type_name: "std_msgs/msg/Float64"
+  gz_type_name: "ignition.msgs.Double"
+  direction: ROS_TO_GZ
+
 - ros_topic_name: "gz/thruster_1"
   gz_topic_name: "/model/auv/joint/thruster_1/cmd_thrust"
   ros_type_name: "std_msgs/msg/Float64"
@@ -44,12 +50,6 @@
 
 - ros_topic_name: "gz/thruster_7"
   gz_topic_name: "/model/auv/joint/thruster_7/cmd_thrust"
-  ros_type_name: "std_msgs/msg/Float64"
-  gz_type_name: "ignition.msgs.Double"
-  direction: ROS_TO_GZ
-
-- ros_topic_name: "gz/thruster_8"
-  gz_topic_name: "/model/auv/joint/thruster_8/cmd_thrust"
   ros_type_name: "std_msgs/msg/Float64"
   gz_type_name: "ignition.msgs.Double"
   direction: ROS_TO_GZ

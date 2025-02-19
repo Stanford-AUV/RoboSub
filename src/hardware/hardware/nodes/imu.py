@@ -29,9 +29,10 @@ def main(args=None):
     rclpy.init(args=args)
     imu = IMU()
     rclpy.spin(imu)
+
     imu.destroy_node()
     rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

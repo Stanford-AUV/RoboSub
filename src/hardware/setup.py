@@ -23,6 +23,9 @@ setup(
             # "sensors = hardware.nodes.sensors:main",
             "thrusters = hardware.nodes.thrusters:main",
             "imu = hardware.nodes.imu:main",
+            "dvl = hardware.nodes.dvl:main",
+            "sensors = hardware.nodes.sensors:main",
+            "arduino = hardware.nodes.arduino:main",
         ],
     },
 )

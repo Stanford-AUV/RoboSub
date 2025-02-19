@@ -18,6 +18,8 @@
 		"--privileged",
 		"--volume=/dev/bus/usb:/dev/bus/usb",
 		"--volume=/dev/ttyUSB0:/dev/ttyUSB0",
+		"--volume=/dev/ttyACM0:/dev/ttyACM0",
+		"--volume=/dev/ttyUSB_teensy:/dev/ttyUSB_teensy",
 		"--device-cgroup-rule=c 189:* rmw"
 		// uncomment to use intel iGPU
 		// "--device=/dev/dri"
