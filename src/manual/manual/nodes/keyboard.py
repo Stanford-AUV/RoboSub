@@ -51,59 +51,48 @@ This node takes keypresses from the keyboard and publishes them
 as Wrench/WrenchStamped messages. It works best with a US keyboard layout.
 ---------------------------
 Moving around:
-   u    i    o
-   j    k    l
-   m    ,    .
+        w    
+   a         d
+        s     
 
-For Holonomic mode (strafing), hold down the shift key:
----------------------------
-   U    I    O
-   J    K    L
-   M    <    >
+Turning:
+    q    e
 
-t : up (+z)
-b : down (-z)
+r : up (+z)
+f : down (-z)
 
 anything else : stop
 
-q/z : increase/decrease max forces by 10%
-w/x : increase/decrease only linear force by 10%
-e/c : increase/decrease only angular force by 10%
+t/g : increase/decrease max forces by 10%
+y/h : increase/decrease only linear force by 10%
+u/j : increase/decrease only angular force by 10%
 
 CTRL-C to quit
 """
 
 moveBindings = {
-    "i": (-1, 0, 0, 0, 0, 0),
-    "o": (1, 0, 0, 0, 0, -1),
-    "j": (0, 0, 0, 0, 0, 1),
-    "l": (0, 0, 0, 0, 0, -1),
-    "u": (1, 0, 0, 0, 0, 1),
-    ",": (1, 0, 0, 0, 0, 0),
-    ".": (-1, 0, 0, 0, 0, 1),
-    "m": (-1, 0, 0, 0, 0, -1),
-    "O": (1, -1, 0, 0, 0, 0),
-    "I": (1, 0, 0, 0, 0, 0),
-    "J": (0, 1, 0, 0, 0, 0),
-    "L": (0, -1, 0, 0, 0, 0),
-    "U": (1, 1, 0, 0, 0, 0),
-    "<": (-1, 0, 0, 0, 0, 0),
-    ">": (-1, -1, 0, 0, 0, 0),
-    "M": (-1, 1, 0, 0, 0, 0),
-    "t": (0, 0, -1, 0, 0, 0),
-    "b": (0, 0, 1, 0, 0, 0),
+    "w": (1, 0, 0, 0, 0, 0),
+    "s": (-1, 0, 0, 0, 0, 0),
+    "q": (0, 0, 0, 0, 0, 1),
+    "e": (0, 0, 0, 0, 0, -1),
+    "a": (0, 1, 0, 0, 0, 0),
+    "d": (0, -1, 0, 0, 0, 0),
+    "r": (0, 0, 1, 0, 0, 0),
+    "f": (0, 0, -1, 0, 0, 0),
 }
 
 forceBindings = {
-    "q": 1.1,
-    "z": 0.9,
-    "w": 1.1,
-    "x": 0.9,
+    "t": 1.1,
+    "g": 0.9,
+    "y": 1.1,
+    "h": 0.9,
 }
 
 torqueBindings = {
-    "e": 1.1,
-    "c": 0.9,
+    "t": 1.1,
+    "g": 0.9,
+    "u": 1.1,
+    "j": 0.9,
 }
 
 
@@ -147,8 +136,8 @@ def main():
     spinner = threading.Thread(target=rclpy.spin, args=(node,))
     spinner.start()
 
-    force = 0.5
-    torque = 1.0
+    force = 0.1
+    torque = 0.01
     x = 0.0
     y = 0.0
     z = 0.0

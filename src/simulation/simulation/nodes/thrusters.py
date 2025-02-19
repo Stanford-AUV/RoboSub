@@ -12,7 +12,7 @@ class Thrusters(Node):
     def __init__(self):
         super().__init__("thrusters")
 
-        self._thruster_ids = [f"thruster_{i}" for i in range(1, 9)]
+        self._thruster_ids = [f"thruster_{i}" for i in range(0, 8)]
         self._gazebo_thrust_pubs = {}
         self.create_subscription(
             ThrustsStamped,

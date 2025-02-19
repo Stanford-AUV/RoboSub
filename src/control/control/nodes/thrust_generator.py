@@ -27,7 +27,7 @@ class ThrustGenerator(Node):
         thruster_count = (
             self.get_parameter("thruster_count").get_parameter_value().integer_value
         )
-        self._thruster_ids = [f"thruster_{i + 1}" for i in range(thruster_count)]
+        self._thruster_ids = [f"thruster_{i}" for i in range(thruster_count)]
 
         thruster_positions = np.empty(shape=(thruster_count, 3))
         thruster_orientations = np.empty(shape=(thruster_count, 3))
@@ -83,7 +83,7 @@ class ThrustGenerator(Node):
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.thrusts = thrusts.tolist()
         # self.get_logger().info(f"Publishing wrench {self.wrench}")
-        self.get_logger().info(f"Publishing thrusts {msg.thrusts}")
+        # self.get_logger().info(f"Publishing thrusts {msg.thrusts}")
         self._thrusts_pub.publish(msg)
 
     def wrench_callback(self, msg: WrenchStamped):

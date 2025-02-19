@@ -176,6 +176,14 @@
 
       <plugin filename="ignition-gazebo-thruster-system" name="ignition::gazebo::systems::Thruster">
         <namespace>auv</namespace>
+        <joint_name>thruster_0</joint_name>
+        <thrust_coefficient>0.004422</thrust_coefficient>
+        <fluid_density>1000</fluid_density>
+        <propeller_diameter>0.2</propeller_diameter>
+      </plugin>
+
+      <plugin filename="ignition-gazebo-thruster-system" name="ignition::gazebo::systems::Thruster">
+        <namespace>auv</namespace>
         <joint_name>thruster_1</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
         <fluid_density>1025</fluid_density>
@@ -225,14 +233,6 @@
       <plugin filename="ignition-gazebo-thruster-system" name="ignition::gazebo::systems::Thruster">
         <namespace>auv</namespace>
         <joint_name>thruster_7</joint_name>
-        <thrust_coefficient>0.004422</thrust_coefficient>
-        <fluid_density>1025</fluid_density>
-        <propeller_diameter>0.2</propeller_diameter>
-      </plugin>
-
-      <plugin filename="ignition-gazebo-thruster-system" name="ignition::gazebo::systems::Thruster">
-        <namespace>auv</namespace>
-        <joint_name>thruster_8</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
         <fluid_density>1025</fluid_density>
         <propeller_diameter>0.2</propeller_diameter>

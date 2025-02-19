@@ -1,0 +1,1 @@
+chmod a+rw /dev/ttyUSB_teensy # This is the port for the Teensy
