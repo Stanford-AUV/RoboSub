@@ -70,6 +70,12 @@ class DVLROSBridge(Node):
         dvl_msg.header = Header()
         dvl_msg.header.stamp = timestamp
 
+        T = np.array(
+            [-np.sqrt(2) / 2, np.sqrt(2) / 2, 0],
+            [-np.sqrt(2) / 2, -np.sqrt(2) / 2, 0],
+            [0, 0, 1],
+        )
+
         # Set velocity information
         dvl_velocity = DVLVelocity()
         dvl_velocity.reference = 0  # Unknown reference frame
@@ -77,14 +83,17 @@ class DVLROSBridge(Node):
         if np.isnan(x):
             self.get_logger().error("Velocity X is nan")
             x = 0.0
+        x = T @ x
         y = data_dict["Velocity Y"]
         if np.isnan(y):
             self.get_logger().error("Velocity Y is nan")
             y = 0.0
+        y = T @ y
         z = data_dict["Velocity Z"]
         if np.isnan(z):
             self.get_logger().error("Velocity Z is nan")
             z = 0.0
+        z = T @ z
         dvl_velocity.mean = Vector3(x, y, z)
         err = data_dict["Velocity Err"]
         if np.isnan(err):
@@ -126,18 +135,21 @@ class DVLROSBridge(Node):
                 if np.isnan(vx):
                     self.get_logger().error("Velocity X is nan")
                     vx = 0.0
+                vx = T @ vx
                 beam.velocity.mean = Vector3(x=vx, y=0.0, z=0.0)
             if beam_id == 2:
                 vy = data_dict["Velocity Y"]
                 if np.isnan(vy):
                     self.get_logger().error("Velocity Y is nan")
                     vy = 0.0
+                vy = T @ vy
                 beam.velocity.mean = Vector3(x=0.0, y=vy, z=0.0)
             if beam_id == 3:
                 vz = data_dict["Velocity Z"]
                 if np.isnan(vz):
                     self.get_logger().error("Velocity Z is nan")
                     vz = 0.0
+                vz = T @ vz
                 beam.velocity.mean = Vector3(x=0.0, y=0.0, z=vz)
             else:
                 beam.velocity.mean = Vector3(x=err, y=err, z=err)
