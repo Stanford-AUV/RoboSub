@@ -130,11 +130,11 @@ def main(args=None):
     rclpy.init(args=args)
 
     pid = PID(
-        kP_position=np.array([11, 11, 6]),
-        kD_position=np.array([6, 6, 3]),
+        kP_position=np.array([0.01, 0.0, 0.0]),
+        kD_position=np.array([0, 0, 0]),
         kI_position=np.array([0, 0, 0]),
-        kP_orientation=np.array([5.0, 5.0, 8.0]),  # Increased orientation gains
-        kD_orientation=np.array([3.0, 3.0, 5.0]),  # Added damping
+        kP_orientation=np.array([0, 0, 0]),  # Increased orientation gains
+        kD_orientation=np.array([0, 0, 0]),  # Added damping
         kI_orientation=np.array([0, 0, 0]),
         max_signal_force=np.array([20.0, 20.0, 20.0]),
         max_signal_torque=np.array([10.0, 10.0, 10.0]),

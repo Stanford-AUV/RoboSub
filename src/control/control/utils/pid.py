@@ -141,59 +141,47 @@ class PID:
         np.array
             The control signal, constrained by the maximum output limit (ceil).
         """
-        # Position error, world frame
+        # Position error in ENU world frame
         error_r_W = reference.position_world - state.position_world
-        # Velocity error, body frame
+
+        # Convert error to body frame (ENU->body orientation)
+        error_r_B = state.orientation_world.inv().R @ error_r_W
+
+        # Velocity error already in body frame (ENU conventions)
         error_v_B = reference.velocity_body - state.velocity_body
-        # Integral sum, clamped
-        self.integral_position = self.integral_position + error_r_W * dt
-        self.integral_position = np.clip(
-            self.integral_position,
-            -self.max_integral_position,
-            self.max_integral_position,
-        )
-        # Calculate force in the world frame
-        force_world = (
-            error_r_W * self.kP_position
+
+        # Calculate force in BODY frame (consistent frame)
+        force_body = (
+            error_r_B * self.kP_position
             + error_v_B * self.kD_position
             + self.integral_position * self.kI_position
         )
 
-        # Orientation error, world frame, axis-angle form
+        # Orientation error calculation
         error_q_W = reference.orientation_world * state.orientation_world.inv()
-        angle, axis = error_q_W.angvec()
-        error_q_W = axis * angle
-        # Angular velocity error, body frame
+        angle, axisW = error_q_W.angvec()  # Axis in WORLD frame
+
+        # Convert error axis to BODY frame
+        axisB = state.orientation_world.inv().R @ axisW
+        error_q_B = axisB * angle  # Error vector in BODY frame
+
+        # Angular velocity error (already in body frame)
         error_w_B = reference.angular_velocity_body - state.angular_velocity_body
-        self.integral_orientation = self.integral_orientation + error_q_W * dt
+
+        # Update integral term in BODY frame
+        self.integral_orientation = self.integral_orientation + error_q_B * dt
         self.integral_orientation = np.clip(
             self.integral_orientation,
             -self.max_integral_orientation,
             self.max_integral_orientation,
         )
 
-        # Calculate torque in the body frame
+        # Calculate torque in BODY frame
         torque_body = (
-            error_q_W * self.kP_orientation
+            error_q_B * self.kP_orientation
             + error_w_B * self.kD_orientation
             + self.integral_orientation * self.kI_orientation
         )
 
-        # Convert force to body frame
-        force_body = state.orientation_world.inv().R @ force_world
-
-        # Clamp the control signal
-        force_body = np.clip(
-            force_body,
-            -self.max_signal_force,  # max_signal_position
-            self.max_signal_force,
-        )
-        torque_body = np.clip(
-            torque_body,
-            -self.max_signal_torque,  # max_signal_orientation
-            self.max_signal_torque,
-        )
-
         wrench = AbstractWrench(force_body, torque_body)
-
         return wrench.to_msg()
