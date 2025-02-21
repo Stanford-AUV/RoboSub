@@ -136,7 +136,7 @@ def main():
     spinner = threading.Thread(target=rclpy.spin, args=(node,))
     spinner.start()
 
-    force = 0.05
+    force = 0.04
     torque = 0.02
     x = 0.0
     y = 0.0
