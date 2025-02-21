@@ -33,6 +33,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/MTi200Data.msg"
   "msg/GeneratedPath.msg"
   "msg/PWMsStamped.msg"
+  "msg/SensorsStamped.msg"
   "msg/ThrustsStamped.msg"
   "msg/DVLBeam.msg"
   "msg/DVLData.msg"

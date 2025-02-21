@@ -1,7 +1,7 @@
 import serial
 import rclpy
 from rclpy.node import Node
-from msgs.msg import PWMsStamped
+from msgs.msg import PWMsStamped, SensorsStamped
 from typing import List
 from rclpy import Parameter
 import numpy as np
@@ -20,12 +20,17 @@ class Arduino(Node):
         self.thruster_count = (
             self.get_parameter("thruster_count").get_parameter_value().integer_value
         )
+        self.pwms = [self.zero_thrust] * self.thruster_count
 
         history_depth = (
             self.get_parameter("history_depth").get_parameter_value().integer_value
         )
         self._pwms_sub = self.create_subscription(
             PWMsStamped, "pwms", self.pwms_callback, history_depth
+        )
+
+        self._sensors_pub = self.create_publisher(
+            SensorsStamped, "sensors", history_depth
         )
 
         try:
@@ -38,41 +43,63 @@ class Arduino(Node):
             self.get_logger().error(f"Failed to open serial port: {e}")
             raise e
 
-        # TODO: Request temperature and humidity in a timer
+        self.timer = self.create_timer(0.01, self.update)
 
     def get_servo_command(self, index: int, pwm: int):
-        servo_number = index
         if pwm == 0:
             pwm = self.zero_thrust
-        command = f"{servo_number} {pwm}\n"
+        command = f"{pwm}"
         return command
 
-    def pwms_callback(self, msg: PWMsStamped, log=True):
-        if log:
-            self.get_logger().info(f"PWMs received {msg.pwms}")
-        pwms: List[int] = msg.pwms.tolist()
+    def pwms_callback(self, msg: PWMsStamped):
+        self.get_logger().info(f"PWMs received {msg.pwms}")
+        self.pwms: List[float] = msg.pwms.tolist()
+
+    def send_pwms(self):
         commands = [
-            self.get_servo_command(index=i, pwm=pwm) for i, pwm in enumerate(pwms)
+            self.get_servo_command(index=i, pwm=pwm) for i, pwm in enumerate(self.pwms)
         ]
+        message = " ".join(commands)
         try:
-            self.portName.write("".join(commands).encode())
+            self.portName.write((message + "\n").encode())
         except serial.SerialException as e:
             self.get_logger().error(f"Failed to write to serial port: {e}")
-        response = self.portName.readlines()
-        expected_messages = set(
-            [f"Set servo {i} to {pwm}" for i, pwm in enumerate(pwms)]
-        )
-        for i, response in enumerate(response):
-            response = response.decode().strip()
-            if response in expected_messages:
-                expected_messages.remove(response)
-            else:
-                self.get_logger().error(f"Thruster index {i}: {response}")
+
+    def update(self):
+        self.send_pwms()
+        response = self.portName.readline().decode().strip()
+        parts = response.split(" ")
+        if len(parts) != 6 or parts[0] != ">":
+            self.get_logger().error(f"Unexpected response from Arduino: {response}")
+        sensors = {
+            "pressure": None,
+            "temperature": None,
+            "depth": None,
+            "current": None,
+            "voltage": None,
+        }
+        for part in parts[1:]:
+            name, value = part.split(":")
+            value = float(value)
+            if name not in sensors:
+                self.get_logger().error(f"Unknown sensor name: {name}")
+            sensors[name] = value
+        for name, value in sensors.items():
+            if value is None:
+                self.get_logger().error(f"Missing sensor value: {name}")
+        msg = SensorsStamped()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.pressure = sensors["pressure"]
+        msg.temperature = sensors["temperature"]
+        msg.depth = sensors["depth"]
+        msg.current = sensors["current"]
+        msg.voltage = sensors["voltage"]
+        self.get_logger().info(f"Publishing sensors {msg}")
+        self._sensors_pub.publish(msg)
 
     def kill_motors(self):
-        msgs = PWMsStamped()
-        msgs.pwms = np.array([0] * self.thruster_count, dtype=np.int16)
-        self.pwms_callback(msgs, log=False)
+        self.pwms = [self.zero_thrust] * self.thruster_count
+        self.send_pwms()
 
 
 def main(args=None):
