@@ -31,7 +31,7 @@ class Arduino(Node):
         try:
             # NOTE: If this fails, run the following command:
             # sudo chmod a+rw /dev/ttyACM0
-            port = "/dev/ttyUSB_teensy"
+            port = "/dev/ttyACM0"
             self.portName = serial.Serial(port, baudrate=9600, timeout=1)
             self.get_logger().info(f"Serial port {port} opened successfully.")
         except serial.SerialException as e:
@@ -59,7 +59,9 @@ class Arduino(Node):
         except serial.SerialException as e:
             self.get_logger().error(f"Failed to write to serial port: {e}")
         response = self.portName.readlines()
-        expected_messages = set([f"Set servo {i} to {pwm}" for i, pwm in enumerate(pwms)])
+        expected_messages = set(
+            [f"Set servo {i} to {pwm}" for i, pwm in enumerate(pwms)]
+        )
         for i, response in enumerate(response):
             response = response.decode().strip()
             if response in expected_messages:
