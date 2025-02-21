@@ -8,6 +8,18 @@ Prerequisites:
     - C/C++ Compiler: GCC 5.4.0
     - C++11
 
+./build.sh && source install/setup.bash
+cd src
+sudo chmod -R o+rw xsens_mti_ros2_driver/
+cd ..
+pushd src/xsens_mti_ros2_driver/lib/xspublic && make && popd
+cd src
+sudo ln -s /opt/ros/jazzy/lib/libfastcdr.so.2.2.4 /opt/ros/jazzy/lib/libfastcdr.so.2.2.5
+colcon build
+source install/setup.bash
+sudo udevadm control --reload
+sudo udevadm trigger
+
 Building:
     - Copy xsens_ros2_mti_driver folder and ntrip folder(for MTi-680(G)/MTi-8 only) into your colcon workspace 'src' folder, if you have the RTK GNSS/INS sensor model like MTi-8 or MTi-680/680G, please also copy the ntrip folder.
         Make sure the permissions are set to o+rw on your files and directories.
@@ -26,6 +38,8 @@ Building:
 
         sudo udevadm control --reload
         sudo udevadm trigger?
+
+https://chatgpt.com/c/67b8068b-9b68-8012-9231-50b6dd110b27
 
 Running:
     - Configure your MTi device to output desired data (e.g. for display example - orientation output)

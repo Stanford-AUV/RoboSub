@@ -32,7 +32,8 @@ RUN apt-get update && apt-get install -y kmod \
   sharutils \
   file \
   libusb-1.0-0-dev \
-  udev
+  udev \ 
+  usbutils
 
 # Setup SSH server
 RUN apt update && apt install -y openssh-server
