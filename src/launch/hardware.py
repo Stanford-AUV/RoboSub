@@ -48,11 +48,6 @@ def generate_launch_description():
                 executable="arduino",
                 parameters=[global_params],
                 arguments=["--ros-args"],
-            ), Node(
-                package="hardware",
-                executable="localization_test",
-                parameters=[global_params],
-                arguments=["--ros-args"],
             ),
         ]
     )

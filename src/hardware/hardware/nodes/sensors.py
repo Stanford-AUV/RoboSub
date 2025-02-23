@@ -7,8 +7,7 @@ from rclpy.node import Node
 from geometry_msgs.msg import TwistWithCovarianceStamped, PoseWithCovarianceStamped
 from sensor_msgs.msg import Imu
 from message_filters import Subscriber, ApproximateTimeSynchronizer
-from std_msgs.msg import Float32
-from msgs.msg import DVLData, DVLBeam, DVLTarget, DVLVelocity
+from msgs.msg import DVLData, DVLBeam, DVLTarget, DVLVelocity, Float32Stamped
 
 class Sensors(Node):
 
@@ -39,7 +38,7 @@ class Sensors(Node):
 
         self.dvl_sub = Subscriber(self, DVLData, "dvl") # Double-check
         self.imu_sub = Subscriber(self, Imu, "imu")
-        self.depth_sub = Subscriber(self, Float32, "depth") # Double-check
+        self.depth_sub = Subscriber(self, Float32Stamped, "depth") # Double-check
         self.imu_only_sub = self.create_subscription(
             Imu, "imu", self.sync_callback_D, history_depth
         )
@@ -89,7 +88,7 @@ class Sensors(Node):
         self.sync_imu_pose_publisher_.publish(imu_pose_msg)
 
         depth_pose_msg = PoseWithCovarianceStamped()
-        depth_pose_msg.pose.pose.position.z = depth_msg.data
+        depth_pose_msg.pose.pose.position.z = depth_msg.value
         depth_pose_msg.header.stamp = self.last_imu_sync_ts_sec
         depth_pose_msg.header.frame_id = "odom"
         self.sync_depth_publisher_.publish(depth_pose_msg)

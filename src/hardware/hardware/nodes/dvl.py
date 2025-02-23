@@ -10,7 +10,7 @@ import numpy as np
 
 
 class DVLROSBridge(Node):
-    def __init__(self, port="/dev/ttyUSB0", baudrate=115200):
+    def __init__(self, port="/dev/ttyUSB1", baudrate=115200):
         super().__init__("dvl_ros_bridge")
 
         # ROS publisher
@@ -41,7 +41,7 @@ class DVLROSBridge(Node):
         # Extract raw values from settings
         settings = output_data.get_settings()
         data_dict = {setting.name: setting.value for setting in settings}
-        self.get_logger().info(str(data_dict))
+        # self.get_logger().info(str(data_dict))
 
         # {'Count': 0,
         #  'Date': '2025/02/06',
