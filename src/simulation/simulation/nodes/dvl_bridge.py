@@ -11,9 +11,9 @@ from gz.msgs10.dvl_velocity_tracking_pb2 import DVLVelocityTracking
 class DVLBridgeNode(Node):
     def __init__(self):
         super().__init__("dvl_bridge")
-        self.publisher = self.create_publisher(DVLData, "/gz/dvl", 10)
+        self.publisher = self.create_publisher(DVLData, "dvl", 10)
         self.gz_node = GzNode()
-        self.gz_node.subscribe(DVLVelocityTracking, "/dvl", self.dvl_callback)
+        self.gz_node.subscribe(DVLVelocityTracking, "dvl", self.dvl_callback)
 
     def dvl_callback(self, msg: DVLVelocityTracking):
         self.get_logger().info("Received DVL message")

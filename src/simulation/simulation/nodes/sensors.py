@@ -13,7 +13,7 @@ class Sensors(Node):
     def __init__(self):
         super().__init__("sensors")
 
-        self._imu_sub = self.create_subscription(Imu, "gz/imu", self.imu_callback, 10)
+        self._imu_sub = self.create_subscription(Imu, "gz, self.imu_callback, 10)
         self._imu_pub = self.create_publisher(Imu, "imu", 10)
 
         self._altimeter_sub = self.create_subscription(

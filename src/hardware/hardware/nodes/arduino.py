@@ -1,6 +1,7 @@
 import serial
 import rclpy
 from rclpy.node import Node
+from std_msgs.msg import Float32
 from msgs.msg import PWMsStamped, SensorsStamped
 from typing import List
 from rclpy import Parameter
@@ -31,6 +32,10 @@ class Arduino(Node):
 
         self._sensors_pub = self.create_publisher(
             SensorsStamped, "sensors", history_depth
+        )
+
+        self._depth_pub = self.create_publisher(
+            Float32, "depth", history_depth
         )
 
         try:
@@ -96,6 +101,9 @@ class Arduino(Node):
         msg.voltage = sensors["voltage"]
         self.get_logger().info(f"Publishing sensors {msg}")
         self._sensors_pub.publish(msg)
+        depth_msg = Float32()
+        depth_msg.data = sensors["depth"]
+        self._depth_pub.publish(depth_msg)
 
     def kill_motors(self):
         self.pwms = [self.zero_thrust] * self.thruster_count

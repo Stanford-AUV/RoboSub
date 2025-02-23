@@ -14,7 +14,7 @@ class DVLROSBridge(Node):
         super().__init__("dvl_ros_bridge")
 
         # ROS publisher
-        self.publisher = self.create_publisher(DVLData, "/gz/dvl", 10)
+        self.publisher = self.create_publisher(DVLData, "dvl", 10)
 
         # Connect to DVL
         self.dvl = Dvl(port, baudrate)

@@ -32,7 +32,7 @@ class IMU(Node):
         # 4×4 Transformation matrix (includes homogeneous coordinates)
         self.T = np.array([[0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
 
-        self._imu_pub = self.create_publisher(Imu, "imu_transformed", 10)
+        self._imu_pub = self.create_publisher(Imu, "imu", 10)
 
     def imu_listener_callback(self, msg):
         transformed_msg = self.transform_imu_msg(msg)

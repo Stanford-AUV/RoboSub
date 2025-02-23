@@ -7,12 +7,13 @@ from rclpy.node import Node
 from geometry_msgs.msg import TwistWithCovarianceStamped, PoseWithCovarianceStamped
 from sensor_msgs.msg import Imu
 from message_filters import Subscriber, ApproximateTimeSynchronizer
+from std_msgs.msg import Float32
 
 
 class Sensors(Node):
 
     def __init__(self):
-        super().__init__("sync_filter_exact")
+        super().__init__("sensors")
 
         self.declare_parameter("history_depth", Parameter.Type.INTEGER)
         self.declare_parameter("slop", Parameter.Type.DOUBLE)
@@ -36,9 +37,9 @@ class Sensors(Node):
         )
         self.last_imu_sync_ts_sec = math.nan
 
-        self.dvl_sub = Subscriber(self, TwistWithCovarianceStamped, "/dvl/twist")
-        self.imu_sub = Subscriber(self, Imu, "/imu/data")
-        self.depth_sub = Subscriber(self, PoseWithCovarianceStamped, "/depth/pose")
+        self.dvl_sub = Subscriber(self, DVLData, "dvl") # Double-check
+        self.imu_sub = Subscriber(self, Imu, "imu")
+        self.depth_sub = Subscriber(self, Float32, "depth") # Double-check
         self.imu_only_sub = self.create_subscription(
             Imu, "/imu/data", self.sync_callback_D, history_depth
         )
@@ -68,7 +69,6 @@ class Sensors(Node):
         self.last_imu_sync_ts_sec = (
             imu_msg.header.stamp
         )  # update most recent IMU time for valid full sync
-        dvl_msg.header.stamp = self.last_imu_sync_ts_sec
         imu_msg.header.stamp = self.last_imu_sync_ts_sec
 
         imu_pose_msg = PoseWithCovarianceStamped()
@@ -79,12 +79,18 @@ class Sensors(Node):
         imu_pose_msg.pose.pose.orientation.z = imu_msg.orientation.z
         imu_pose_msg.pose.pose.orientation.w = imu_msg.orientation.w
 
-        depth_msg.header.stamp = self.last_imu_sync_ts_sec
-
-        self.sync_dvl_publisher_.publish(dvl_msg)
+        dvl_twist_msg = TwistWithCovarianceStamped()
+        dvl_twist_msg.twist.twist.linear = dvl_msg.velocity.mean
+        dvl_twist_msg.header.stamp = self.last_imu_sync_ts_sec
+        self.sync_dvl_publisher_.publish(dvl_twist_msg)
+        
         self.sync_imu_publisher_.publish(imu_msg)
         self.sync_imu_pose_publisher_.publish(imu_pose_msg)
-        self.sync_depth_publisher_.publish(depth_msg)
+
+        depth_pose_msg = PoseWithCovarianceStamped()
+        depth_pose_msg.pose.pose.position.z = depth_msg.data
+        depth_pose_msg.header.stamp = self.last_imu_sync_ts_sec
+        self.sync_depth_publisher_.publish(depth_pose_msg)
 
     def sync_callback_B(self, dvl_msg, imu_msg):
         # self.get_logger().info(f"B")
@@ -92,7 +98,6 @@ class Sensors(Node):
         if (
             CurrTS != self.last_imu_sync_ts_sec
         ):  # if time is the same as full sync, ignore since we've already pub'd
-            dvl_msg.header.stamp = CurrTS
             imu_msg.header.stamp = CurrTS
 
             imu_pose_msg = PoseWithCovarianceStamped()
@@ -103,7 +108,11 @@ class Sensors(Node):
             imu_pose_msg.pose.pose.orientation.z = imu_msg.orientation.z
             imu_pose_msg.pose.pose.orientation.w = imu_msg.orientation.w
 
-            self.sync_dvl_publisher_.publish(dvl_msg)
+            dvl_twist_msg = TwistWithCovarianceStamped()
+            dvl_twist_msg.twist.twist.linear = dvl_msg.velocity.mean
+            dvl_twist_msg.header.stamp = CurrTS
+            self.sync_dvl_publisher_.publish(dvl_twist_msg)
+
             self.sync_imu_publisher_.publish(imu_msg)
             self.sync_imu_pose_publisher_.publish(imu_pose_msg)
 
@@ -123,11 +132,13 @@ class Sensors(Node):
             imu_pose_msg.pose.pose.orientation.z = imu_msg.orientation.z
             imu_pose_msg.pose.pose.orientation.w = imu_msg.orientation.w
 
-            depth_msg.header.stamp = CurrTS
-
             self.sync_imu_publisher_.publish(imu_msg)
             self.sync_imu_pose_publisher_.publish(imu_pose_msg)
-            self.sync_depth_publisher_.publish(depth_msg)
+
+            depth_pose_msg = PoseWithCovarianceStamped()
+            depth_pose_msg.pose.pose.position.z = depth_msg.data
+            depth_pose_msg.header.stamp = CurrTS
+            self.sync_depth_publisher_.publish(depth_pose_msg)
 
     def sync_callback_D(self, imu_msg):
         # self.get_logger().info(f"D")
