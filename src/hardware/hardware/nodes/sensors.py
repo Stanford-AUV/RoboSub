@@ -141,7 +141,7 @@ class Sensors(Node):
             self.sync_depth_publisher_.publish(depth_pose_msg)
 
     def sync_callback_D(self, imu_msg):
-        self.get_logger().info(f"D")
+        # self.get_logger().info(f"D")
         CurrTS = imu_msg.header.stamp
         if (
             CurrTS != self.last_imu_sync_ts_sec
