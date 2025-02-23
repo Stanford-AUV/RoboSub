@@ -82,6 +82,7 @@ class Sensors(Node):
         dvl_twist_msg = TwistWithCovarianceStamped()
         dvl_twist_msg.twist.twist.linear = dvl_msg.velocity.mean
         dvl_twist_msg.header.stamp = self.last_imu_sync_ts_sec
+        dvl_twist_msg.header.frame_id = "odom"
         self.sync_dvl_publisher_.publish(dvl_twist_msg)
         
         self.sync_imu_publisher_.publish(imu_msg)
@@ -90,6 +91,7 @@ class Sensors(Node):
         depth_pose_msg = PoseWithCovarianceStamped()
         depth_pose_msg.pose.pose.position.z = depth_msg.data
         depth_pose_msg.header.stamp = self.last_imu_sync_ts_sec
+        depth_pose_msg.header.frame_id = "odom"
         self.sync_depth_publisher_.publish(depth_pose_msg)
 
     def sync_callback_B(self, dvl_msg, imu_msg):
@@ -111,6 +113,7 @@ class Sensors(Node):
             dvl_twist_msg = TwistWithCovarianceStamped()
             dvl_twist_msg.twist.twist.linear = dvl_msg.velocity.mean
             dvl_twist_msg.header.stamp = CurrTS
+            dvl_twist_msg.header.frame_id = "odom"
             self.sync_dvl_publisher_.publish(dvl_twist_msg)
 
             self.sync_imu_publisher_.publish(imu_msg)
@@ -138,6 +141,7 @@ class Sensors(Node):
             depth_pose_msg = PoseWithCovarianceStamped()
             depth_pose_msg.pose.pose.position.z = depth_msg.data
             depth_pose_msg.header.stamp = CurrTS
+            depth_pose_msg.header.frame_id = "odom"
             self.sync_depth_publisher_.publish(depth_pose_msg)
 
     def sync_callback_D(self, imu_msg):

@@ -3,13 +3,21 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Imu
 from nav_msgs.msg import Odometry
+from std_msgs.msg import Float32
+from msgs.msg import DVLData  # Make sure this message type is available in your workspace
 import math
 
 class LocalizationTestNode(Node):
     def __init__(self):
         super().__init__('localization_test_node')
-        # Publisher to simulate constant acceleration from the IMU node
+        # Publishers to simulate sensor outputs:
+        # IMU: for acceleration measurements
         self.imu_pub = self.create_publisher(Imu, '/imu/data', 10)
+        # DVL: for velocity measurements; using custom DVLData message type
+        self.dvl_pub = self.create_publisher(DVLData, 'dvl', 10)
+        # Depth: for depth measurements; using standard Float32 message
+        self.depth_pub = self.create_publisher(Float32, 'depth', 10)
+        
         # Subscriber to the EKF-filtered odometry output from ekf_filter_node
         self.odom_sub = self.create_subscription(Odometry, '/odometry/filtered', self.odom_callback, 10)
 
@@ -20,29 +28,44 @@ class LocalizationTestNode(Node):
         self.publish_period = 0.1  # seconds (10 Hz)
         self.test_duration = 5.0   # seconds
 
-        # Start timers for publishing and checking progress
+        # Start timers for publishing sensor data and checking progress
         self.start_time = self.get_clock().now().nanoseconds / 1e9
-        self.create_timer(self.publish_period, self.publish_imu)
+        self.create_timer(self.publish_period, self.publish_sensors)
         self.create_timer(0.5, self.check_progress)
 
-    def publish_imu(self):
-        # Create an IMU message with a constant acceleration in x-direction
-        imu_msg = Imu()
+    def publish_sensors(self):
         now = self.get_clock().now().to_msg()
+
+        # --- Publish IMU message ---
+        imu_msg = Imu()
         imu_msg.header.stamp = now
-
-        # Set a constant linear acceleration along x (e.g. 1 m/s^2)
-        imu_msg.linear_acceleration.x = 0.0
-        imu_msg.linear_acceleration.y = 1.0
+        # For testing increasing x position, set constant acceleration in x:
+        imu_msg.linear_acceleration.x = 0.0  # 1 m/s^2 in x-direction
+        imu_msg.linear_acceleration.y = 0.0
         imu_msg.linear_acceleration.z = 0.0
-
-        # Angular velocities are zero for this test
+        # Zero angular velocity for simplicity:
         imu_msg.angular_velocity.x = 0.0
         imu_msg.angular_velocity.y = 0.0
         imu_msg.angular_velocity.z = 0.0
-
         self.imu_pub.publish(imu_msg)
-        self.get_logger().debug("Published IMU message with constant acceleration.")
+        self.get_logger().debug("Published IMU message with acceleration in x.")
+
+        # --- Publish DVL message ---
+        dvl_msg = DVLData()
+        # Assuming the DVLData message contains a field "velocity" with a sub-field "mean"
+        # that is a vector (with x, y, z components). Set a constant forward velocity.
+        dvl_msg.velocity.mean.x = 0.0  # 0.2 m/s in x-direction
+        dvl_msg.velocity.mean.y = 0.0
+        dvl_msg.velocity.mean.z = 0.0
+        # You can set additional fields as required by your DVLData definition.
+        self.dvl_pub.publish(dvl_msg)
+        self.get_logger().debug("Published DVL message with constant velocity.")
+
+        # --- Publish Depth message ---
+        depth_msg = Float32()
+        depth_msg.data = 00.0  # fixed depth, e.g. 10 meters
+        self.depth_pub.publish(depth_msg)
+        self.get_logger().debug("Published Depth message with constant depth.")
 
     def odom_callback(self, msg):
         # Extract the x position from the odometry message
@@ -69,7 +92,6 @@ class LocalizationTestNode(Node):
                 self.get_logger().error("Test failed: Position did not increase as expected.")
             rclpy.shutdown()
 
-
 def main(args=None):
     rclpy.init(args=args)
     test_node = LocalizationTestNode()
@@ -80,7 +102,6 @@ def main(args=None):
     finally:
         test_node.destroy_node()
         rclpy.shutdown()
-
 
 if __name__ == '__main__':
     main()
