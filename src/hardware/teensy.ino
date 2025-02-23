@@ -3,10 +3,10 @@
 #include "MS5837.h"
 
 MS5837 sensor;
-int firstWirePin = 22;
-int secondWirePin = 21;
-int firstVal = 0;
-int secondVal = 0;
+int currentPin = 41;
+int voltagePin = 40;
+int currentVal = 0;
+int voltageVal = 0;
 
 Servo servo[8];
 byte servoPins[] = {0, 1, 2, 3, 4, 5, 6, 7};
@@ -52,6 +52,7 @@ void loop() {
 
 void process_input(char *input) {
   int s0, s1, s2, s3, s4, s5, s6, s7;
+  int servoNum, val;
   if (sscanf(input, "%d %d %d %d %d %d %d %d", &s0, &s1, &s2, &s3, &s4, &s5, &s6, &s7) == 8) {
     set_servo(0, s0);
     set_servo(1, s1);
@@ -66,6 +67,16 @@ void process_input(char *input) {
     float current, voltage;
     handle_voltage_command(current, voltage);
     Serial.println("> pressure:" + String(pressure, DIGITS) + " temperature:" + String(temperature, DIGITS) + " depth:" + String(depth, DIGITS) + " current:" + String(current, DIGITS) + " voltage:" + String(voltage, DIGITS));
+  } else if (strcmp(input, "batt") == 0) { // for debugging
+    float current, voltage;
+    handle_voltage_command(current, voltage);
+    Serial.println("Current:" + String(current, DIGITS) + " voltage:" + String(voltage, DIGITS));
+  } else if (sscanf(input, "%d %d", &servoNum, &val) == 2) { //for debugging without the VM
+    if (val >= 1100 && val <= 1900 && servoNum >= 0 && servoNum <= 7) {
+      set_servo(servoNum, val);
+    } else {
+      Serial.println("Invalid command");
+    }
   } else {
     Serial.println(input);
   }
@@ -79,10 +90,10 @@ void handle_depth_command(float& pressure, float& temperature, float& depth) {
 }
 
 void handle_voltage_command(float& current, float& voltage) {
-  firstVal = analogRead(firstWirePin);
-  secondVal = analogRead(secondWirePin);
-  current = (firstVal * 120.0) / 1024; // A
-  voltage = (secondVal * 60.0) / 1024; // V
+  currentVal = analogRead(currentPin);
+  voltageVal = analogRead(voltagePin);
+  current = (currentVal * 120.0) / 1024; // A
+  voltage = (voltageVal * 60.0) / 1024; // V
 }
 
 void set_servo(int servoNum, int val) {
