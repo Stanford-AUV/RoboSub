@@ -100,7 +100,7 @@ Contact kevinli7@stanford.edu if you encounter any issues.
 
 To build the project, in the VSCode Terminal, run:
 ```bash
-./build.sh && source install/setup.bash
+./build.sh && source install/setup.bash && sudo ./ports.sh
 ```
 One built, you can proceed to the [running section](#running).
 
