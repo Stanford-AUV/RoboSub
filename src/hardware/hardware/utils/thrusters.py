@@ -1,5 +1,14 @@
 import numpy as np
 
+# EXPERIMENTAL_OFFSET = 15
+# Forward: 1.3 s
+# Backward: 1.5 s
+
+# EXPERIMENTAL_OFFSET = 17
+# Forward: 0.8 s
+# Backward 1.2 s
+
+EXPERIMENTAL_OFFSET = 15
 
 BATTERY_VOLTAGES_TO_PWM_COEFFICIENTS = {
     10: [1.8343560975506323e-05, 1481.466452853926],
@@ -73,4 +82,4 @@ def thrust_to_pwm(thrust: float, voltage=14.8):
     )
     pwm = (1 - weight) * low_pwm + weight * high_pwm
 
-    return np.round(pwm).astype(int)
+    return np.round(pwm).astype(int) + EXPERIMENTAL_OFFSET
