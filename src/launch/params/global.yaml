@@ -42,7 +42,7 @@
     # filter will not begin computation until it receives at least one message from one of the
     # inputs. It will then run continuously at the frequency specified here, regardless of whether
     # it receives more measurements. Defaults to 30 if unspecified.
-    frequency: 60.0
+    frequency: 30.0
 
     imu0: "/imu/data_sync" # Separating twists + accel. here versus velocity on pose_sync as
                            # as suggested by the localization package
@@ -62,7 +62,7 @@
 
     twist0: "/dvl/twist_sync"
 
-    imu0_config:  [false, false, false, #[x_pos   , y_pos    , z_pos,
+    twist0_config:  [false, false, false, #[x_pos   , y_pos    , z_pos,
                   false, false, false,  # roll    , pitch    , yaw,
                   true, true, true,     # x_vel   , y_vel    , z_vel,
                   false, false, false,  # roll_vel, pitch_vel, yaw_vel,

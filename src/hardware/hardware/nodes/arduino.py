@@ -7,7 +7,6 @@ from typing import List
 from rclpy import Parameter
 import numpy as np
 
-
 class Arduino(Node):
 
     def __init__(self):

@@ -8,7 +8,7 @@ from geometry_msgs.msg import TwistWithCovarianceStamped, PoseWithCovarianceStam
 from sensor_msgs.msg import Imu
 from message_filters import Subscriber, ApproximateTimeSynchronizer
 from std_msgs.msg import Float32
-
+from msgs.msg import DVLData, DVLBeam, DVLTarget, DVLVelocity
 
 class Sensors(Node):
 
@@ -41,7 +41,7 @@ class Sensors(Node):
         self.imu_sub = Subscriber(self, Imu, "imu")
         self.depth_sub = Subscriber(self, Float32, "depth") # Double-check
         self.imu_only_sub = self.create_subscription(
-            Imu, "/imu/data", self.sync_callback_D, history_depth
+            Imu, "imu", self.sync_callback_D, history_depth
         )
 
         # synchronize DVL, IMU, Depth data
@@ -141,7 +141,7 @@ class Sensors(Node):
             self.sync_depth_publisher_.publish(depth_pose_msg)
 
     def sync_callback_D(self, imu_msg):
-        # self.get_logger().info(f"D")
+        self.get_logger().info(f"D")
         CurrTS = imu_msg.header.stamp
         if (
             CurrTS != self.last_imu_sync_ts_sec
