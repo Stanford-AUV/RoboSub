@@ -11,7 +11,7 @@ ENV DEBIAN_FRONTEND=
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
-  && apt-get -y install --no-install-recommends python3.12-venv python3-gz-transport13 ros-jazzy-robot-localization ros-jazzy-depthai-ros \
+  && apt-get -y install --no-install-recommends python3.12-venv python3-gz-transport13 ros-jazzy-robot-localization ros-jazzy-depthai-ros ros-jazzy-tf-transformations ros-jazzy-nmea-msgs ros-jazzy-mavros-msgs \
   && apt-get autoremove -y \
   && apt-get clean -y \
   && rm -rf /var/lib/apt/lists/*
@@ -26,6 +26,14 @@ ARG WORKSPACE
 RUN echo "if [ -f ${WORKSPACE}/install/setup.bash ]; then source ${WORKSPACE}/install/setup.bash; fi" >> /home/ros/.bashrc
 RUN echo "if [ -f ${WORKSPACE}/requirements.txt ]; then /home/ros/env/bin/pip install -r ${WORKSPACE}/requirements.txt; fi" >> /home/ros/.bashrc
 RUN echo "export GZ_PARTITION=127.0.0.1:ros" >> /home/ros/.bashrc
+
+# Setup IMU Utils
+RUN apt-get update && apt-get install -y kmod \
+  sharutils \
+  file \
+  libusb-1.0-0-dev \
+  udev \ 
+  usbutils
 
 # Setup SSH server
 RUN apt update && apt install -y openssh-server

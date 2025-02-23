@@ -209,3 +209,10 @@ For example:
 ```
 sudo chmod a+rw /dev/ttyACM0
 ```
+
+If this concerns the IMU, make sure to run from the Orin Terminal (not the Docker container):
+```bash
+cd ~/GitHub/xsens_mt
+sudo modprobe usbserial
+sudo insmod ./xsens_mt.ko
+```
