@@ -100,7 +100,7 @@ Contact kevinli7@stanford.edu if you encounter any issues.
 
 To build the project, in the VSCode Terminal, run:
 ```bash
-./build.sh && source install/setup.bash && sudo ./ports.sh
+./build.sh && source install/setup.bash
 ```
 One built, you can proceed to the [running section](#running).
 
@@ -122,6 +122,10 @@ ros2 launch src/launch/LAUNCH_FILE
 For example:
 ```bash
 ros2 launch src/launch/control.py
+```
+To launch the main launch file:
+```bash
+ros2 launch main main.py
 ```
 
 ### Running ROS nodes directly

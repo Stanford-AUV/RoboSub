@@ -24,6 +24,7 @@ RUN python3 -m venv /home/ros/env --system-site-packages --symlinks
 # Set up auto-source of workspace for ros user
 ARG WORKSPACE
 RUN echo "if [ -f ${WORKSPACE}/install/setup.bash ]; then source ${WORKSPACE}/install/setup.bash; fi" >> /home/ros/.bashrc
+RUN echo "if [ -f /workspaces/RoboSub/ports.sh ]; then sudo bash /workspaces/RoboSub/ports.sh; fi" >> /home/ros/.bashrc
 RUN echo "if [ -f ${WORKSPACE}/requirements.txt ]; then /home/ros/env/bin/pip install -r ${WORKSPACE}/requirements.txt; fi" >> /home/ros/.bashrc
 RUN echo "export GZ_PARTITION=127.0.0.1:ros" >> /home/ros/.bashrc
 
@@ -34,6 +35,9 @@ RUN apt-get update && apt-get install -y kmod \
   libusb-1.0-0-dev \
   udev \ 
   usbutils
+
+# Setup logging utils
+RUN apt-get update && apt-get install -y less fzf
 
 # Setup SSH server
 RUN apt update && apt install -y openssh-server
