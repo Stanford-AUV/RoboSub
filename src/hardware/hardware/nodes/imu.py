@@ -36,9 +36,9 @@ class IMU(Node):
 
     def imu_listener_callback(self, msg):
         transformed_msg = self.transform_imu_msg(msg)
-        # self.get_logger().info(
-        #     f"Sending IMU data: {transformed_msg.linear_acceleration}"
-        # )
+        self.get_logger().info(
+            f"IMU data: {transformed_msg.header}"
+        )
         self._imu_pub.publish(transformed_msg)
 
     def transform_imu_msg(self, msg):

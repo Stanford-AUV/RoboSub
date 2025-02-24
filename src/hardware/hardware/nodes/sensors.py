@@ -64,7 +64,7 @@ class Sensors(Node):
         self.get_logger().info(f"Running IMU/DVL/Depth data synchronization")
 
     def sync_callback_A(self, dvl_msg, imu_msg, depth_msg):
-        self.get_logger().info(f"A")
+        # self.get_logger().info(f"A")
         self.last_imu_sync_ts_sec = (
             imu_msg.header.stamp
         )  # update most recent IMU time for valid full sync
@@ -94,7 +94,7 @@ class Sensors(Node):
         self.sync_depth_publisher_.publish(depth_pose_msg)
 
     def sync_callback_B(self, dvl_msg, imu_msg):
-        self.get_logger().info(f"B")
+        # self.get_logger().info(f"B")
         CurrTS = imu_msg.header.stamp
         if (
             CurrTS != self.last_imu_sync_ts_sec
@@ -119,7 +119,7 @@ class Sensors(Node):
             self.sync_imu_pose_publisher_.publish(imu_pose_msg)
 
     def sync_callback_C(self, imu_msg, depth_msg):
-        self.get_logger().info(f"C")
+        # self.get_logger().info(f"C")
         CurrTS = imu_msg.header.stamp
         if (
             CurrTS != self.last_imu_sync_ts_sec
@@ -144,12 +144,13 @@ class Sensors(Node):
             self.sync_depth_publisher_.publish(depth_pose_msg)
 
     def sync_callback_D(self, imu_msg):
-        self.get_logger().info(f"D")
+        # self.get_logger().info(f"D")
         CurrTS = imu_msg.header.stamp
         if (
             CurrTS != self.last_imu_sync_ts_sec
         ):  # if time is the same as full sync, ignore since we've already pub'd
             imu_msg.header.stamp = CurrTS
+            imu_msg.header.frame_id = "odom"
 
             imu_pose_msg = PoseWithCovarianceStamped()
             imu_pose_msg.header.stamp = CurrTS
@@ -160,7 +161,7 @@ class Sensors(Node):
             imu_pose_msg.pose.pose.orientation.w = imu_msg.orientation.w
 
             # self.get_logger().info("imu_msg")
-            self.get_logger().info(f"{imu_msg}")
+            # self.get_logger().info(f"{imu_msg}")
             # self.get_logger().info(f"{imu_pose_msg}")
             self.sync_imu_publisher_.publish(imu_msg)
             self.sync_imu_pose_publisher_.publish(imu_pose_msg)

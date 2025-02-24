@@ -8,7 +8,7 @@ import math
 
 # Hyperparameter: Set to True for testing mode (publishing sensor data and checking progress),
 # or False for monitoring mode (only listening to odometry).
-TEST_MODE = True
+TEST_MODE = False
 
 class LocalizationTestNode(Node):
     def __init__(self):
