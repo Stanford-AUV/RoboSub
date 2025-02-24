@@ -1,1 +1,1 @@
-ros2 bag record -o replay dvl imu pressure temperature depth current voltage /odometry/filtered
+ros2 bag record -o replay /dvl /imu /pressure /temperature /depth /current /voltage /odometry/filtered
