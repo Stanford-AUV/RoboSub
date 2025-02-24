@@ -12,7 +12,7 @@ import serial
 
 
 class DVLROSBridge(Node):
-    def __init__(self, port="/dev/ttyUSB1", baudrate=115200):
+    def __init__(self, baudrate=115200):
         super().__init__("dvl_ros_bridge")
 
         # ROS publisher
