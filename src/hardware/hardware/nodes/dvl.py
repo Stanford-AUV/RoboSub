@@ -11,7 +11,7 @@ import glob
 import serial
 
 
-class DVLROSBridge(Node):
+class DVL(Node):
     def __init__(self, baudrate=115200):
         super().__init__("dvl_ros_bridge")
 
@@ -42,6 +42,7 @@ class DVLROSBridge(Node):
                         continue
 
                 dvl = Dvl(port, baudrate)
+                self.get_logger().info(f"Port: {port}")
                 if dvl.is_connected():
                     return dvl
 
@@ -65,7 +66,6 @@ class DVLROSBridge(Node):
         # Extract raw values from settings
         settings = output_data.get_settings()
         data_dict = {setting.name: setting.value for setting in settings}
-        # self.get_logger().info(str(data_dict))
 
         # {'Count': 0,
         #  'Date': '2025/02/06',
@@ -94,36 +94,41 @@ class DVLROSBridge(Node):
         dvl_msg.header = Header()
         dvl_msg.header.stamp = timestamp
 
-        T = np.array([
-            [-np.sqrt(2) / 2, np.sqrt(2) / 2, 0],
-            [-np.sqrt(2) / 2, -np.sqrt(2) / 2, 0],
-            [0, 0, 1],
-        ])
+        T = np.array(
+            [
+                [-np.sqrt(2) / 2, np.sqrt(2) / 2, 0],
+                [-np.sqrt(2) / 2, -np.sqrt(2) / 2, 0],
+                [0, 0, 1],
+            ]
+        )
 
         # Set velocity information
         dvl_velocity = DVLVelocity()
         dvl_velocity.reference = 0  # Unknown reference frame
         x = data_dict["Velocity X"]
+        self.get_logger().info(f"x {x}")
         if np.isnan(x):
             self.get_logger().error("Velocity X is nan")
             x = 0.0
-        x = T @ x
         y = data_dict["Velocity Y"]
         if np.isnan(y):
             self.get_logger().error("Velocity Y is nan")
             y = 0.0
-        y = T @ y
         z = data_dict["Velocity Z"]
         if np.isnan(z):
             self.get_logger().error("Velocity Z is nan")
             z = 0.0
-        z = T @ z
-        dvl_velocity.mean = Vector3(x, y, z)
+        vel = T @ np.array([x, y, z])
+        dvl_velocity.mean = Vector3()
+        dvl_velocity.mean.x = vel[0]
+        dvl_velocity.mean.y = vel[1]
+        dvl_velocity.mean.z = vel[2]
         err = data_dict["Velocity Err"]
         if np.isnan(err):
             self.get_logger().error("Velocity Err is nan")
             err = 0.05
-        dvl_velocity.covariance = np.eye(3) * (err**2)
+        covariance = np.eye(3, dtype=np.float32) * (err**2)
+        dvl_velocity.covariance = covariance.flatten()
 
         # Set DVL target
         dvl_target = DVLTarget()
@@ -159,25 +164,23 @@ class DVLROSBridge(Node):
                 if np.isnan(vx):
                     self.get_logger().error("Velocity X is nan")
                     vx = 0.0
-                vx = T @ vx
                 beam.velocity.mean = Vector3(x=vx, y=0.0, z=0.0)
             if beam_id == 2:
                 vy = data_dict["Velocity Y"]
                 if np.isnan(vy):
                     self.get_logger().error("Velocity Y is nan")
                     vy = 0.0
-                vy = T @ vy
                 beam.velocity.mean = Vector3(x=0.0, y=vy, z=0.0)
             if beam_id == 3:
                 vz = data_dict["Velocity Z"]
                 if np.isnan(vz):
                     self.get_logger().error("Velocity Z is nan")
                     vz = 0.0
-                vz = T @ vz
                 beam.velocity.mean = Vector3(x=0.0, y=0.0, z=vz)
             else:
                 beam.velocity.mean = Vector3(x=err, y=err, z=err)
-            beam.velocity.covariance = np.eye(3) * (err**2)
+            covariance = np.eye(3) * (err**2)
+            beam.velocity.covariance = covariance.flatten()
 
             dvl_msg.beams.append(beam)
 

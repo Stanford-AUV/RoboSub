@@ -16,6 +16,11 @@ def generate_launch_description():
                 PythonLaunchDescriptionSource(os.path.join(launch_dir, "hardware.py"))
             ),
             IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
+                    os.path.join(launch_dir, "localization.py")
+                )
+            ),
+            IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(os.path.join(launch_dir, "manual.py"))
             ),
         ]
