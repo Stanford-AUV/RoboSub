@@ -123,6 +123,10 @@ For example:
 ```bash
 ros2 launch src/launch/control.py
 ```
+To launch the main launch file:
+```bash
+ros2 launch main main.py
+```
 
 ### Running ROS nodes directly
 
