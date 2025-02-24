@@ -24,6 +24,7 @@ setup(
             "dvl = hardware.nodes.dvl:main",
             "sensors = hardware.nodes.sensors:main",
             "arduino = hardware.nodes.arduino:main",
+            "localization_test = hardware.nodes.localization_test:main",
         ],
     },
 )

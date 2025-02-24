@@ -11,12 +11,12 @@ import glob
 import serial
 
 
-class DVL(Node):
+class DVLROSBridge(Node):
     def __init__(self, baudrate=115200):
         super().__init__("dvl_ros_bridge")
 
         # ROS publisher
-        self.publisher = self.create_publisher(DVLData, "/gz/dvl", 10)
+        self.publisher = self.create_publisher(DVLData, "dvl", 10)
 
         # Connect to DVL
         self.dvl = self.autodetect_dvl_port(baudrate)
@@ -65,7 +65,7 @@ class DVL(Node):
         # Extract raw values from settings
         settings = output_data.get_settings()
         data_dict = {setting.name: setting.value for setting in settings}
-        self.get_logger().info(str(data_dict))
+        # self.get_logger().info(str(data_dict))
 
         # {'Count': 0,
         #  'Date': '2025/02/06',
@@ -94,11 +94,11 @@ class DVL(Node):
         dvl_msg.header = Header()
         dvl_msg.header.stamp = timestamp
 
-        T = np.array(
+        T = np.array([
             [-np.sqrt(2) / 2, np.sqrt(2) / 2, 0],
             [-np.sqrt(2) / 2, -np.sqrt(2) / 2, 0],
             [0, 0, 1],
-        )
+        ])
 
         # Set velocity information
         dvl_velocity = DVLVelocity()

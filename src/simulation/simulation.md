@@ -20,13 +20,13 @@ The Simulation Module is designed to simulate RoboSub in a Gazebo environment. I
 ## Communication  
 - **Inputs**: 
   - `/generated_path` (ROS 2): Subscribed by `PathBridgeNode` to receive path data.
-  - `/dvl` (Gazebo): Subscribed by `DVLBridgeNode` to receive DVL data.
+  - `dvl` (Gazebo): Subscribed by `DVLBridgeNode` to receive DVL data.
   - `gz/imu`, `gz/depth`, `gz/pose` (Gazebo): Subscribed by `Sensors` node for IMU, depth, and pose data.
   - `thrusts` (ROS 2): Subscribed by `Thrusters` node for thruster commands.
 
 - **Outputs**: 
   - `/generated_path` (Gazebo): Published by `PathBridgeNode` for path visualization.
-  - `/gz/dvl` (ROS 2): Published by `DVLBridgeNode` for DVL data.
+  - `dvl` (ROS 2): Published by `DVLBridgeNode` for DVL data.
   - `imu`, `depth`, `odometry` (ROS 2): Published by `Sensors` node for processed sensor data.
   - `gz/thruster_X` (Gazebo): Published by `Thrusters` node for each thruster control.
 

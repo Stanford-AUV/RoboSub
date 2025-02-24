@@ -1,11 +1,10 @@
 import serial
 import rclpy
 from rclpy.node import Node
-from msgs.msg import PWMsStamped, SensorsStamped
+from msgs.msg import PWMsStamped, SensorsStamped, Float32Stamped
 from typing import List
 from rclpy import Parameter
 import numpy as np
-
 
 class Arduino(Node):
 
@@ -33,6 +32,10 @@ class Arduino(Node):
             SensorsStamped, "sensors", history_depth
         )
 
+        self._depth_pub = self.create_publisher(
+            Float32Stamped, "depth", history_depth
+        )
+
         try:
             # NOTE: If this fails, run the following command:
             # sudo chmod a+rw /dev/ttyACM0
@@ -52,7 +55,7 @@ class Arduino(Node):
         return command
 
     def pwms_callback(self, msg: PWMsStamped):
-        self.get_logger().info(f"PWMs received {msg.pwms}")
+        # self.get_logger().info(f"PWMs received {msg.pwms}")
         self.pwms: List[float] = msg.pwms.tolist()
 
     def send_pwms(self):
@@ -94,8 +97,11 @@ class Arduino(Node):
         msg.depth = sensors["depth"]
         msg.current = sensors["current"]
         msg.voltage = sensors["voltage"]
-        self.get_logger().info(f"Publishing sensors {msg}")
+        # self.get_logger().info(f"Publishing sensors {msg}")
         self._sensors_pub.publish(msg)
+        depth_msg = Float32Stamped()
+        depth_msg.data = sensors["depth"]
+        self._depth_pub.publish(depth_msg)
 
     def kill_motors(self):
         self.pwms = [self.zero_thrust] * self.thruster_count
