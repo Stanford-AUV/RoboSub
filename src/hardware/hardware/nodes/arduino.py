@@ -100,7 +100,7 @@ class Arduino(Node):
         # self.get_logger().info(f"Publishing sensors {msg}")
         self._sensors_pub.publish(msg)
         depth_msg = Float32Stamped()
-        depth_msg.value = sensors["depth"]
+        depth_msg.data = sensors["depth"]
         self._depth_pub.publish(depth_msg)
 
     def kill_motors(self):

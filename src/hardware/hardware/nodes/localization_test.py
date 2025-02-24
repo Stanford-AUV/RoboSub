@@ -8,7 +8,7 @@ import math
 
 # Hyperparameter: Set to True for testing mode (publishing sensor data and checking progress),
 # or False for monitoring mode (only listening to odometry).
-TEST_MODE = False
+TEST_MODE = True
 
 class LocalizationTestNode(Node):
     def __init__(self):
@@ -30,7 +30,7 @@ class LocalizationTestNode(Node):
             self.depth_pub = self.create_publisher(Float32Stamped, 'depth', 10)
 
             # Publish rate and test duration settings
-            self.publish_period = 0.1  # seconds (10 Hz)
+            self.publish_period = 1/600  # seconds (10 Hz)
             self.test_duration = 5.0   # seconds
 
             # Start timers for publishing sensor data and checking progress
@@ -69,7 +69,7 @@ class LocalizationTestNode(Node):
 
         # --- Publish Depth message ---
         depth_msg = Float32Stamped()
-        depth_msg.value = 10.0  # Fixed depth, e.g., 10 meters
+        depth_msg.data = 10.0  # Fixed depth, e.g., 10 meters
         self.depth_pub.publish(depth_msg)
         self.get_logger().debug("Published Depth message with constant depth.")
 

@@ -42,7 +42,7 @@
     # filter will not begin computation until it receives at least one message from one of the
     # inputs. It will then run continuously at the frequency specified here, regardless of whether
     # it receives more measurements. Defaults to 30 if unspecified.
-    frequency: 30.0
+    frequency: 60.0
 
     imu0: "/imu/data_sync" # Separating twists + accel. here versus velocity on pose_sync as
                            # as suggested by the localization package
@@ -52,10 +52,10 @@
                   true, true, true,        # roll_vel, pitch_vel, yaw_vel,
                   true, true, true]        # x_accel , y_accel  , z_accel]
 
-    # Should be false for twist measurements
+    # Should be false for since measurements are not incrementing
     imu0_differential: false
     # Should measurements start at 0?
-    imu0_relative: false
+    imu0_relative: true
     imu0_queue_size: 10
     # Yes because underwater
     imu0_remove_gravitational_acceleration: true

@@ -70,11 +70,11 @@ class DVLROSBridge(Node):
         dvl_msg.header = Header()
         dvl_msg.header.stamp = timestamp
 
-        T = np.array(
+        T = np.array([
             [-np.sqrt(2) / 2, np.sqrt(2) / 2, 0],
             [-np.sqrt(2) / 2, -np.sqrt(2) / 2, 0],
             [0, 0, 1],
-        )
+        ])
 
         # Set velocity information
         dvl_velocity = DVLVelocity()
