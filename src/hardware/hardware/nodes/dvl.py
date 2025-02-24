@@ -7,18 +7,20 @@ from geometry_msgs.msg import Vector3
 from hardware.utils.dvl_utils.system import OutputData
 from hardware.utils.dvl_utils.dvl_connect import Dvl
 import numpy as np
+import glob
+import serial
 
 
-class DVLROSBridge(Node):
-    def __init__(self, port="/dev/ttyUSB0", baudrate=115200):
+class DVL(Node):
+    def __init__(self, baudrate=115200):
         super().__init__("dvl_ros_bridge")
 
         # ROS publisher
         self.publisher = self.create_publisher(DVLData, "/gz/dvl", 10)
 
         # Connect to DVL
-        self.dvl = Dvl(port, baudrate)
-        if not self.dvl.is_connected():
+        self.dvl = self.autodetect_dvl_port(baudrate)
+        if not self.dvl:
             self.get_logger().error("Failed to connect to DVL.")
             return
 
@@ -28,6 +30,28 @@ class DVLROSBridge(Node):
         # Start pinging
         if not self.dvl.exit_command_mode():
             self.get_logger().error("Failed to start pinging")
+
+    def autodetect_dvl_port(self, baudrate, timeout=2):
+        """Scan available serial ports and attempt to connect to the DVL."""
+        possible_ports = glob.glob("/dev/ttyUSB*") + glob.glob("/dev/ttyACM*")
+        for port in possible_ports:
+            try:
+                # Attempt a basic serial connection to check if the port is valid
+                with serial.Serial(port, baudrate, timeout=timeout) as ser:
+                    if not ser.is_open:
+                        continue
+
+                dvl = Dvl(port, baudrate)
+                if dvl.is_connected():
+                    return port
+
+            except serial.SerialException:
+                self.get_logger().debug(f"Port {port} is not available or is busy.")
+            except serial.SerialTimeoutException:
+                self.get_logger().debug(f"Port {port} timed out.")
+            except Exception as e:
+                self.get_logger().error(f"Unexpected error on port {port}: {e}")
+        return None  # No valid port found
 
     def update_data(self, output_data: OutputData, obj):
         """Callback function to process and publish DVL data."""
@@ -169,7 +193,7 @@ class DVLROSBridge(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = DVLROSBridge()
+    node = DVL()
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
