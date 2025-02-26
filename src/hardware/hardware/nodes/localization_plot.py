@@ -2,8 +2,6 @@ import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import numpy as np
 
 
 class LocalizationPlot(Node):
@@ -120,7 +118,10 @@ def main(args=None):
     finally:
         # Clean up
         node.destroy_node()
-        rclpy.shutdown()
+        try:
+            rclpy.shutdown()
+        except Exception:
+            pass
         plt.close("all")
 
 
