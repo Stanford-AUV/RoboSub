@@ -41,7 +41,7 @@ class Sensors(Node):
         self.imu_sub = Subscriber(self, Imu, "imu")
         self.depth_sub = Subscriber(self, Float32Stamped, "depth")  # Double-check
         self.imu_only_sub = self.create_subscription(
-            Imu, "imu", self.sync_callback_D, history_depth
+            Imu, "imu", self.sync_callback_imu_only, history_depth
         )
 
         # synchronize DVL, IMU, Depth data
@@ -50,21 +50,21 @@ class Sensors(Node):
             queue_size=history_depth,
             slop=slop,
         )
-        self.ts_caseA.registerCallback(self.sync_callback_A)
+        self.ts_caseA.registerCallback(self.sync_callback_imu_dvl_depth)
 
         self.ts_caseB = ApproximateTimeSynchronizer(  # case B: IMU DVL available
             [self.dvl_sub, self.imu_sub], queue_size=history_depth, slop=slop
         )
-        self.ts_caseB.registerCallback(self.sync_callback_B)
+        self.ts_caseB.registerCallback(self.sync_callback_imu_dvl)
 
         self.ts_caseC = ApproximateTimeSynchronizer(  # case C: IMU Depth available
             [self.imu_sub, self.depth_sub], queue_size=history_depth, slop=slop
         )
-        self.ts_caseC.registerCallback(self.sync_callback_C)
+        self.ts_caseC.registerCallback(self.sync_callback_imu_depth)
 
         self.get_logger().info(f"Running IMU/DVL/Depth data synchronization")
 
-    def sync_callback_A(self, dvl_msg, imu_msg, depth_msg):
+    def sync_callback_imu_dvl_depth(self, dvl_msg, imu_msg, depth_msg):
         # self.get_logger().info(f"A")
         self.last_imu_sync_ts_sec = (
             imu_msg.header.stamp
@@ -94,8 +94,8 @@ class Sensors(Node):
         depth_pose_msg.header.frame_id = "odom"
         self.sync_depth_publisher_.publish(depth_pose_msg)
 
-    def sync_callback_B(self, dvl_msg, imu_msg):
-        # self.get_logger().info(f"B")
+    def sync_callback_imu_dvl(self, dvl_msg, imu_msg):
+        self.get_logger().info(f"B")
         CurrTS = imu_msg.header.stamp
         if (
             CurrTS != self.last_imu_sync_ts_sec
@@ -119,8 +119,8 @@ class Sensors(Node):
             self.sync_imu_publisher_.publish(imu_msg)
             self.sync_imu_pose_publisher_.publish(imu_pose_msg)
 
-    def sync_callback_C(self, imu_msg, depth_msg):
-        # self.get_logger().info(f"C")
+    def sync_callback_imu_depth(self, imu_msg, depth_msg):
+        self.get_logger().info(f"C")
         CurrTS = imu_msg.header.stamp
         if (
             CurrTS != self.last_imu_sync_ts_sec
@@ -144,7 +144,7 @@ class Sensors(Node):
             depth_pose_msg.header.frame_id = "odom"
             self.sync_depth_publisher_.publish(depth_pose_msg)
 
-    def sync_callback_D(self, imu_msg):
+    def sync_callback_imu_only(self, imu_msg):
         # self.get_logger().info(f"D")
         CurrTS = imu_msg.header.stamp
         if (
