@@ -25,9 +25,6 @@
       thruster_5: [0, 0, +1] # Bottom front right (expected up = CCW viewed from top)
       thruster_6: [0, 0, -1] # Bottom back left (expected up = CCW viewed from top)
       thruster_7: [0, 0, +1] # Bottom back right (expected up = CW viewed from top)
-/sensors:
-  ros__parameters:
-    slop: 0.001
 /ekf_filter_node:
   ros__parameters:
     print_diagnostics: true
@@ -42,48 +39,50 @@
     # filter will not begin computation until it receives at least one message from one of the
     # inputs. It will then run continuously at the frequency specified here, regardless of whether
     # it receives more measurements. Defaults to 30 if unspecified.
-    frequency: 30.0
+    frequency: 10.0
+    sensor_timeout: 0.2
 
-    imu0: "/imu/data_sync" # Separating twists + accel. here versus velocity on pose_sync as
-                           # as suggested by the localization package
-    imu0_config:  [false, false, false,    #[x_pos   , y_pos    , z_pos,
-                  false, false, false,     # roll    , pitch    , yaw,
-                  false, false, false,     # x_vel   , y_vel    , z_vel,
-                  true, true, true,        # roll_vel, pitch_vel, yaw_vel,
-                  true, true, true]        # x_accel , y_accel  , z_accel]
+    imu0:
+      "/imu/data_sync" # Separating twists + accel. here versus velocity on pose_sync as
+      # as suggested by the localization package
+    imu0_config: [false, false, false, # x_pos   , y_pos    , z_pos,
+                  false, false, false, # roll    , pitch    , yaw,
+                  false, false, false, # x_vel   , y_vel    , z_vel,
+                  true, true, true,    # roll_vel, pitch_vel, yaw_vel,
+                  true, true, true]    # x_accel , y_accel  , z_accel
 
     # Should be false for since measurements are not incrementing
     imu0_differential: false
     # Should measurements start at 0?
     imu0_relative: false
-    imu0_queue_size: 10
+    imu0_queue_size: 100
     # Yes because underwater
     imu0_remove_gravitational_acceleration: true
 
     twist0: "/dvl/twist_sync"
- 
-    twist0_config: [false, false, false, #[x_pos   , y_pos    , z_pos,
-                  false, false, false,  # roll    , pitch    , yaw,
-                  true, true, true,     # x_vel   , y_vel    , z_vel,
-                  false, false, false,  # roll_vel, pitch_vel, yaw_vel,
-                  false, false, false]  # x_accel , y_accel  , z_accel]
+
+    twist0_config: [false, false, false, # x_pos   , y_pos    , z_pos,
+                    false, false, false, # roll    , pitch    , yaw,
+                    true, true, true,    # x_vel   , y_vel    , z_vel,
+                    false, false, false, # roll_vel, pitch_vel, yaw_vel,
+                    false, false, false] # x_accel , y_accel  , z_accel
     twist0_differential: true
     twist0_relative: false
 
     pose0: "/depth/pose_sync"
-    pose0_config: [false, false, true,  #[x_pos   , y_pos    , z_pos,
-                  false, false, false,  # roll    , pitch    , yaw,
-                  false, false, false,  # x_vel   , y_vel    , z_vel,
-                  false, false, false,  # roll_vel, pitch_vel, yaw_vel,
-                  false, false, false]  # x_accel , y_accel  , z_accel]
+    pose0_config: [false, false, true,  # x_pos   , y_pos    , z_pos,
+                   false, false, false, # roll    , pitch    , yaw,
+                   false, false, false, # x_vel   , y_vel    , z_vel,
+                   false, false, false, # roll_vel, pitch_vel, yaw_vel,
+                   false, false, false] # x_accel , y_accel  , z_accel
     pose0_relative: false
     pose0_differential: true
 
     pose1: "/imu/pose_sync"
-    pose1_config: [false, false, false, #[x_pos   , y_pos    , z_pos,
-                  true, true, true,     # roll    , pitch    , yaw,
-                  false, false, false,  # x_vel   , y_vel    , z_vel,
-                  false, false, false,  # roll_vel, pitch_vel, yaw_vel,
-                  false, false, false]  # x_accel , y_accel  , z_accel]
+    pose1_config: [false, false, false, # x_pos   , y_pos    , z_pos,
+                   true, true, true,    # roll    , pitch    , yaw,
+                   false, false, false, # x_vel   , y_vel    , z_vel,
+                   false, false, false, # roll_vel, pitch_vel, yaw_vel,
+                   false, false, false] # x_accel , y_accel  , z_accel
     pose1_relative: true
     pose1_differential: false

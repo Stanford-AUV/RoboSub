@@ -8,6 +8,7 @@ from geometry_msgs.msg import TwistWithCovarianceStamped, PoseWithCovarianceStam
 from sensor_msgs.msg import Imu
 from message_filters import Subscriber, ApproximateTimeSynchronizer
 from msgs.msg import DVLData, DVLBeam, DVLTarget, DVLVelocity, Float32Stamped
+import random
 
 
 class Sensors(Node):
@@ -16,13 +17,10 @@ class Sensors(Node):
         super().__init__("sensors")
 
         self.declare_parameter("history_depth", Parameter.Type.INTEGER)
-        self.declare_parameter("slop", Parameter.Type.DOUBLE)
 
         history_depth = (
             self.get_parameter("history_depth").get_parameter_value().integer_value
         )
-        slop = self.get_parameter("slop").get_parameter_value().double_value
-
         self.sync_dvl_publisher_ = self.create_publisher(
             TwistWithCovarianceStamped, "/dvl/twist_sync", history_depth
         )
@@ -35,137 +33,67 @@ class Sensors(Node):
         self.sync_depth_publisher_ = self.create_publisher(
             PoseWithCovarianceStamped, "/depth/pose_sync", history_depth
         )
-        self.last_imu_sync_ts_sec = math.nan
 
-        self.dvl_sub = Subscriber(self, DVLData, "dvl")  # Double-check
-        self.imu_sub = Subscriber(self, Imu, "imu")
-        self.depth_sub = Subscriber(self, Float32Stamped, "depth")  # Double-check
         self.imu_only_sub = self.create_subscription(
-            Imu, "imu", self.sync_callback_D, history_depth
+            Imu, "imu", self.sync_callback_imu_only, history_depth
+        )
+        self.dvl_only_sub = self.create_subscription(
+            DVLData, "dvl", self.sync_callback_dvl_only, history_depth
         )
 
-        # synchronize DVL, IMU, Depth data
-        self.ts_caseA = ApproximateTimeSynchronizer(  # case A: all messages available
-            [self.dvl_sub, self.imu_sub, self.depth_sub],
-            queue_size=history_depth,
-            slop=slop,
-        )
-        self.ts_caseA.registerCallback(self.sync_callback_A)
+        self.get_logger().info(f"Listening to DVL and IMU")
 
-        self.ts_caseB = ApproximateTimeSynchronizer(  # case B: IMU DVL available
-            [self.dvl_sub, self.imu_sub], queue_size=history_depth, slop=slop
-        )
-        self.ts_caseB.registerCallback(self.sync_callback_B)
+    def sync_callback_imu_only(self, imu_msg: Imu):
+        imu_msg.header.frame_id = "odom"
 
-        self.ts_caseC = ApproximateTimeSynchronizer(  # case C: IMU Depth available
-            [self.imu_sub, self.depth_sub], queue_size=history_depth, slop=slop
-        )
-        self.ts_caseC.registerCallback(self.sync_callback_C)
-
-        self.get_logger().info(f"Running IMU/DVL/Depth data synchronization")
-
-    def sync_callback_A(self, dvl_msg, imu_msg, depth_msg):
-        # self.get_logger().info(f"A")
-        self.last_imu_sync_ts_sec = (
-            imu_msg.header.stamp
-        )  # update most recent IMU time for valid full sync
-        imu_msg.header.stamp = self.last_imu_sync_ts_sec
+        # fmt: off
+        imu_msg.angular_velocity_covariance = [
+            0.01, 0.0, 0.0,
+            0.0, 0.01, 0.0,
+            0.0, 0.0, 0.01
+        ]
+        # fmt: off
+        imu_msg.linear_acceleration_covariance = [
+            1.0, 0.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 0.0, 1.0
+        ]
 
         imu_pose_msg = PoseWithCovarianceStamped()
-        imu_pose_msg.header.stamp = self.last_imu_sync_ts_sec
+        imu_pose_msg.header.stamp = imu_msg.header.stamp
         imu_pose_msg.header.frame_id = "odom"
         imu_pose_msg.pose.pose.orientation.x = imu_msg.orientation.x
         imu_pose_msg.pose.pose.orientation.y = imu_msg.orientation.y
         imu_pose_msg.pose.pose.orientation.z = imu_msg.orientation.z
         imu_pose_msg.pose.pose.orientation.w = imu_msg.orientation.w
-
-        dvl_twist_msg = TwistWithCovarianceStamped()
-        dvl_twist_msg.twist.twist.linear = dvl_msg.velocity.mean
-        dvl_twist_msg.header.stamp = self.last_imu_sync_ts_sec
-        dvl_twist_msg.header.frame_id = "odom"
-        self.sync_dvl_publisher_.publish(dvl_twist_msg)
+        # fmt: off
+        imu_pose_msg.pose.covariance = [
+            0.0, 0.0,  0.0,  0.0,  0.0,  0.0,
+            0.0,  0.0, 0.0,  0.0,  0.0,  0.0,
+            0.0,  0.0,  0.0, 0.0,  0.0,  0.0,
+            0.0,  0.0,  0.0,  0.1,  0.0,  0.0,
+            0.0,  0.0,  0.0,  0.0,  0.1, 0.0,
+            0.0,  0.0,  0.0,  0.0,  0.0,  0.1
+        ]
 
         self.sync_imu_publisher_.publish(imu_msg)
         self.sync_imu_pose_publisher_.publish(imu_pose_msg)
 
-        depth_pose_msg = PoseWithCovarianceStamped()
-        depth_pose_msg.pose.pose.position.z = depth_msg.data
-        depth_pose_msg.header.stamp = self.last_imu_sync_ts_sec
-        depth_pose_msg.header.frame_id = "odom"
-        self.sync_depth_publisher_.publish(depth_pose_msg)
-
-    def sync_callback_B(self, dvl_msg, imu_msg):
-        # self.get_logger().info(f"B")
-        CurrTS = imu_msg.header.stamp
-        if (
-            CurrTS != self.last_imu_sync_ts_sec
-        ):  # if time is the same as full sync, ignore since we've already pub'd
-            imu_msg.header.stamp = CurrTS
-
-            imu_pose_msg = PoseWithCovarianceStamped()
-            imu_pose_msg.header.stamp = CurrTS
-            imu_pose_msg.header.frame_id = "odom"
-            imu_pose_msg.pose.pose.orientation.x = imu_msg.orientation.x
-            imu_pose_msg.pose.pose.orientation.y = imu_msg.orientation.y
-            imu_pose_msg.pose.pose.orientation.z = imu_msg.orientation.z
-            imu_pose_msg.pose.pose.orientation.w = imu_msg.orientation.w
-
-            dvl_twist_msg = TwistWithCovarianceStamped()
-            dvl_twist_msg.twist.twist.linear = dvl_msg.velocity.mean
-            dvl_twist_msg.header.stamp = CurrTS
-            dvl_twist_msg.header.frame_id = "odom"
-            self.sync_dvl_publisher_.publish(dvl_twist_msg)
-
-            self.sync_imu_publisher_.publish(imu_msg)
-            self.sync_imu_pose_publisher_.publish(imu_pose_msg)
-
-    def sync_callback_C(self, imu_msg, depth_msg):
-        # self.get_logger().info(f"C")
-        CurrTS = imu_msg.header.stamp
-        if (
-            CurrTS != self.last_imu_sync_ts_sec
-        ):  # if time is the same as full sync, ignore since we've already pub'd
-            imu_msg.header.stamp = CurrTS
-
-            imu_pose_msg = PoseWithCovarianceStamped()
-            imu_pose_msg.header.stamp = CurrTS
-            imu_pose_msg.header.frame_id = "odom"
-            imu_pose_msg.pose.pose.orientation.x = imu_msg.orientation.x
-            imu_pose_msg.pose.pose.orientation.y = imu_msg.orientation.y
-            imu_pose_msg.pose.pose.orientation.z = imu_msg.orientation.z
-            imu_pose_msg.pose.pose.orientation.w = imu_msg.orientation.w
-
-            self.sync_imu_publisher_.publish(imu_msg)
-            self.sync_imu_pose_publisher_.publish(imu_pose_msg)
-
-            depth_pose_msg = PoseWithCovarianceStamped()
-            depth_pose_msg.pose.pose.position.z = depth_msg.data
-            depth_pose_msg.header.stamp = CurrTS
-            depth_pose_msg.header.frame_id = "odom"
-            self.sync_depth_publisher_.publish(depth_pose_msg)
-
-    def sync_callback_D(self, imu_msg):
-        # self.get_logger().info(f"D")
-        CurrTS = imu_msg.header.stamp
-        if (
-            CurrTS != self.last_imu_sync_ts_sec
-        ):  # if time is the same as full sync, ignore since we've already pub'd
-            imu_msg.header.stamp = CurrTS
-            imu_msg.header.frame_id = "odom"
-
-            imu_pose_msg = PoseWithCovarianceStamped()
-            imu_pose_msg.header.stamp = CurrTS
-            imu_pose_msg.header.frame_id = "odom"
-            imu_pose_msg.pose.pose.orientation.x = imu_msg.orientation.x
-            imu_pose_msg.pose.pose.orientation.y = imu_msg.orientation.y
-            imu_pose_msg.pose.pose.orientation.z = imu_msg.orientation.z
-            imu_pose_msg.pose.pose.orientation.w = imu_msg.orientation.w
-
-            # self.get_logger().info("imu_msg")
-            # self.get_logger().info(f"{imu_msg}")
-            # self.get_logger().info(f"{imu_pose_msg}")
-            self.sync_imu_publisher_.publish(imu_msg)
-            self.sync_imu_pose_publisher_.publish(imu_pose_msg)
+    def sync_callback_dvl_only(self, dvl_msg: DVLData):
+        dvl_twist_msg = TwistWithCovarianceStamped()
+        dvl_twist_msg.twist.twist.linear = dvl_msg.velocity.mean
+        dvl_twist_msg.header.stamp = dvl_msg.header.stamp
+        dvl_twist_msg.header.frame_id = "odom"
+        # fmt: off
+        dvl_twist_msg.twist.covariance = [
+            0.02, 0.0,  0.0,  0.0,  0.0,  0.0,
+            0.0,  0.02, 0.0,  0.0,  0.0,  0.0,
+            0.0,  0.0,  0.02, 0.0,  0.0,  0.0,
+            0.0,  0.0,  0.0,  0.01, 0.0,  0.0,
+            0.0,  0.0,  0.0,  0.0,  0.01, 0.0,
+            0.0,  0.0,  0.0,  0.0,  0.0,  0.01
+        ]
+        self.sync_dvl_publisher_.publish(dvl_twist_msg)
 
 
 def main(args=None):
