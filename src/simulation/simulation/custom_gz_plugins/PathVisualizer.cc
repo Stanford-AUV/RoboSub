@@ -126,10 +126,10 @@ void PathVisualizer::PerformRenderingOperations()
             max_angular_velocity = std::max(max_angular_velocity, std::sqrt(twist.angular().x() * twist.angular().x() + twist.angular().y() * twist.angular().y() + twist.angular().z() * twist.angular().z()));
         }
 
-        if (max_linear_velocity == 0.0 && max_angular_velocity == 0.0) {
-            gzerr << "No path data to visualize" << std::endl;
-            return;
-        }
+        // if (max_linear_velocity == 0.0 && max_angular_velocity == 0.0) {
+        //     gzerr << "No path data to visualize" << std::endl;
+        //     return;
+        // }
 
         for (int i = 0; i < localPathData.poses_size(); ++i)
         {

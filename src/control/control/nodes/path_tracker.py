@@ -58,6 +58,8 @@ class PathTracker(Node):
         angle_diff = 2.0 * math.acos(dot)
 
         # If within 0.1 meter threshold *and* orientation difference < 0.1 rad, advance to next waypoint
+        self.get_logger().info(f"Distance: " + str(distance))
+        self.get_logger().info(f"Angle diff: " + str(angle_diff))
         if distance < 0.1 and angle_diff < 0.2:
             self.next_waypoint()
 
@@ -74,7 +76,7 @@ class PathTracker(Node):
         waypoint = Odometry()
         waypoint.header = self.generated_path.header
         waypoint.pose.pose = self.generated_path.poses[self.path_index].pose
-        waypoint.twist.twist = self.generated_path.twists[self.path_index]
+        # waypoint.twist.twist = self.generated_path.twists[self.path_index]
 
         self.get_logger().info(f"Publishing waypoint for {self.path_index}")
         self.waypoint_publisher.publish(waypoint)

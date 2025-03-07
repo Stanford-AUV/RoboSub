@@ -1,0 +1,1 @@
+savedcmd_/workspaces/RoboSub/src/xsens_mt/xsens_mt.ko := ld -r -EL  -maarch64elf -z noexecstack --no-warn-rwx-segments --build-id=sha1  -T scripts/module.lds -o /workspaces/RoboSub/src/xsens_mt/xsens_mt.ko /workspaces/RoboSub/src/xsens_mt/xsens_mt.o /workspaces/RoboSub/src/xsens_mt/xsens_mt.mod.o

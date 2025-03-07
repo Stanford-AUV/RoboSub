@@ -1,0 +1,1 @@
+savedcmd_/workspaces/RoboSub/src/xsens_mt/Module.symvers :=  scripts/mod/modpost -M -m -a      -o /workspaces/RoboSub/src/xsens_mt/Module.symvers -T /workspaces/RoboSub/src/xsens_mt/modules.order -i Module.symvers -e 
