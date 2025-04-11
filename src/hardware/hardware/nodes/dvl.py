@@ -45,6 +45,7 @@ class DVL(Node):
                 self.get_logger().info(f"Port: {port}")
                 if dvl.is_connected():
                     return dvl
+                self.get_logger().error(f"Failed to connect to DVL on port {port}")
 
             except serial.SerialException:
                 self.get_logger().debug(f"Port {port} is not available or is busy.")
