@@ -25,7 +25,7 @@ SIM_PID=$!
 ros2 run ros_gz_bridge parameter_bridge --ros-args -p config_file:=src/simulation/simulation/gazebo_bridge.yaml &
 BRIDGE_PID=$!
 
-ros2 launch src/launch/simulation.py &
+ros2 launch src/main/launch/simulation.py &
 LAUNCH_PID=$!
 
 # Wait for all background processes to finish
