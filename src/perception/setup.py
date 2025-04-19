@@ -25,6 +25,7 @@ setup(
             f"test.view_detections_3d = perception.nodes.test.view_detections_3d:main",
             f"camera = perception.nodes.camera:main",
             f"objects_localizer = perception.nodes.objects_localizer:main",
+            f"camera_viewer = perception.nodes.camera_viewer:main"
         ],
     },
 )
