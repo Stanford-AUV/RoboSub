@@ -2,7 +2,7 @@
   "configurations": [
     {
       "name": "Linux",
-      "includePath": ["${workspaceFolder}/**"],
+      "includePath": ["${workspaceFolder}/**", "/opt/ros/jazzy/include/**"],
       "defines": [],
       "compilerPath": "/usr/bin/gcc",
       "compileCommands": "${workspaceFolder}/build/compile_commands.json",

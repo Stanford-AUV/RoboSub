@@ -14,6 +14,3 @@ colcon build \
         --base-paths . \
         --packages-skip xsens_mti_ros2_driver custom_gz_plugins \
         2> >(grep -v "install_name_tool")
-
-
-

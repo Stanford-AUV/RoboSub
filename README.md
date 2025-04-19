@@ -22,11 +22,6 @@ When developing with ROS 2 and Gazebo, it's easy to suddenly be reading outdated
 
 ## Installation
 
-1. Install pixi
-2. Run `pixi install`
-3. In every new Terminal, run `pixi shell -e jazzy`
-4. Run `./install.sh`
-
 To install the Gazebo simulator, follow steps in [SIMULATION.md](/SIMULATION.md).
 
 ## Building
