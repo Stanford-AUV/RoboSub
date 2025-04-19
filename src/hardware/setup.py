@@ -24,6 +24,10 @@ setup(
             "dvl = hardware.nodes.dvl:main",
             "sensors = hardware.nodes.sensors:main",
             "arduino = hardware.nodes.arduino:main",
+            "localization_test = hardware.nodes.localization_test:main",
+            "localization_plot = hardware.nodes.localization_plot:main",
+            "imu_plot = hardware.nodes.imu_plot:main",
+            "sensors_plot = hardware.nodes.sensors_plot:main",
         ],
     },
 )

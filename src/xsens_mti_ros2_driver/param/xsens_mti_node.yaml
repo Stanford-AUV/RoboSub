@@ -45,7 +45,7 @@
         # 3) 2: Use UTCTime from the host device.
         # Note: Ensure "UTC Time" or "Sample Time Fine" is selected in MT Manager under Device Settings > Output Configurations,
         # or you could also set 'enable_outputConfig: true' for once to configure output.
-        time_option: 0
+        time_option: 2
 
         # Logging Configuration
         # ---------------------

@@ -32,13 +32,13 @@ class IMU(Node):
         # 4×4 Transformation matrix (includes homogeneous coordinates)
         self.T = np.array([[0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
 
-        self._imu_pub = self.create_publisher(Imu, "imu_transformed", 10)
+        self._imu_pub = self.create_publisher(Imu, "imu", 10)
 
     def imu_listener_callback(self, msg):
         transformed_msg = self.transform_imu_msg(msg)
-        self.get_logger().info(
-            f"Sending IMU data: {transformed_msg.linear_acceleration}"
-        )
+        # self.get_logger().info(
+        #     f"Sending IMU data: {transformed_msg.linear_acceleration}"
+        # )
         self._imu_pub.publish(transformed_msg)
 
     def transform_imu_msg(self, msg):
@@ -82,8 +82,6 @@ class IMU(Node):
         transformed_msg.linear_acceleration.x = transformed_linear_acceleration[0]
         transformed_msg.linear_acceleration.y = transformed_linear_acceleration[1]
         transformed_msg.linear_acceleration.z = transformed_linear_acceleration[2]
-
-        print("hi")
 
         return transformed_msg
 
