@@ -95,12 +95,6 @@ class DVL(Node):
         dvl_msg.header = Header()
         dvl_msg.header.stamp = timestamp
 
-        # STUPID
-        self.publisher.publish(dvl_msg)
-        self.get_logger().info(f"Published DVL data: {str(dvl_msg)}")
-
-        return
-
         T = np.array(
             [
                 [-np.sqrt(2) / 2, np.sqrt(2) / 2, 0],
