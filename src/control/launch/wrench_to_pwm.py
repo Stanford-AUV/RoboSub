@@ -3,7 +3,7 @@ from launch_ros.actions import Node
 import os
 
 global_params = os.path.join(
-    os.path.dirname(__file__), "..", "..", "launch", "params", "global.yaml"
+    os.path.dirname(__file__), "..", "..", "main", "launch", "params", "global.yaml"
 )
 
 
