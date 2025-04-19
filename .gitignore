@@ -168,9 +168,5 @@ out/
 
 mtsdk_linux-x64_2025.0.sh
 
-# pixi environments
-.pixi
-*.egg-info
-
 # DS Store
 .DS_Store
