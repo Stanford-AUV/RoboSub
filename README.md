@@ -30,7 +30,7 @@ To build the project, in the VSCode Terminal, run:
 ```bash
 ./build.sh && source install/setup.bash
 ```
-Please ignore `generating fake signature` errors on MacOS.
+Please ignore `jobserver unavailable` errors.
 One built, you can proceed to the [running section](#running).
 
 ## Running
