@@ -2,8 +2,17 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Imu
 import matplotlib
+import numpy as np
+from transforms3d.euler import quat2euler
+
 matplotlib.use("TkAgg")  # Use a GUI backend
 import matplotlib.pyplot as plt
+
+# correction = np.array([0, 0, -9.80665]) - np.array(
+#     [-0.5094561923194577, 0.16367032612896282, -9.79881680978311]
+# )
+correction = np.array([0, 0, 0])
+
 
 class SensorsPlot(Node):
     def __init__(self):
@@ -21,7 +30,7 @@ class SensorsPlot(Node):
         # Setup interactive plotting
         plt.ion()  # Turn on interactive mode
         self.fig, self.ax = plt.subplots(figsize=(12, 8))
-        self.ax.set_title("IMU Acceleration (Last 10 seconds)")
+        self.ax.set_title("IMU Acceleration")
         self.ax.set_xlabel("Time (s)")
         self.ax.set_ylabel("Acceleration (m/s²)")
         self.ax.grid(True)
@@ -36,16 +45,26 @@ class SensorsPlot(Node):
 
         # Append new IMU acceleration data
         self.time_history.append(time_sec)
-        self.accel_x_history.append(msg.linear_acceleration.x)
-        self.accel_y_history.append(msg.linear_acceleration.y)
-        self.accel_z_history.append(msg.linear_acceleration.z)
-
-        # Remove data older than 10 seconds
-        while self.time_history and self.time_history[0] < time_sec - 10:
-            self.time_history.pop(0)
-            self.accel_x_history.pop(0)
-            self.accel_y_history.pop(0)
-            self.accel_z_history.pop(0)
+        # qx = msg.orientation.x
+        # qy = msg.orientation.y
+        # qz = msg.orientation.z
+        # qw = msg.orientation.w
+        # roll, pitch, yaw = quat2euler([qw, qx, qy, qz])
+        x, y, z = (
+            msg.linear_acceleration.x,
+            msg.linear_acceleration.y,
+            msg.linear_acceleration.z,
+            # roll,
+            # pitch,
+            # yaw,
+            # msg.angular_velocity.x,
+            # msg.angular_velocity.y,
+            # msg.angular_velocity.z,
+        )
+        x, y, z = x + correction[0], y + correction[1], z + correction[2]
+        self.accel_x_history.append(x)
+        self.accel_y_history.append(y)
+        self.accel_z_history.append(z)
 
     def update_plot(self):
         # Clear and redraw the plot with current data
@@ -53,7 +72,23 @@ class SensorsPlot(Node):
         self.ax.plot(self.time_history, self.accel_x_history, "r-", label="Accel X")
         self.ax.plot(self.time_history, self.accel_y_history, "g-", label="Accel Y")
         self.ax.plot(self.time_history, self.accel_z_history, "b-", label="Accel Z")
-        self.ax.set_title("IMU Acceleration (Last 10 seconds)")
+
+        if self.time_history:
+            avg_x = sum(self.accel_x_history) / len(self.accel_x_history)
+            avg_y = sum(self.accel_y_history) / len(self.accel_y_history)
+            avg_z = sum(self.accel_z_history) / len(self.accel_z_history)
+            self.ax.axhline(
+                avg_x, color="r", linestyle="--", label=f"Avg X: {avg_x:.2f}"
+            )
+            self.ax.axhline(
+                avg_y, color="g", linestyle="--", label=f"Avg Y: {avg_y:.2f}"
+            )
+            self.ax.axhline(
+                avg_z, color="b", linestyle="--", label=f"Avg Z: {avg_z:.2f}"
+            )
+            print(f"Average: {avg_x} {avg_y} {avg_z}")
+
+        self.ax.set_title("IMU Acceleration")
         self.ax.set_xlabel("Time (s)")
         self.ax.set_ylabel("Acceleration (m/s²)")
         self.ax.grid(True)
@@ -64,6 +99,7 @@ class SensorsPlot(Node):
         # Use canvas draw and flush_events for non-blocking update
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -76,6 +112,7 @@ def main(args=None):
         node.destroy_node()
         rclpy.shutdown()
         plt.close("all")
+
 
 if __name__ == "__main__":
     main()

@@ -4,6 +4,9 @@ from nav_msgs.msg import Odometry
 import matplotlib.pyplot as plt
 from transforms3d.euler import quat2euler
 
+MIN = -5
+MAX = 5
+
 
 class LocalizationPlot(Node):
     def __init__(self):
@@ -61,7 +64,7 @@ class LocalizationPlot(Node):
         qy = msg.pose.pose.orientation.y
         qz = msg.pose.pose.orientation.z
         qw = msg.pose.pose.orientation.w
-        
+
         # Convert quaternion to euler angles (roll, pitch, yaw)
         roll, pitch, yaw = quat2euler([qw, qx, qy, qz])
 
@@ -110,43 +113,43 @@ class LocalizationPlot(Node):
         self.ax_3d.set_zlabel("Z")
         self.ax_3d.set_title("Robot Position Trajectory")
         # Set fixed limits for 3D plot
-        self.ax_3d.set_xlim([-1, 1])
-        self.ax_3d.set_ylim([-1, 1])
-        self.ax_3d.set_zlim([-1, 1])
+        self.ax_3d.set_xlim([MIN, MAX])
+        self.ax_3d.set_ylim([MIN, MAX])
+        self.ax_3d.set_zlim([MIN, MAX])
 
         # Update individual position plots
         self.ax_x.plot(self.time_history, self.x_history, "r-")
         self.ax_x.set_xlabel("Time (s)")
         self.ax_x.set_ylabel("X Position")
-        self.ax_x.set_ylim([-1, 1])
+        self.ax_x.set_ylim([MIN, MAX])
         self.ax_x.grid(True)
 
         self.ax_y.plot(self.time_history, self.y_history, "g-")
         self.ax_y.set_xlabel("Time (s)")
         self.ax_y.set_ylabel("Y Position")
-        self.ax_y.set_ylim([-1, 1])
+        self.ax_y.set_ylim([MIN, MAX])
         self.ax_y.grid(True)
 
         self.ax_z.plot(self.time_history, self.z_history, "b-")
         self.ax_z.set_xlabel("Time (s)")
         self.ax_z.set_ylabel("Z Position")
-        self.ax_z.set_ylim([-1, 1])
+        self.ax_z.set_ylim([MIN, MAX])
         self.ax_z.grid(True)
 
         # Update orientation plots
-        self.ax_roll.plot(self.time_history, self.roll_history, 'm-')
+        self.ax_roll.plot(self.time_history, self.roll_history, "m-")
         self.ax_roll.set_xlabel("Time (s)")
         self.ax_roll.set_ylabel("Roll (rad)")
         self.ax_roll.set_ylim([-3.14, 3.14])
         self.ax_roll.grid(True)
 
-        self.ax_pitch.plot(self.time_history, self.pitch_history, 'c-')
+        self.ax_pitch.plot(self.time_history, self.pitch_history, "c-")
         self.ax_pitch.set_xlabel("Time (s)")
         self.ax_pitch.set_ylabel("Pitch (rad)")
         self.ax_pitch.set_ylim([-3.14, 3.14])
         self.ax_pitch.grid(True)
 
-        self.ax_yaw.plot(self.time_history, self.yaw_history, 'y-')
+        self.ax_yaw.plot(self.time_history, self.yaw_history, "y-")
         self.ax_yaw.set_xlabel("Time (s)")
         self.ax_yaw.set_ylabel("Yaw (rad)")
         self.ax_yaw.set_ylim([-3.14, 3.14])
