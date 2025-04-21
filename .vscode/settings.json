@@ -84,5 +84,6 @@
   "black-formatter.interpreter": ["/home/ros/env/bin/python"],
   "python.defaultInterpreterPath": "/home/ros/env/bin/python",
   "autoDocstring.docstringFormat": "numpy",
-  "cmake.sourceDirectory": "/workspaces/RoboSub/src/simulation/simulation/custom_gz_plugins"
+  "cmake.sourceDirectory": "/workspaces/RoboSub/src/simulation/simulation/custom_gz_plugins",
+  "remote.autoForwardPorts": false
 }

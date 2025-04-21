@@ -4,6 +4,8 @@ Gazebo is a state of the art simulator for robotics which includes many hydrodyn
 
 ## Installation
 
+### Part 1. Gazebo Installation on MacOS
+
 To install the Gazebo simulator, please follow the following steps:
 
 ```bash
@@ -22,7 +24,7 @@ xcodebuild -version
 ```
 Ensure 16.2 is printed.
 
-## Post Installation
+#### Verify the Installation
 
 Launch the Gazebo server in one terminal:
 ```bash
@@ -34,14 +36,35 @@ gz sim -v 4 -g
 ```
 You should see a Gazebo window with a scene containing various shapes.
 
+### Part 2. Docker <-> Local Bridge Installation
+
+Open a Terminal window from the Terminal app (not VSCode!), and cd into this repository's root.
+
+Then run the following commands:
+```bash
+/opt/homebrew/bin/python3 -m venv .local_venv --system-site-packages
+source .local_venv/bin/activate
+pip install -r local_requirements.txt
+deactivate
+```
+
 ## Running
 
-To Launch our Gazebo world, run:
+Please run these commands in order.
+
+## Part 1. Docker Portion
+
+On a Terminal within VSCode, run the following command:
 ```bash
-export GZ_SIM_RESOURCE_PATH=`pwd`/src/simulation/simulation/models:$GZ_SIM_RESOURCE_PATH
-gz sim -v 4 -s src/simulation/simulation/models/world.urdf
+./sim_docker.sh
 ```
-and in another terminal:
+
+## Part 2. Local Portion
+
+
+Open a Terminal window from the Terminal app (not VSCode!), and cd into this repository's root.
+
+Then run the following command:
 ```bash
-gz sim -v 4 -g
+./sim_local.sh
 ```

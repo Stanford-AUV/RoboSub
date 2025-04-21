@@ -9,53 +9,53 @@
 - ros_topic_name: "gz/thruster_0"
   gz_topic_name: "/model/auv/joint/thruster_0/cmd_thrust"
   ros_type_name: "std_msgs/msg/Float64"
-  gz_type_name: "ignition.msgs.Double"
+  gz_type_name: "gz.msgs.Double"
   direction: ROS_TO_GZ
 
 - ros_topic_name: "gz/thruster_1"
   gz_topic_name: "/model/auv/joint/thruster_1/cmd_thrust"
   ros_type_name: "std_msgs/msg/Float64"
-  gz_type_name: "ignition.msgs.Double"
+  gz_type_name: "gz.msgs.Double"
   direction: ROS_TO_GZ
 
 - ros_topic_name: "gz/thruster_2"
   gz_topic_name: "/model/auv/joint/thruster_2/cmd_thrust"
   ros_type_name: "std_msgs/msg/Float64"
-  gz_type_name: "ignition.msgs.Double"
+  gz_type_name: "gz.msgs.Double"
   direction: ROS_TO_GZ
 
 - ros_topic_name: "gz/thruster_3"
   gz_topic_name: "/model/auv/joint/thruster_3/cmd_thrust"
   ros_type_name: "std_msgs/msg/Float64"
-  gz_type_name: "ignition.msgs.Double"
+  gz_type_name: "gz.msgs.Double"
   direction: ROS_TO_GZ
 
 - ros_topic_name: "gz/thruster_4"
   gz_topic_name: "/model/auv/joint/thruster_4/cmd_thrust"
   ros_type_name: "std_msgs/msg/Float64"
-  gz_type_name: "ignition.msgs.Double"
+  gz_type_name: "gz.msgs.Double"
   direction: ROS_TO_GZ
 
 - ros_topic_name: "gz/thruster_5"
   gz_topic_name: "/model/auv/joint/thruster_5/cmd_thrust"
   ros_type_name: "std_msgs/msg/Float64"
-  gz_type_name: "ignition.msgs.Double"
+  gz_type_name: "gz.msgs.Double"
   direction: ROS_TO_GZ
 
 - ros_topic_name: "gz/thruster_6"
   gz_topic_name: "/model/auv/joint/thruster_6/cmd_thrust"
   ros_type_name: "std_msgs/msg/Float64"
-  gz_type_name: "ignition.msgs.Double"
+  gz_type_name: "gz.msgs.Double"
   direction: ROS_TO_GZ
 
 - ros_topic_name: "gz/thruster_7"
   gz_topic_name: "/model/auv/joint/thruster_7/cmd_thrust"
   ros_type_name: "std_msgs/msg/Float64"
-  gz_type_name: "ignition.msgs.Double"
+  gz_type_name: "gz.msgs.Double"
   direction: ROS_TO_GZ
 
 - ros_topic_name: "gz/imu"
-  gz_topic_name: "imu"
+  gz_topic_name: "/imu"
   ros_type_name: "sensor_msgs/msg/Imu"
   gz_type_name: "gz.msgs.IMU"
   direction: GZ_TO_ROS

@@ -94,12 +94,12 @@
       </plugin>
 
       <!-- Path Visualizer Plugin -->
-      <plugin filename="PathVisualizer" name="Path Visualizer">
+      <!-- <plugin filename="PathVisualizer" name="Path Visualizer">
         <gz-gui>
           <title>Path Visualizer</title>
           <property key="state" type="string">docked</property>
         </gz-gui>
-      </plugin>
+      </plugin> -->
     </gui>
 
     <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu">
