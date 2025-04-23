@@ -18,7 +18,7 @@ class SensorsPlot(Node):
     def __init__(self):
         super().__init__("sensors_plot")
         # Subscribe to the IMU topic (ORS publishes under "/imu")
-        self.imu_sub = self.create_subscription(Imu, "imu", self.imu_callback, 10)
+        self.imu_sub = self.create_subscription(Imu, "/imu/data", self.imu_callback, 10)
 
         # Data histories for a sliding 10-second window
         self.time_history = []
