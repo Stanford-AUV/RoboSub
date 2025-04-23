@@ -20,8 +20,7 @@
     <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster">
     </plugin>
     <plugin filename="gz-sim-buoyancy-system" name="gz::sim::systems::Buoyancy">
-      <uniform_fluid_density>1025</uniform_fluid_density>
-
+      <uniform_fluid_density>1000</uniform_fluid_density>
     </plugin>
 
     <gui fullscreen="0">
@@ -63,17 +62,6 @@
         <service>/world/world_demo/control</service>
         <stats_topic>/world/world_demo/stats</stats_topic>
       </plugin>
-
-      <plugin filename="InteractiveViewControl" name="Interactive View Control">
-        <gz-gui>
-          <property key="resizable" type="bool">false</property>
-          <property key="width" type="double">5</property>
-          <property key="height" type="double">5</property>
-          <property key="state" type="string">floating</property>
-          <property key="showTitleBar" type="bool">false</property>
-        </gz-gui>
-      </plugin>
-
 
       <!-- World statistics -->
       <plugin filename="WorldStats" name="World stats">
@@ -178,7 +166,7 @@
         <namespace>auv</namespace>
         <joint_name>thruster_0</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
-        <fluid_density>1025</fluid_density>
+        <fluid_density>1000</fluid_density>
         <propeller_diameter>0.2</propeller_diameter>
       </plugin>
 
@@ -186,7 +174,7 @@
         <namespace>auv</namespace>
         <joint_name>thruster_1</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
-        <fluid_density>1025</fluid_density>
+        <fluid_density>1000</fluid_density>
         <propeller_diameter>0.2</propeller_diameter>
       </plugin>
 
@@ -194,7 +182,7 @@
         <namespace>auv</namespace>
         <joint_name>thruster_2</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
-        <fluid_density>1025</fluid_density>
+        <fluid_density>1000</fluid_density>
         <propeller_diameter>0.2</propeller_diameter>
       </plugin>
 
@@ -202,7 +190,7 @@
         <namespace>auv</namespace>
         <joint_name>thruster_3</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
-        <fluid_density>1025</fluid_density>
+        <fluid_density>1000</fluid_density>
         <propeller_diameter>0.2</propeller_diameter>
       </plugin>
 
@@ -210,7 +198,7 @@
         <namespace>auv</namespace>
         <joint_name>thruster_4</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
-        <fluid_density>1025</fluid_density>
+        <fluid_density>1000</fluid_density>
         <propeller_diameter>0.2</propeller_diameter>
       </plugin>
 
@@ -218,7 +206,7 @@
         <namespace>auv</namespace>
         <joint_name>thruster_5</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
-        <fluid_density>1025</fluid_density>
+        <fluid_density>1000</fluid_density>
         <propeller_diameter>0.2</propeller_diameter>
       </plugin>
 
@@ -226,7 +214,7 @@
         <namespace>auv</namespace>
         <joint_name>thruster_6</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
-        <fluid_density>1025</fluid_density>
+        <fluid_density>1000</fluid_density>
         <propeller_diameter>0.2</propeller_diameter>
       </plugin>
 
@@ -234,37 +222,38 @@
         <namespace>auv</namespace>
         <joint_name>thruster_7</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
-        <fluid_density>1025</fluid_density>
+        <fluid_density>1000</fluid_density>
         <propeller_diameter>0.2</propeller_diameter>
       </plugin>
 
-      <!-- Hydrodynamics plugin-->
-      <plugin filename="ignition-gazebo-hydrodynamics-system" name="ignition::gazebo::systems::Hydrodynamics">
+      <!-- Revised Hydrodynamics plugin with more balanced parameters -->
+      <plugin filename="gz-sim-hydrodynamics-system" name="gz::sim::systems::Hydrodynamics">
         <link_name>base_link</link_name>
-
-        <!-- Added mass coefficients (simplified) -->
-        <xDotU>-1.0</xDotU>        <!-- Surge added mass -->
-        <yDotV>-1.0</yDotV>        <!-- Sway added mass -->
-        <zDotW>-1.0</zDotW>        <!-- Heave added mass -->
-
-        <!-- Linear damping coefficients -->
-        <xU>-5.0</xU>        <!-- Surge damping -->
-        <yV>-5.0</yV>        <!-- Sway damping -->
-        <zW>-5.0</zW>        <!-- Heave damping -->
-
-        <!-- Quadratic damping coefficients -->
-        <xUabsU>-0.5</xUabsU>        <!-- Surge quadratic damping -->
-        <yVabsV>-0.5</yVabsV>        <!-- Sway quadratic damping -->
-        <zWabsW>-0.5</zWabsW>        <!-- Heave quadratic damping -->
-
-        <!--
-        <kDotP>0</kDotP>
-        <mDotQ>-1.0</mDotQ>  
-        <nDotR>-1.0</nDotR>  
-        <mQabsQ>-0.1</mQabsQ> 
-        <nRabsR>-0.1</nRabsR> 
-        -->
+        <!-- Added-mass derivatives (linear in acceleration) -->
+        <xDotU>-0.05</xDotU>    <!-- Surge acceleration damping: small added mass effect in surge -->
+        <yDotV>-0.2</yDotV>     <!-- Sway acceleration derivative -->
+        <zDotW>-0.2</zDotW>     <!-- Heave acceleration derivative -->
+        <kDotP>-0.5</kDotP>     <!-- Roll acceleration derivative -->
+        <mDotQ>-0.5</mDotQ>     <!-- Pitch acceleration derivative -->
+        <nDotR>-0.5</nDotR>     <!-- Yaw acceleration derivative -->
+        
+        <!-- Quadratic drag coefficients (for velocity squared dependency) -->
+        <xUabsU>-0.65</xUabsU>   <!-- Surge drag coefficient (quadratic term) -->
+        <yVabsV>-0.8</yVabsV>    <!-- Sway drag coefficient (quadratic term) -->
+        <zWabsW>-0.8</zWabsW>    <!-- Heave drag coefficient (quadratic term) -->
+        <kPabsP>-0.5</kPabsP>    <!-- Roll quadratic drag coefficient -->
+        <mQabsQ>-3</mQabsQ>      <!-- Pitch quadratic drag coefficient -->
+        <nRabsR>-3</nRabsR>      <!-- Yaw quadratic drag coefficient -->
+        
+        <!-- Linear drag coefficients (proportional to velocity) -->
+        <xU>-4</xU>            <!-- Surge linear drag coefficient -->
+        <yV>-3</yV>            <!-- Sway linear drag coefficient -->
+        <zW>-10</zW>           <!-- Heave linear drag coefficient -->
+        <kP>0</kP>             <!-- Roll linear drag coefficient; set to zero if quadratic dominates -->
+        <mQ>-1</mQ>            <!-- Pitch linear drag coefficient -->
+        <nR>-1</nR>            <!-- Yaw linear drag coefficient -->
       </plugin>
+
 
     </include>
 

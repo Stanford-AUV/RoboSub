@@ -96,7 +96,7 @@ Contact kevinli7@stanford.edu if you encounter any issues.
 13. Create a new VSCode Terminal (`Terminal` > `New Terminal`).
 14. You should be all set! Proceed to the [building section](#building).
 
-## Building
+## Building 
 
 To build the project, in the VSCode Terminal, run:
 ```bash

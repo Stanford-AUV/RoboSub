@@ -6,6 +6,7 @@ from geometry_msgs.msg import Wrench, WrenchStamped
 from rclpy import Parameter
 from rclpy.node import Node
 from msgs.msg import ThrustsStamped
+from array import array
 
 from control.utils.thrust_generator import (
     thruster_configs_to_TAM_inv,
@@ -81,6 +82,7 @@ class ThrustGenerator(Node):
         thrusts = total_force_to_individual_thrusts(self.TAM_inv, self.wrench)
         msg = ThrustsStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
+        # msg.thrusts = array('d', [1, 1, 0, 0, 0, 0, 0, 0])
         msg.thrusts = thrusts.tolist()
         # self.get_logger().info(f"Publishing wrench {self.wrench}")
         # self.get_logger().info(f"Publishing thrusts {msg.thrusts}")

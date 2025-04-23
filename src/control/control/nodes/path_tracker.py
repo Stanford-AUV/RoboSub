@@ -55,11 +55,11 @@ class PathTracker(Node):
         )
         # Clamp the dot product to avoid domain errors in acos
         dot = max(min(dot, 1.0), -1.0)
-        angle_diff = 0 # 2.0 * math.acos(dot)
+        angle_diff = 2.0 * math.acos(dot)
 
         # If within 0.1 meter threshold *and* orientation difference < 0.1 rad, advance to next waypoint
-        self.get_logger().info(f"Distance: " + str(distance))
-        self.get_logger().info(f"Angle diff: " + str(angle_diff))
+        # self.get_logger().info(f"Distance: " + str(distance))
+        # self.get_logger().info(f"Angle diff: " + str(angle_diff))
         if distance < 0.1 and angle_diff < 0.2:
             self.next_waypoint()
 
