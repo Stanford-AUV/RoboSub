@@ -66,7 +66,7 @@ class Controller(Node):
         super().__init__("controller")
 
         self.state_subscription = self.create_subscription(
-            Odometry, "odometry", self.state_callback, 10
+            Odometry, "/odometry/filtered", self.state_callback, 10
         )
         self.reference_subscription = self.create_subscription(
             Odometry, "path", self.reference_callback, 10

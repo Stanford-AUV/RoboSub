@@ -54,18 +54,6 @@
   gz_type_name: "gz.msgs.Double"
   direction: ROS_TO_GZ
 
-- ros_topic_name: "gz/imu"
-  gz_topic_name: "/imu"
-  ros_type_name: "sensor_msgs/msg/Imu"
-  gz_type_name: "gz.msgs.IMU"
-  direction: GZ_TO_ROS
-
-- ros_topic_name: "gz/depth"
-  gz_topic_name: "/depth"
-  ros_type_name: "ros_gz_interfaces/msg/Altimeter"
-  gz_type_name: "gz.msgs.Altimeter"
-  direction: GZ_TO_ROS
-
 - ros_topic_name: "gz/pose"
   gz_topic_name: "/model/auv/pose"
   ros_type_name: "geometry_msgs/msg/PoseStamped"
