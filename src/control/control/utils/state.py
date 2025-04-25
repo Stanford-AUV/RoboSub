@@ -53,7 +53,10 @@ class Magnitude:
     angle: float
     angular_speed: float
 
-class State():
+    def __gt__(self, other: 'Magnitude'):
+        return self.distance > other.distance and self.speed > other.speed and self.angle > other.angle and self.angular_speed > other.angular_speed
+
+class State:
     """
     Hold the values representing the state of the system.
 
@@ -106,9 +109,6 @@ class State():
             angle=angle_magnitude,
             angular_speed=angular_velocity_magnitude
         )
-
-    def __gt__(self, other: 'Magnitude'):
-        return self.distance > other.distance and self.speed > other.speed and self.angle > other.angle and self.angular_speed > other.angular_speed
     
     @staticmethod
     def from_odometry_msg(msg: Odometry):

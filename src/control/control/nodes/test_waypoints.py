@@ -1,11 +1,11 @@
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Path
-from geometry_msgs.msg import PoseStamped, Twist
-from msgs.msg import GeneratedPath  # Custom message import
+from geometry_msgs.msg import PoseStamped
+from msgs.srv import GetWaypoints
 from rclpy import Parameter
 import random
-import time
+import os
 import json
 
 from scipy.spatial.transform import Rotation
@@ -14,36 +14,22 @@ from scipy.spatial.transform import Rotation
 class WaypointTest(Node):
     def __init__(self):
         super().__init__("test_waypoints")
-
-        self.declare_parameter("waypoints_topic", "path")
-        self.declare_parameter("history_depth", Parameter.Type.INTEGER)
-
-        history_depth = (
-            self.get_parameter("history_depth").get_parameter_value().integer_value
-        )
-
-        self.waypoints_publisher = self.create_publisher(
-            Path, "waypoints", history_depth
-        )
-
-        self.generated_path_subscriber = self.create_subscription(
-            GeneratedPath, "generated_path", self.generated_path_callback, history_depth
-        )  # Create test waypoints node
-
         self.get_logger().info("WaypointTest node has been started.")
+        self.waypoints_srv = self.create_service(GetWaypoints, 'get_waypoints', self.get_waypoints)
 
-        self.timer = self.create_timer(5, self.publish)
-
-        self.get_logger().info("WaypointTest node has been tested.")
-
-    def publish(self):
-        # self.publish_random_waypoints()
+    def get_waypoints(self, request: GetWaypoints.Request, response: GetWaypoints.Response):
+        # waypoints = self.get_random_waypoints()
         # Uncomment below to read from JSON file
-        self.publish_waypoints_from_json(
-            "/workspaces/RoboSub/src/planning/planning/nodes/test_waypoints.json"
+        waypoints = self.get_waypoints_from_json(
+            os.path.join(os.path.dirname(__file__), "test_waypoints.json")
         )
+        if waypoints is None:
+            self.get_logger().error("Failed to get waypoints from JSON file.")
+        else:
+            response.waypoints = waypoints
+        return response
 
-    def publish_random_waypoints(self):
+    def get_random_waypoints(self):
         # Create a GivenPath message
         path_msg = Path()
         path_msg.header.frame_id = "map"
@@ -81,14 +67,10 @@ class WaypointTest(Node):
             # path_msg.twists.append(twist)
 
         # Publish the GivenPath message
-        self.waypoints_publisher.publish(path_msg)
-        self.get_logger().info(f"Published {num_waypoints} random waypoints.")
+        self.get_logger().info(f"Got {num_waypoints} random waypoints.")
+        return path_msg
 
-    def generated_path_callback(self, msg: GeneratedPath):
-        self.get_logger().info("Received generated path! Here it is:")
-        self.get_logger().info(f"{msg}")
-
-    def publish_waypoints_from_json(self, json_file_path):
+    def get_waypoints_from_json(self, json_file_path):
         try:
             with open(json_file_path, "r") as f:
                 data = json.load(f)
@@ -126,8 +108,8 @@ class WaypointTest(Node):
                 path_msg.poses.append(pose_stamped)
 
             # Publish the path message
-            self.waypoints_publisher.publish(path_msg)
-            self.get_logger().info("Published waypoints from JSON file.")
+            self.get_logger().info("Got waypoints from JSON file.")
+            return path_msg
 
         except FileNotFoundError:
             self.get_logger().error(f"File not found: {json_file_path}")
