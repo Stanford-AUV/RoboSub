@@ -26,6 +26,7 @@ endif()
 find_package(geometry_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(nmea_msgs REQUIRED)
 find_package(mavros_msgs REQUIRED)
@@ -44,7 +45,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/DVLVelocity.msg"
   "msg/Detection3DPoints.msg"
   "msg/Detection3DPointsArray.msg"
-  DEPENDENCIES geometry_msgs vision_msgs sensor_msgs nmea_msgs mavros_msgs std_msgs
+  "srv/GetWaypoints.srv"
+  DEPENDENCIES geometry_msgs vision_msgs sensor_msgs nav_msgs nmea_msgs mavros_msgs std_msgs
 )
 
 ament_package()

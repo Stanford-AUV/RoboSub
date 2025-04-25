@@ -18,9 +18,30 @@ def generate_launch_description():
                 executable="controller",
                 parameters=[global_params],
             ),
+            # Run either A or B
+            # START A
+            # Node(
+            #     package="control",
+            #     executable="test_controller",
+            #     parameters=[global_params],
+            # ),
+            # END A
+            # START B
+            # Path generator currently disabled, but would need to be inserted here
             Node(
                 package="control",
-                executable="sim_tester",
+                executable="test_waypoints",
+                parameters=[global_params],
+            ),
+            Node(
+                package="control",
+                executable="path_tracker",
+                parameters=[global_params],
+            ),
+            # END B
+            Node(
+                package="control",
+                executable="logger",
                 parameters=[global_params],
             ),
         ]

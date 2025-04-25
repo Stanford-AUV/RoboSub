@@ -1,73 +1,65 @@
 // See https://aka.ms/vscode-remote/devcontainer.json for format details.
 {
-	"dockerFile": "Dockerfile",
-	"build": {
-		"args": {
-			"WORKSPACE": "${containerWorkspaceFolder}"
-		}
-	},
-	"remoteUser": "ros",
-	"runArgs": [
-		"--privileged",
-		"--network=host",
-		"--cap-add=SYS_PTRACE",
-		"--security-opt=seccomp:unconfined",
-		"--security-opt=apparmor:unconfined",
-		"--volume=/tmp/.X11-unix:/tmp/.X11-unix",
-		"--volume=/mnt/wslg:/mnt/wslg",
-		"--ipc=host",
-		"--privileged",
-		"--volume=/dev/bus/usb:/dev/bus/usb",
-		"--volume=/dev/ttyACM0:/dev/ttyACM0",
-		"--volume=/dev/ttyACM1:/dev/ttyACM1",
-		"--volume=/dev/ttyACM2:/dev/ttyACM2",
-		"--volume=/dev/ttyACM3:/dev/ttyACM3",
-		"--volume=/dev/ttyACM4:/dev/ttyACM4",
-		"--volume=/dev/ttyACM5:/dev/ttyACM5",
-		"--volume=/dev/ttyUSB_teensy:/dev/ttyUSB_teensy",
-		"--volume=/dev/ttyUSB0:/dev/ttyUSB0",
-		"--volume=/dev/ttyUSB1:/dev/ttyUSB1",
-		"--volume=/dev/ttyUSB2:/dev/ttyUSB2",
-		"--volume=/dev/ttyUSB3:/dev/ttyUSB3",
-		"--volume=/dev/ttyUSB4:/dev/ttyUSB4",
-		"--volume=/dev/ttyUSB5:/dev/ttyUSB5",
-		"--device-cgroup-rule=c 189:* rmw"
-		// uncomment to use intel iGPU
-		// "--device=/dev/dri"
-	],
-	"mounts": [
-		"source=/dev,target=/dev,type=bind,consistency=cached",
-		"source=/lib/modules,target=/lib/modules,type=bind,consistency=cached",
-		"source=/usr/src,target=/usr/src,type=bind,consistency=cached",
-		"source=/run/udev,target=/run/udev,type=bind,consistency=cached"
-	],
-	"containerEnv": {
-		"DISPLAY": "${localEnv:DISPLAY}", // Needed for GUI try ":0" for windows
-		"WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
-		"XDG_RUNTIME_DIR": "${localEnv:XDG_RUNTIME_DIR}",
-		"PULSE_SERVER": "${localEnv:PULSE_SERVER}",
-		"LIBGL_ALWAYS_SOFTWARE": "1" // Needed for software rendering of opengl
-	},
-	// Set *default* container specific settings.json values on container create.
-	"customizations": {
-		"vscode": {
-			"extensions": [
-				"althack.ament-task-provider",
-				"betwo.b2-catkin-tools",
-				"DotJoshJohnson.xml",
-				"ms-azuretools.vscode-docker",
-				"ms-iot.vscode-ros",
-				"ms-python.black-formatter",
-				"ms-python.python",
-				"ms-vscode.cpptools",
-				"redhat.vscode-yaml",
-				"smilerobotics.urdf",
-				"streetsidesoftware.code-spell-checker",
-				"twxs.cmake",
-				"yzhang.markdown-all-in-one",
-				"zachflower.uncrustify",
-				"njpwerner.autodocstring"
-			]
-		}
-	}
+  "dockerFile": "Dockerfile",
+  "build": {
+    "args": {
+      "WORKSPACE": "${containerWorkspaceFolder}"
+    }
+  },
+  "remoteUser": "ros",
+  "runArgs": [
+    "--publish=8765:8765",
+    "--cap-add=SYS_PTRACE",
+    "--security-opt=seccomp:unconfined",
+    "--security-opt=apparmor:unconfined",
+    "--ipc=host",
+    "--privileged",
+    "--volume=/tmp/.X11-unix:/tmp/.X11-unix",
+    "--volume=/dev/bus/usb:/dev/bus/usb",
+    "--volume=/dev/ttyACM0:/dev/ttyACM0",
+    "--volume=/dev/ttyACM1:/dev/ttyACM1",
+    "--volume=/dev/ttyACM2:/dev/ttyACM2",
+    "--volume=/dev/ttyACM3:/dev/ttyACM3",
+    "--volume=/dev/ttyACM4:/dev/ttyACM4",
+    "--volume=/dev/ttyACM5:/dev/ttyACM5",
+    "--volume=/dev/ttyUSB_teensy:/dev/ttyUSB_teensy",
+    "--volume=/dev/ttyUSB0:/dev/ttyUSB0",
+    "--volume=/dev/ttyUSB1:/dev/ttyUSB1",
+    "--volume=/dev/ttyUSB2:/dev/ttyUSB2",
+    "--volume=/dev/ttyUSB3:/dev/ttyUSB3",
+    "--volume=/dev/ttyUSB4:/dev/ttyUSB4",
+    "--volume=/dev/ttyUSB5:/dev/ttyUSB5",
+    "--device-cgroup-rule=c 189:* rmw"
+    // uncomment to use intel iGPU
+    // "--device=/dev/dri"
+  ],
+  "containerEnv": {
+    "DISPLAY": "${localEnv:DISPLAY}", // Needed for GUI try ":0" for windows
+    "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
+    "XDG_RUNTIME_DIR": "${localEnv:XDG_RUNTIME_DIR}",
+    "PULSE_SERVER": "${localEnv:PULSE_SERVER}",
+    "LIBGL_ALWAYS_SOFTWARE": "1" // Needed for software rendering of opengl
+  },
+  // Set *default* container specific settings.json values on container create.
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "althack.ament-task-provider",
+        "betwo.b2-catkin-tools",
+        "DotJoshJohnson.xml",
+        "ms-azuretools.vscode-docker",
+        "ms-iot.vscode-ros",
+        "ms-python.black-formatter",
+        "ms-python.python",
+        "ms-vscode.cpptools",
+        "redhat.vscode-yaml",
+        "smilerobotics.urdf",
+        "streetsidesoftware.code-spell-checker",
+        "twxs.cmake",
+        "yzhang.markdown-all-in-one",
+        "zachflower.uncrustify",
+        "njpwerner.autodocstring"
+      ]
+    }
+  }
 }

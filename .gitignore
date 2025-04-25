@@ -121,8 +121,8 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
 .venv
+.local_venv
 env/
 venv/
 ENV/
@@ -167,3 +167,6 @@ site/
 out/
 
 mtsdk_linux-x64_2025.0.sh
+
+# DS Store
+.DS_Store

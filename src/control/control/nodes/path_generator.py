@@ -8,13 +8,14 @@ from rclpy import Parameter
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from planning.utils.create_path import create_path
+from control.utils.create_path import create_path
+
 
 class PathGenerator(Node):
     def __init__(self):
-        super().__init__('path_generator')
+        super().__init__("path_generator")
 
-        self.declare_parameter('waypoints_topic', 'waypoints')
+        self.declare_parameter("waypoints_topic", "waypoints")
         self.declare_parameter("history_depth", Parameter.Type.INTEGER)
 
         history_depth = (
@@ -23,7 +24,7 @@ class PathGenerator(Node):
 
         self.waypoints_subscriber = self.create_subscription(
             Path, "waypoints", self.waypoints_callback, history_depth
-        ) # Create test waypoints node 
+        )  # Create test waypoints node
 
         self.generated_path_publisher = self.create_publisher(
             GeneratedPath, "generated_path", history_depth
@@ -50,10 +51,15 @@ class PathGenerator(Node):
 
             # Extract orientations in quaternion form
             orientation_q = pose_stamped.pose.orientation
-            quaternion = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
+            quaternion = [
+                orientation_q.x,
+                orientation_q.y,
+                orientation_q.z,
+                orientation_q.w,
+            ]
 
             # Convert quaternion to Euler angles
-            euler = Rotation.from_quat(quaternion).as_euler('xyz', degrees=True)
+            euler = Rotation.from_quat(quaternion).as_euler("xyz", degrees=True)
             roll_angles.append(euler[0])  # x Euler angle (roll)
             pitch_angles.append(euler[1])  # y Euler angle (pitch)
             yaw_angles.append(euler[2])  # z Euler angle (yaw)
@@ -66,11 +72,35 @@ class PathGenerator(Node):
         pitch_angles = np.array(pitch_angles)
         yaw_angles = np.array(yaw_angles)
 
-        positions, velocities, accelerations, orientations, angular_velocities, angular_accelerations = create_path(x_positions, y_positions, z_positions, roll_angles, pitch_angles, yaw_angles)
+        (
+            positions,
+            velocities,
+            accelerations,
+            orientations,
+            angular_velocities,
+            angular_accelerations,
+        ) = create_path(
+            x_positions, y_positions, z_positions, roll_angles, pitch_angles, yaw_angles
+        )
 
-        self.publish_generated_path(positions, velocities, accelerations, orientations, angular_velocities, angular_accelerations)
+        self.publish_generated_path(
+            positions,
+            velocities,
+            accelerations,
+            orientations,
+            angular_velocities,
+            angular_accelerations,
+        )
 
-    def publish_generated_path(self, positions, velocities, accelerations, orientations, angular_velocities, angular_accelerations):
+    def publish_generated_path(
+        self,
+        positions,
+        velocities,
+        accelerations,
+        orientations,
+        angular_velocities,
+        angular_accelerations,
+    ):
         # NOTE: Positional shapes are n by 3, rotational shapes are 3 by n
         self.get_logger().info("Generated path, sending back...")
 
@@ -90,7 +120,9 @@ class PathGenerator(Node):
             pose_stamped.pose.position.z = positions[2][i]
 
             # Convert orientation (roll, pitch, yaw) back to quaternion for the Pose message
-            orientation_quat = Rotation.from_euler('xyz', orientations[i], degrees=True).as_quat()
+            orientation_quat = Rotation.from_euler(
+                "xyz", orientations[i], degrees=True
+            ).as_quat()
             pose_stamped.pose.orientation.x = orientation_quat[0]
             pose_stamped.pose.orientation.y = orientation_quat[1]
             pose_stamped.pose.orientation.z = orientation_quat[2]
@@ -113,7 +145,8 @@ class PathGenerator(Node):
 
         # Publish the generated path
         self.generated_path_publisher.publish(generated_path)
-        self.get_logger().info("Published generated path with poses and twists.")        
+        self.get_logger().info("Published generated path with poses and twists.")
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -122,5 +155,6 @@ def main(args=None):
     node.destroy_node()
     rclpy.shutdown()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
