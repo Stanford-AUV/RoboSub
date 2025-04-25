@@ -8,7 +8,7 @@ from rclpy import Parameter
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from planning.utils.create_path import create_path
+from control.utils.create_path import create_path
 
 
 class PathGenerator(Node):

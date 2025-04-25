@@ -13,7 +13,7 @@ from scipy.spatial.transform import Rotation
 
 class WaypointTest(Node):
     def __init__(self):
-        super().__init__("waypoint_test")
+        super().__init__("test_waypoints")
 
         self.declare_parameter("waypoints_topic", "path")
         self.declare_parameter("history_depth", Parameter.Type.INTEGER)

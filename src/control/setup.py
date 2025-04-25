@@ -26,8 +26,10 @@ setup(
             "path_tracker = control.nodes.path_tracker:main",
             "test_path = control.nodes.test_path:main",
             "logger = control.nodes.logger:main",
-            "sim_tester = control.nodes.sim_tester:main",
+            "test_control = control.nodes.test_control:main",
             "test_thrust = control.nodes.test_thrust:main",
+            "path_generator = control.nodes.path_generator:main",
+            "test_waypoints = control.nodes.test_waypoints:main",
         ]
     },
 )

@@ -28,6 +28,16 @@ def generate_launch_description():
                 executable="sim_tester",
                 parameters=[global_params],
             ),
+            # Node(
+            #     package="planning",
+            #     executable="path_generator",
+            #     parameters=[global_params],
+            # ),
+            # Node(
+            #     package="planning",
+            #     executable="test_waypoints",
+            #     parameters=[global_params],
+            # )
             Node(
                 package="control",
                 executable="logger",
