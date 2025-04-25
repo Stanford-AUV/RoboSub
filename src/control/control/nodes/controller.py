@@ -31,6 +31,7 @@ from control.utils.pid import PID
 from control.utils.state import State
 
 from geometry_msgs.msg import WrenchStamped
+from spatialmath.quaternion import UnitQuaternion
 
 from nav_msgs.msg import Odometry
 
@@ -69,7 +70,7 @@ class Controller(Node):
             Odometry, "/odometry/filtered", self.state_callback, 10
         )
         self.reference_subscription = self.create_subscription(
-            Odometry, "path", self.reference_callback, 10
+            Odometry, "waypoint", self.reference_callback, 10
         )
         self.control_publisher = self.create_publisher(WrenchStamped, "wrench", 10)
 
@@ -99,7 +100,6 @@ class Controller(Node):
         """
         with self.lock:
             self.cur_state = State.from_odometry_msg(msg)
-            self.get_logger().info("Current state updated")
             self.update() if self.ref_state is not None else None
 
     def reference_callback(self, msg: Odometry):
@@ -113,7 +113,7 @@ class Controller(Node):
         """
         with self.lock:
             self.ref_state = State.from_odometry_msg(msg)
-            # self.get_logger().info('Reference state updated')
+            self.get_logger().info("Reference state updated")
 
     def update(self):
         """Update the control signal and publish to the wrench topic."""
@@ -130,8 +130,8 @@ def main(args=None):
     rclpy.init(args=args)
 
     pid = PID(
-        kP_position=np.array([0.5, 0, 0]),
-        kD_position=np.array([0, 0, 0]),
+        kP_position=np.array([5, 5, 5]),
+        kD_position=np.array([11, 11, 11]),
         kI_position=np.array([0, 0, 0]),
         kP_orientation=np.array([0, 0, 0]),
         kD_orientation=np.array([0, 0, 0]),
