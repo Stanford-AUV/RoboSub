@@ -3,10 +3,10 @@ from nav_msgs.msg import Odometry
 import rclpy
 from rclpy.node import Node
 
-class TestControl(Node):
+class TestController(Node):
 
     def __init__(self):
-        super().__init__('test_control')
+        super().__init__('test_controller')
         self.path_publisher = self.create_publisher(Odometry, 'waypoint', 10)
         self.timer = self.create_timer(1.0, self.publish_path)  # Timer to publish every 1 second
         self.x_position = 1.0  # Initial x position
@@ -29,7 +29,7 @@ class TestControl(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    test_path = TestControl()
+    test_path = TestController()
     rclpy.spin(test_path)
     test_path.destroy_node()
     rclpy.shutdown()

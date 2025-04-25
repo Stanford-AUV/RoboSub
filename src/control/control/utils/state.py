@@ -44,6 +44,14 @@ import numpy as np
 
 import spatialmath as sm
 
+from dataclasses import dataclass
+
+@dataclass
+class Magnitude:
+    distance: float
+    speed: float
+    angle: float
+    angular_speed: float
 
 class State():
     """
@@ -55,31 +63,53 @@ class State():
     """
 
     def __init__(self,
-                 position_world: np.ndarray,
-                 velocity_body: np.ndarray,
-                 orientation_world: sm.SE3,
-                 angular_velocity_body: np.ndarray):
+                 position: np.ndarray,
+                 velocity: np.ndarray,
+                 orientation: sm.SE3,
+                 angular_velocity: np.ndarray):
         """
         Initialize a State object.
 
         Parameters
         ----------
-        position_world : np.ndarray
-            A 3-vector representing the position of the robot in the world.
-        velocity_body : np.ndarray
-            A 3-vector representing the velocity of the robot in the body
-            frame.
-        orientation_world : np.ndarray
-            A 4-vector representing the orientation of the robot in the world.
-        angular_velocity_body : np.ndarray
-            A 3-vector representing the angular velocity of the robot in the
-            body frame.
+        position : np.ndarray
+            A 3-vector representing the position of the robot in the world frame.
+        velocity : np.ndarray
+            A 3-vector representing the velocity of the robot in the world frame.
+        orientation : np.ndarray
+            A 4-vector representing the orientation of the robot in the world frame.
+        angular_velocity : np.ndarray
+            A 3-vector representing the angular velocity of the robot in the world frame.
         """
-        self.position_world = position_world
-        self.velocity_body = velocity_body
-        self.orientation_world = orientation_world
-        self.angular_velocity_body = angular_velocity_body
+        self.position = position
+        self.velocity = velocity
+        self.orientation = orientation
+        self.angular_velocity = angular_velocity
 
+    def __sub__(self, other: 'State'):
+        return State(
+            self.position - other.position,
+            self.velocity - other.velocity,
+            self.orientation * other.orientation.inv(),
+            self.angular_velocity - other.angular_velocity
+        )
+    
+    def magnitude(self):
+        position_magnitude = np.linalg.norm(self.position)
+        velocity_magnitude = np.linalg.norm(self.velocity)
+        angle, _ = self.orientation.angvec()
+        angle_magnitude = np.linalg.norm(angle)
+        angular_velocity_magnitude = np.linalg.norm(self.angular_velocity)
+        return Magnitude(
+            distance=position_magnitude,
+            speed=velocity_magnitude,
+            angle=angle_magnitude,
+            angular_speed=angular_velocity_magnitude
+        )
+
+    def __gt__(self, other: 'Magnitude'):
+        return self.distance > other.distance and self.speed > other.speed and self.angle > other.angle and self.angular_speed > other.angular_speed
+    
     @staticmethod
     def from_odometry_msg(msg: Odometry):
         """
@@ -90,21 +120,21 @@ class State():
         msg : Odometry
             Odometry message containing the state information.
         """
-        position_world = np.array(
+        position = np.array(
             [
                 msg.pose.pose.position.x,
                 msg.pose.pose.position.y,
                 msg.pose.pose.position.z,
             ]
         )
-        velocity_body = np.array(
+        velocity = np.array(
             [
                 msg.twist.twist.linear.x,
                 msg.twist.twist.linear.y,
                 msg.twist.twist.linear.z,
             ]
         )
-        orientation_world = sm.UnitQuaternion(
+        orientation = sm.UnitQuaternion(
             s=msg.pose.pose.orientation.w,
             v=[
                 msg.pose.pose.orientation.x,
@@ -112,7 +142,7 @@ class State():
                 msg.pose.pose.orientation.z,
             ]
         )
-        angular_velocity_body = np.array(
+        angular_velocity = np.array(
             [
                 msg.twist.twist.angular.x,
                 msg.twist.twist.angular.y,
@@ -121,10 +151,10 @@ class State():
         )
 
         return State(
-            position_world,
-            velocity_body,
-            orientation_world,
-            angular_velocity_body
+            position,
+            velocity,
+            orientation,
+            angular_velocity
         )
 
     @staticmethod
@@ -143,21 +173,21 @@ class State():
             reference state.
             Default: 0
         """
-        position_world = np.array(
+        position = np.array(
             [
                 msg.poses[index].pose.position.x,
                 msg.poses[index].pose.position.y,
                 msg.poses[index].pose.position.z,
             ]
         )
-        velocity_body = np.array(
+        velocity = np.array(
             [
                 msg.twists[index].twist.linear.x,
                 msg.twists[index].twist.linear.y,
                 msg.twists[index].twist.linear.z,
             ]
         )
-        orientation_world = sm.SE3.Quaternion(
+        orientation = sm.SE3.Quaternion(
             s=msg.poses[index].pose.orientation.w,
             v=[
                 msg.poses[index].pose.orientation.x,
@@ -165,7 +195,7 @@ class State():
                 msg.poses[index].pose.orientation.z,
             ]
         )
-        angular_velocity_body = np.array(
+        angular_velocity = np.array(
             [
                 msg.twists[index].twist.angular.x,
                 msg.twists[index].twist.angular.y,
@@ -174,8 +204,8 @@ class State():
         )
 
         return State(
-            position_world,
-            velocity_body,
-            orientation_world,
-            angular_velocity_body
+            position,
+            velocity,
+            orientation,
+            angular_velocity
         )

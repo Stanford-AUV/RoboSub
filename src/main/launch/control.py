@@ -18,16 +18,20 @@ def generate_launch_description():
                 executable="controller",
                 parameters=[global_params],
             ),
+            # Run either A or B
+            # START A
             Node(
                 package="control",
-                executable="path_tracker",
+                executable="test_controller",
                 parameters=[global_params],
             ),
-            Node(
-                package="control",
-                executable="sim_tester",
-                parameters=[global_params],
-            ),
+            # END A
+            # START B
+            # Node(
+            #     package="control",
+            #     executable="path_tracker",
+            #     parameters=[global_params],
+            # ),
             # Node(
             #     package="planning",
             #     executable="path_generator",
@@ -38,6 +42,7 @@ def generate_launch_description():
             #     executable="test_waypoints",
             #     parameters=[global_params],
             # )
+            # END B
             Node(
                 package="control",
                 executable="logger",
