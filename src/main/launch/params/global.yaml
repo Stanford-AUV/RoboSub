@@ -51,7 +51,6 @@
                   false, false, false, # x_vel   , y_vel    , z_vel,
                   true, true, true,    # roll_vel, pitch_vel, yaw_vel,
                   true, true, true]    # x_accel , y_accel  , z_accel
-
     # Should be false for since measurements are not incrementing
     imu0_differential: false
     # Should measurements start at 0?
@@ -61,7 +60,6 @@
     imu0_remove_gravitational_acceleration: true
 
     twist0: "/dvl/twist_sync"
-
     twist0_config: [false, false, false, # x_pos   , y_pos    , z_pos,
                     false, false, false, # roll    , pitch    , yaw,
                     true, true, true,    # x_vel   , y_vel    , z_vel,

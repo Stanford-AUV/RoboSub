@@ -4,6 +4,9 @@ from sensor_msgs.msg import Imu
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
+NO_IMU_POSITION = False
+NO_IMU_ROTATION = False
+
 
 def quaternion_matrix(quaternion):
     """Convert quaternion to a homogeneous 4×4 rotation matrix."""
@@ -30,7 +33,7 @@ class IMU(Node):
         )
 
         # 4×4 Transformation matrix (includes homogeneous coordinates)
-        self.T = np.array([[0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+        self.T = np.array([[0, 0, -1, 0], [-1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 0, 1]])
 
         self._imu_pub = self.create_publisher(Imu, "imu", 10)
 
@@ -56,19 +59,30 @@ class IMU(Node):
         # Normalize quaternion to avoid numerical drift
         transformed_q /= np.linalg.norm(transformed_q)
 
-        transformed_msg.orientation.x = transformed_q[0]
-        transformed_msg.orientation.y = transformed_q[1]
-        transformed_msg.orientation.z = transformed_q[2]
-        transformed_msg.orientation.w = transformed_q[3]
+        if NO_IMU_ROTATION:
+            transformed_msg.orientation.x = 0
+            transformed_msg.orientation.y = 0
+            transformed_msg.orientation.z = 0
+            transformed_msg.orientation.w = 1
+        else:
+            transformed_msg.orientation.x = transformed_q[0]
+            transformed_msg.orientation.y = transformed_q[1]
+            transformed_msg.orientation.z = transformed_q[2]
+            transformed_msg.orientation.w = transformed_q[3]
 
         # Transform angular velocity
         angular_velocity = np.array(
             [msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z]
         )
         transformed_angular_velocity = self.T[:3, :3] @ angular_velocity
-        transformed_msg.angular_velocity.x = transformed_angular_velocity[0]
-        transformed_msg.angular_velocity.y = transformed_angular_velocity[1]
-        transformed_msg.angular_velocity.z = transformed_angular_velocity[2]
+        if NO_IMU_ROTATION:
+            transformed_msg.angular_velocity.x = 0
+            transformed_msg.angular_velocity.y = 0
+            transformed_msg.angular_velocity.z = 0
+        else:
+            transformed_msg.angular_velocity.x = transformed_angular_velocity[0]
+            transformed_msg.angular_velocity.y = transformed_angular_velocity[1]
+            transformed_msg.angular_velocity.z = transformed_angular_velocity[2]
 
         # Transform linear acceleration
         linear_acceleration = np.array(
@@ -79,9 +93,14 @@ class IMU(Node):
             ]
         )
         transformed_linear_acceleration = self.T[:3, :3] @ linear_acceleration
-        transformed_msg.linear_acceleration.x = transformed_linear_acceleration[0]
-        transformed_msg.linear_acceleration.y = transformed_linear_acceleration[1]
-        transformed_msg.linear_acceleration.z = transformed_linear_acceleration[2]
+        if NO_IMU_POSITION:
+            transformed_msg.linear_acceleration.x = 0
+            transformed_msg.linear_acceleration.y = 0
+            transformed_msg.linear_acceleration.z = 0
+        else:
+            transformed_msg.linear_acceleration.x = transformed_linear_acceleration[0]
+            transformed_msg.linear_acceleration.y = transformed_linear_acceleration[1]
+            transformed_msg.linear_acceleration.z = transformed_linear_acceleration[2]
 
         return transformed_msg
 

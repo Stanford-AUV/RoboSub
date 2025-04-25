@@ -159,3 +159,5 @@ cd ~/GitHub/xsens_mt
 sudo modprobe usbserial
 sudo insmod ./xsens_mt.ko
 ```
+
+Additionally, make sure the DVL is unplugged if running the IMU while the Orin is wall powered instead of battery powered.
