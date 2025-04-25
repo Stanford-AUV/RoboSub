@@ -33,7 +33,8 @@ class IMU(Node):
         )
 
         # 4×4 Transformation matrix (includes homogeneous coordinates)
-        self.T = np.array([[0, 0, -1, 0], [-1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 0, 1]])
+        self.T_rot = np.array([[0, 0, 1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
+        self.T_lin = np.array([[0, 0, 1, 0], [1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 0, 1]])
 
         self._imu_pub = self.create_publisher(Imu, "imu", 10)
 
@@ -53,7 +54,7 @@ class IMU(Node):
             [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w]
         )
         q_matrix = quaternion_matrix(q)  # Get 4×4 rotation matrix
-        transformed_q_matrix = self.T @ q_matrix @ self.T.T  # Apply transformation
+        transformed_q_matrix = self.T_rot @ q_matrix @ self.T_rot.T  # Apply transformation
         transformed_q = quaternion_from_matrix(transformed_q_matrix)
 
         # Normalize quaternion to avoid numerical drift
@@ -74,7 +75,7 @@ class IMU(Node):
         angular_velocity = np.array(
             [msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z]
         )
-        transformed_angular_velocity = self.T[:3, :3] @ angular_velocity
+        transformed_angular_velocity = self.T_rot[:3, :3] @ angular_velocity
         if NO_IMU_ROTATION:
             transformed_msg.angular_velocity.x = 0
             transformed_msg.angular_velocity.y = 0
@@ -92,7 +93,7 @@ class IMU(Node):
                 msg.linear_acceleration.z,
             ]
         )
-        transformed_linear_acceleration = self.T[:3, :3] @ linear_acceleration
+        transformed_linear_acceleration = self.T_lin[:3, :3] @ linear_acceleration
         if NO_IMU_POSITION:
             transformed_msg.linear_acceleration.x = 0
             transformed_msg.linear_acceleration.y = 0

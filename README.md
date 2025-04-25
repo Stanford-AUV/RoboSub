@@ -216,7 +216,7 @@ sudo chmod a+rw /dev/ttyACM0
 
 If this concerns the IMU, make sure to run from the Orin Terminal (not the Docker container):
 ```bash
-cd ~/GitHub/xsens_mt
+cd ~/GitHub/xsens_mt (or the xsens_mt directory in general)
 sudo modprobe usbserial
 sudo insmod ./xsens_mt.ko
 ```
