@@ -1,0 +1,89 @@
+/**:
+  ros__parameters:
+    timer_period: 0.01
+    history_depth: 10
+    thruster_count: 8
+/thrust_generator:
+  ros__parameters:
+    # Thruster positions in body frame
+    thruster_positions:
+      thruster_0: [+0.2025, +0.1825, +0.0925]
+      thruster_1: [+0.2025, -0.1825, +0.0925]
+      thruster_2: [-0.2025, +0.1825, +0.0925]
+      thruster_3: [-0.2025, -0.1825, +0.0925]
+      thruster_4: [+0.115, +0.165, -0.0925]
+      thruster_5: [+0.115, -0.165, -0.0925]
+      thruster_6: [-0.115, +0.165, -0.0925]
+      thruster_7: [-0.115, -0.165, -0.0925]
+    # Thruster orientations (pointing in the direction of positive thrust; z axis can be changed accordingly)
+    # Blue is CCW, red is CW in sim
+    thruster_orientations:
+      thruster_0: [-1, +1, 0] # Top front left (CCW from back)
+      thruster_1: [-1, -1, 0] # Top front right (CCW from back)
+      thruster_2: [+1, +1, 0] # Top back left (CW viewed from back)
+      thruster_3: [+1, -1, 0] # Top back right (CW back)
+      thruster_4: [0, 0, +1] # Bottom front left (CCW from top)
+      thruster_5: [0, 0, +1] # Bottom front right (CCW from top)
+      thruster_6: [0, 0, -1] # Bottom back left (CW from top)
+      thruster_7: [0, 0, +1] # Bottom back right (CCW from top)
+/ekf_filter_node:
+  ros__parameters:
+    print_diagnostics: true
+
+    # See https://stanfordstudentrobo.slack.com/files/U04ULBF9ZUM/F08ELRVKF6F/ekf_params.yaml
+    world_frame: "odom"
+    odom_frame: "odom"
+    base_link_frame: "base_link"
+    permit_corrected_publication: false
+
+    # The frequency, in Hz, at which the filter will output a position estimate. Note that the
+    # filter will not begin computation until it receives at least one message from one of the
+    # inputs. It will then run continuously at the frequency specified here, regardless of whether
+    # it receives more measurements. Defaults to 30 if unspecified.
+    frequency: 10.0
+    sensor_timeout: 0.2
+
+    imu0:
+      "/imu/data_sync" # Separating twists + accel. here versus velocity on pose_sync as
+      # as suggested by the localization package
+    imu0_config: [false, false, false, # x_pos   , y_pos    , z_pos,
+                  false, false, false, # roll    , pitch    , yaw,
+                  false, false, false, # x_vel   , y_vel    , z_vel,
+                  true, true, true,    # roll_vel, pitch_vel, yaw_vel,
+                  true, true, true]    # x_accel , y_accel  , z_accel
+
+    # Should be false for since measurements are not incrementing
+    imu0_differential: false
+    # Should measurements start at 0?
+    imu0_relative: false
+    imu0_queue_size: 100
+    # Yes because underwater
+    imu0_remove_gravitational_acceleration: true
+
+    twist0: "/dvl/twist_sync"
+
+    twist0_config: [false, false, false, # x_pos   , y_pos    , z_pos,
+                    false, false, false, # roll    , pitch    , yaw,
+                    true, true, true,    # x_vel   , y_vel    , z_vel,
+                    false, false, false, # roll_vel, pitch_vel, yaw_vel,
+                    false, false, false] # x_accel , y_accel  , z_accel
+    twist0_differential: true
+    twist0_relative: false
+
+    pose0: "/depth/pose_sync"
+    pose0_config: [false, false, true,  # x_pos   , y_pos    , z_pos,
+                   false, false, false, # roll    , pitch    , yaw,
+                   false, false, false, # x_vel   , y_vel    , z_vel,
+                   false, false, false, # roll_vel, pitch_vel, yaw_vel,
+                   false, false, false] # x_accel , y_accel  , z_accel
+    pose0_relative: false
+    pose0_differential: true
+
+    pose1: "/imu/pose_sync"
+    pose1_config: [false, false, false, # x_pos   , y_pos    , z_pos,
+                   true, true, true,    # roll    , pitch    , yaw,
+                   false, false, false, # x_vel   , y_vel    , z_vel,
+                   false, false, false, # roll_vel, pitch_vel, yaw_vel,
+                   false, false, false] # x_accel , y_accel  , z_accel
+    pose1_relative: true
+    pose1_differential: false

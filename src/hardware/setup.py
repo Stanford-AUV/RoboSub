@@ -16,11 +16,20 @@ setup(
     maintainer_email="scotthickmann21@gmail.com",
     description="TODO: Package description",
     license="TODO: License declaration",
-    tests_require=["pytest"],
+    extras_require={
+        "test": ["pytest"],
+    },
     entry_points={
         "console_scripts": [
             "thrusters = hardware.nodes.thrusters:main",
+            "imu = hardware.nodes.imu:main",
+            "dvl = hardware.nodes.dvl:main",
             "sensors = hardware.nodes.sensors:main",
+            "arduino = hardware.nodes.arduino:main",
+            "localization_test = hardware.nodes.localization_test:main",
+            "localization_plot = hardware.nodes.localization_plot:main",
+            "imu_plot = hardware.nodes.imu_plot:main",
+            "sensors_plot = hardware.nodes.sensors_plot:main",
         ],
     },
 )

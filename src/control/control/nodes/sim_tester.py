@@ -8,8 +8,8 @@ class SimTester(Node):
     def __init__(self):
         super().__init__('sim_tester')
         self.path_publisher = self.create_publisher(Odometry, 'path', 10)
-        #self.timer = self.create_timer(1.0, self.publish_path)  # Timer to publish every 1 second
-        self.x_position = 10.0  # Initial x position
+        self.timer = self.create_timer(1.0, self.publish_path)  # Timer to publish every 1 second
+        self.x_position = 1.0  # Initial x position
 
     def publish_path(self):
         msg = Odometry()

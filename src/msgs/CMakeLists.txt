@@ -25,20 +25,26 @@ endif()
 
 find_package(geometry_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(nmea_msgs REQUIRED)
+find_package(mavros_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/MTi200Data.msg"
   "msg/GeneratedPath.msg"
   "msg/PWMsStamped.msg"
+  "msg/SensorsStamped.msg"
   "msg/ThrustsStamped.msg"
+  "msg/Float32Stamped.msg"
   "msg/DVLBeam.msg"
   "msg/DVLData.msg"
   "msg/DVLTarget.msg"
   "msg/DVLVelocity.msg"
   "msg/Detection3DPoints.msg"
   "msg/Detection3DPointsArray.msg"
-  DEPENDENCIES geometry_msgs vision_msgs std_msgs
+  DEPENDENCIES geometry_msgs vision_msgs sensor_msgs nmea_msgs mavros_msgs std_msgs
 )
 
 ament_package()

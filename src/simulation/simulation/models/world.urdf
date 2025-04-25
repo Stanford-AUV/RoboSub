@@ -94,12 +94,12 @@
       </plugin>
 
       <!-- Path Visualizer Plugin -->
-      <plugin filename="PathVisualizer" name="Path Visualizer">
+      <!-- <plugin filename="PathVisualizer" name="Path Visualizer">
         <gz-gui>
           <title>Path Visualizer</title>
           <property key="state" type="string">docked</property>
         </gz-gui>
-      </plugin>
+      </plugin> -->
     </gui>
 
     <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu">
@@ -164,6 +164,14 @@
 
       <plugin filename="ignition-gazebo-thruster-system" name="ignition::gazebo::systems::Thruster">
         <namespace>auv</namespace>
+        <joint_name>thruster_0</joint_name>
+        <thrust_coefficient>0.004422</thrust_coefficient>
+        <fluid_density>1000</fluid_density>
+        <propeller_diameter>0.2</propeller_diameter>
+      </plugin>
+
+      <plugin filename="ignition-gazebo-thruster-system" name="ignition::gazebo::systems::Thruster">
+        <namespace>auv</namespace>
         <joint_name>thruster_1</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
         <fluid_density>1000</fluid_density>
@@ -213,14 +221,6 @@
       <plugin filename="ignition-gazebo-thruster-system" name="ignition::gazebo::systems::Thruster">
         <namespace>auv</namespace>
         <joint_name>thruster_7</joint_name>
-        <thrust_coefficient>0.004422</thrust_coefficient>
-        <fluid_density>1000</fluid_density>
-        <propeller_diameter>0.2</propeller_diameter>
-      </plugin>
-
-      <plugin filename="ignition-gazebo-thruster-system" name="ignition::gazebo::systems::Thruster">
-        <namespace>auv</namespace>
-        <joint_name>thruster_8</joint_name>
         <thrust_coefficient>0.004422</thrust_coefficient>
         <fluid_density>1000</fluid_density>
         <propeller_diameter>0.2</propeller_diameter>

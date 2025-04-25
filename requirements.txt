@@ -12,3 +12,7 @@ plotly
 ipywidgets
 nbformat
 dash
+pyserial
+fastapi
+uvicorn
+websockets

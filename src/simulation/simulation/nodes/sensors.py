@@ -12,31 +12,13 @@ class Sensors(Node):
 
     def __init__(self):
         super().__init__("sensors")
-
-        self._imu_sub = self.create_subscription(Imu, "gz/imu", self.imu_callback, 10)
-        self._imu_pub = self.create_publisher(Imu, "imu", 10)
-
-        self._altimeter_sub = self.create_subscription(
-            Altimeter, "gz/depth", self.altimeter_callback, 10
-        )
-        self._altimeter_pub = self.create_publisher(Altimeter, "depth", 10)
-
+        
         self._pose_sub = self.create_subscription(
             PoseStamped, "gz/pose", self.pose_callback, 10
         )
-        self._odometry_pub = self.create_publisher(Odometry, "odometry", 10)
+        self._odometry_pub = self.create_publisher(Odometry, "/odometry/filtered", 10)
 
         self.last_pose = PoseStamped()
-
-    def imu_callback(self, msg: Imu):
-        self.get_logger().info("Received IMU message")
-        # Since underwater, remove g from the acceleration z-axis
-        msg.linear_acceleration.z -= 9.8
-        self._imu_pub.publish(msg)
-
-    def altimeter_callback(self, msg: Altimeter):
-        self.get_logger().info("Received altimeter message")
-        self._altimeter_pub.publish(msg)
 
     def pose_callback(self, msg: PoseStamped):
         odometry = Odometry()
