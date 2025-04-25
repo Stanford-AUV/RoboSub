@@ -24,4 +24,4 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 if __name__ == "__main__":
-    uvicorn.run("bridge_docker:app", host="0.0.0.0", port=8765, reload=True)
+    uvicorn.run("bridge_docker:app", host="0.0.0.0", port=8765, reload=False)
