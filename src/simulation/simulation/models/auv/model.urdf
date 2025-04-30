@@ -6,27 +6,27 @@
         <link name='base_link'>
             <pose>0 0 0 0 0 0</pose>
             <inertial>
-                <mass>995.2</mass>
+                <mass>19.27</mass>
                 <inertia>
-                    <ixx>3.000000</ixx>
-                    <ixy>0.000000</ixy>
-                    <ixz>0.000000</ixz>
-                    <iyy>3.000000</iyy>
-                    <iyz>0.000000</iyz>
-                    <izz>3.000000</izz>
+                    <ixx>0.4718</ixx>
+                    <ixy>0.0000</ixy>
+                    <ixz>0.0000</ixz>
+                    <iyy>0.6063</iyy>
+                    <iyz>0.0000</iyz>
+                    <izz>0.7638</izz>
                 </inertia>
             </inertial>
             <visual name='base_visual'>
                 <geometry>
                     <box>
-                        <size>0.444 0.34 0.5</size>
+                        <size>0.44 0.22 0.25</size>
                     </box>
                 </geometry>
             </visual>
             <collision name='base_collision'>
                 <geometry>
                     <box>
-                        <size>1 1 1</size>
+                        <size>0.44 0.22 0.25</size>
                     </box>
                 </geometry>
             </collision>
