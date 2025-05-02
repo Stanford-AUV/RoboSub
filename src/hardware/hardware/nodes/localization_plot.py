@@ -1,11 +1,14 @@
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
+import matplotlib
+
+matplotlib.use("TkAgg")  # Use a GUI backend
 import matplotlib.pyplot as plt
 from transforms3d.euler import quat2euler
 
-MIN = -5
-MAX = 5
+MIN = -15
+MAX = 15
 
 
 class LocalizationPlot(Node):

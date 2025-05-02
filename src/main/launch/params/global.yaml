@@ -84,3 +84,9 @@
                    false, false, false] # x_accel , y_accel  , z_accel
     pose1_relative: true
     pose1_differential: false
+
+    mag0: "/imu/mag"
+    mag0_config: [false, false, true]
+    mag0_differential: false
+    mag0_relative: false
+    mag0_queue_size: 10
