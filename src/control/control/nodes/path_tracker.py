@@ -11,8 +11,8 @@ from rclpy.node import Node
 ERROR_THRESHOLD = Magnitude(
     distance=0.01, # 1 cm
     speed=0.01, # 1 cm/s
-    angle=5 * np.pi / 180, # 5 degrees
-    angular_speed=5 * np.pi / 180, # 5 degrees/s
+    angle=0.05, # 0.05 radians
+    angular_speed=0.01, # 0.01 radians/s
 )
 
 class PathTracker(Node):

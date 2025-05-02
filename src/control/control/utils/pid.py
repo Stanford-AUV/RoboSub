@@ -145,7 +145,23 @@ class PID:
         
         # Orientation error in axis-angle form
         angle, axis = error.orientation.angvec()
-        error_q_W = axis * angle
+        
+        # Only apply control if angle is above dead zone
+        if abs(angle) < 0.05:
+            error_q_W = np.zeros(3)
+        else:
+            # Handle potential NaN or zero-norm axis
+            if np.isnan(axis).any() or np.linalg.norm(axis) < 1e-10:
+                error_q_W = np.zeros(3)
+            else:
+                # Normalize axis for numerical stability
+                axis = axis / np.linalg.norm(axis)
+                error_q_W = axis * angle
+                
+                # Check for angle wrapping (ensure shortest path rotation)
+                if np.linalg.norm(error_q_W) > np.pi:
+                    # Adjust angle to take shortest path
+                    error_q_W = -error_q_W * (2*np.pi - angle) / angle
 
         # Integral sum, clamped
         self.integral_position = self.integral_position + error.position * dt

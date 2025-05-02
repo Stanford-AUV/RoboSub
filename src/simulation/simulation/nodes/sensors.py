@@ -1,11 +1,15 @@
 import rclpy
 from rclpy.node import Node
 
-from sensor_msgs.msg import Imu
-from ros_gz_interfaces.msg import Altimeter
 from geometry_msgs.msg import PoseStamped, Twist
 from nav_msgs.msg import Odometry
+import numpy as np
 
+def get_angular_velocity(q1, q2, dt):
+    return (2 / dt) * np.array([
+        q1[0]*q2[1] - q1[1]*q2[0] - q1[2]*q2[3] + q1[3]*q2[2],
+        q1[0]*q2[2] + q1[1]*q2[3] - q1[2]*q2[0] - q1[3]*q2[1],
+        q1[0]*q2[3] - q1[1]*q2[2] + q1[2]*q2[1] - q1[3]*q2[0]])
 
 class Sensors(Node):
     """This node converts sensor messages sent from Gazebo into a unified format for use for state estimation and control."""
@@ -26,30 +30,39 @@ class Sensors(Node):
         odometry.pose.pose = msg.pose
 
         twist = Twist()
-        delta_t = (msg.header.stamp.nanosec - self.last_pose.header.stamp.nanosec) / 1e9
-        twist.linear.x = (
-            msg.pose.position.x - self.last_pose.pose.position.x
-        ) / delta_t
-        twist.linear.y = (
-            msg.pose.position.y - self.last_pose.pose.position.y
-        ) / delta_t
-        twist.linear.z = (
-            msg.pose.position.z - self.last_pose.pose.position.z
-        ) / delta_t
-        twist.angular.x = (
-            self.last_pose.pose.orientation.x - msg.pose.orientation.x
-        ) / delta_t
-        twist.angular.y = (
-            self.last_pose.pose.orientation.y - msg.pose.orientation.y
-        ) / delta_t
-        twist.angular.z = (
-            self.last_pose.pose.orientation.z - msg.pose.orientation.z
-        ) / delta_t
-        odometry.twist.twist = twist
-
-        self.get_logger().info(f"Received odometry message: {odometry}")
+        delta_t = (msg.header.stamp.sec - self.last_pose.header.stamp.sec) + (msg.header.stamp.nanosec - self.last_pose.header.stamp.nanosec) / 1e9
+        
+        # Avoid division by zero
+        if delta_t > 0:
+            # Linear velocity calculation
+            twist.linear.x = (msg.pose.position.x - self.last_pose.pose.position.x) / delta_t
+            twist.linear.y = (msg.pose.position.y - self.last_pose.pose.position.y) / delta_t
+            twist.linear.z = (msg.pose.position.z - self.last_pose.pose.position.z) / delta_t
+            
+            # Angular velocity calculation using spatialmath's UnitQuaternion
+            current_quat = np.array([
+                msg.pose.orientation.w,
+                msg.pose.orientation.x,
+                msg.pose.orientation.y,
+                msg.pose.orientation.z,
+            ])
+            
+            last_quat = np.array([
+                self.last_pose.pose.orientation.w,
+                self.last_pose.pose.orientation.x,
+                self.last_pose.pose.orientation.y,
+                self.last_pose.pose.orientation.z,
+            ])
+            
+            angular_velocity = get_angular_velocity(last_quat, current_quat, delta_t)
+            twist.angular.x = angular_velocity[0]
+            twist.angular.y = angular_velocity[1]
+            twist.angular.z = angular_velocity[2]
+            
+            odometry.twist.twist = twist
+            self._odometry_pub.publish(odometry)
+        
         self.last_pose = msg
-        self._odometry_pub.publish(odometry)
 
 
 def main(args=None):
