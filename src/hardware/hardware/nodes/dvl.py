@@ -192,7 +192,7 @@ class DVL(Node):
 
         # Publish message
         self.publisher.publish(dvl_msg)
-        self.get_logger().info(f"Published DVL data: {str(dvl_msg)}")
+        # self.get_logger().info(f"Published DVL data: {str(dvl_msg)}")
 
 
 def main(args=None):

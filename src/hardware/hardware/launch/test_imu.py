@@ -28,5 +28,9 @@ def generate_launch_description():
                 package="hardware",
                 executable="imu_plot",
             ),
+            Node(
+                package="hardware",
+                executable="imu_plot_orientation",
+            ),
         ]
     )
