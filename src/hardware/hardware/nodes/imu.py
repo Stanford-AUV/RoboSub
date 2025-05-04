@@ -5,7 +5,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 NO_IMU_POSITION = False
-NO_IMU_ROTATION = False
+NO_IMU_ROTATION = True
 
 
 def quaternion_matrix(quaternion):
@@ -40,9 +40,9 @@ class IMU(Node):
 
     def imu_listener_callback(self, msg):
         transformed_msg = self.transform_imu_msg(msg)
-        # self.get_logger().info(
-        #     f"Sending IMU data: {transformed_msg.linear_acceleration}"
-        # )
+        self.get_logger().info(
+            f"Sending IMU data: {transformed_msg.linear_acceleration}"
+        )
         self._imu_pub.publish(transformed_msg)
 
     def transform_imu_msg(self, msg):
@@ -61,10 +61,10 @@ class IMU(Node):
         transformed_q /= np.linalg.norm(transformed_q)
 
         if NO_IMU_ROTATION:
-            transformed_msg.orientation.x = 0
-            transformed_msg.orientation.y = 0
-            transformed_msg.orientation.z = 0
-            transformed_msg.orientation.w = 1
+            transformed_msg.orientation.x = 0.0
+            transformed_msg.orientation.y = 0.0
+            transformed_msg.orientation.z = 0.0
+            transformed_msg.orientation.w = 1.0
         else:
             transformed_msg.orientation.x = transformed_q[0]
             transformed_msg.orientation.y = transformed_q[1]
@@ -77,9 +77,9 @@ class IMU(Node):
         )
         transformed_angular_velocity = self.T_rot[:3, :3] @ angular_velocity
         if NO_IMU_ROTATION:
-            transformed_msg.angular_velocity.x = 0
-            transformed_msg.angular_velocity.y = 0
-            transformed_msg.angular_velocity.z = 0
+            transformed_msg.angular_velocity.x = 0.0
+            transformed_msg.angular_velocity.y = 0.0
+            transformed_msg.angular_velocity.z = 0.0
         else:
             transformed_msg.angular_velocity.x = transformed_angular_velocity[0]
             transformed_msg.angular_velocity.y = transformed_angular_velocity[1]
@@ -95,9 +95,9 @@ class IMU(Node):
         )
         transformed_linear_acceleration = self.T_lin[:3, :3] @ linear_acceleration
         if NO_IMU_POSITION:
-            transformed_msg.linear_acceleration.x = 0
-            transformed_msg.linear_acceleration.y = 0
-            transformed_msg.linear_acceleration.z = 0
+            transformed_msg.linear_acceleration.x = 0.0
+            transformed_msg.linear_acceleration.y = 0.0
+            transformed_msg.linear_acceleration.z = 0.0
         else:
             transformed_msg.linear_acceleration.x = transformed_linear_acceleration[0]
             transformed_msg.linear_acceleration.y = transformed_linear_acceleration[1]

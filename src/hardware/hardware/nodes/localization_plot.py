@@ -7,8 +7,8 @@ matplotlib.use("TkAgg")  # Use a GUI backend
 import matplotlib.pyplot as plt
 from transforms3d.euler import quat2euler
 
-MIN = -15
-MAX = 15
+MIN = -5
+MAX = 6
 
 
 class LocalizationPlot(Node):
