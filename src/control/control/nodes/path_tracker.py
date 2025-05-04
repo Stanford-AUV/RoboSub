@@ -9,11 +9,12 @@ import rclpy
 from rclpy.node import Node
 
 ERROR_THRESHOLD = Magnitude(
-    distance=0.01, # 1 cm
-    speed=0.01, # 1 cm/s
-    angle=0.05, # 0.05 radians
-    angular_speed=0.01, # 0.01 radians/s
+    distance=0.1,  # 1 cm
+    speed=2,  # 1 cm/s
+    angle=0.5,  # 0.05 radians
+    angular_speed=0.1,  # 0.01 radians/s
 )
+
 
 class PathTracker(Node):
     """
@@ -29,9 +30,9 @@ class PathTracker(Node):
         self.path: Path | None = None
         self.last_waypoint: Odometry | None = None
 
-        self.waypoints_cli = self.create_client(GetWaypoints, 'get_waypoints')
+        self.waypoints_cli = self.create_client(GetWaypoints, "get_waypoints")
         while not self.waypoints_cli.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('Waiting for waypoints service...')
+            self.get_logger().info("Waiting for waypoints service...")
 
         self.set_waypoints()
         if len(self.path.poses) == 0:
@@ -54,7 +55,16 @@ class PathTracker(Node):
     def odometry_callback(self, robot: Odometry):
         robot_odom = State.from_odometry_msg(robot)
         error = self.last_waypoint - robot_odom
+        error.position[2] = 0.0  # Set z error to 0 for now
+        with open("error.txt", "a") as f:
+            f.write(f"{error.position[0]}, {error.position[1]}, {error.position[2]}\n")
+            f.flush()
         error_magnitude = error.magnitude()
+        with open("error_magnitude.txt", "a") as f:
+            f.write(
+                f"{error_magnitude.distance}, {error_magnitude.speed}, {error_magnitude.angle}, {error_magnitude.angular_speed}\n"
+            )
+            f.flush()
         if error_magnitude < ERROR_THRESHOLD:
             self.path_index += 1
             if self.path_index >= len(self.path.poses):
@@ -65,7 +75,9 @@ class PathTracker(Node):
 
     def publish_waypoint(self):
         assert self.path is not None, "Path is not set"
-        assert self.path_index < len(self.path.poses), f"Path index {self.path_index} is out of bounds for path length {len(self.path.poses)}"
+        assert self.path_index < len(
+            self.path.poses
+        ), f"Path index {self.path_index} is out of bounds for path length {len(self.path.poses)}"
 
         waypoint = Odometry()
         waypoint.header = self.path.header
