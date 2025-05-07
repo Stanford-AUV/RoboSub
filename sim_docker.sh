@@ -32,6 +32,9 @@ trap cleanup EXIT INT TERM HUP
 
 export PYTHONPATH="$(pwd)/src/simulation:$PYTHONPATH"
 
+nats-server &
+PIDS+=("$!")
+
 /home/ros/env/bin/python src/simulation/simulation/bridge_docker.py &
 PIDS+=("$!")
 

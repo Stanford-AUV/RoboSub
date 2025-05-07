@@ -8,7 +8,7 @@
   },
   "remoteUser": "ros",
   "runArgs": [
-    "--publish=8765:8765",
+    "--publish=4222:4222",
     "--cap-add=SYS_PTRACE",
     "--security-opt=seccomp:unconfined",
     "--security-opt=apparmor:unconfined",

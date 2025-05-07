@@ -13,6 +13,4 @@ ipywidgets
 nbformat
 dash
 pyserial
-fastapi
-uvicorn
-websockets
+nats-py
