@@ -5,7 +5,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 NO_IMU_POSITION = False
-NO_IMU_ROTATION = True
+NO_IMU_ROTATION = False
 
 
 def quaternion_matrix(quaternion):
@@ -34,16 +34,18 @@ class IMU(Node):
 
         # 4×4 Transformation matrix (includes homogeneous coordinates)
         self.T_rot = np.array([[0, 0, 1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
-        self.T_lin = np.array([[0, 0, 1, 0], [1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 0, 1]])
+        self.T_lin = np.array([[0, 0, 1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
 
         self._imu_pub = self.create_publisher(Imu, "imu", 10)
 
     def imu_listener_callback(self, msg):
         transformed_msg = self.transform_imu_msg(msg)
-        self.get_logger().info(
-            f"Sending IMU data: {transformed_msg.linear_acceleration}"
-        )
+        transformed_msg.header.frame_id = "base_link"
+
         self._imu_pub.publish(transformed_msg)
+        # self.get_logger().info(
+        #     f"Sent IMU data: {transformed_msg}"
+        # )
 
     def transform_imu_msg(self, msg):
         transformed_msg = Imu()
