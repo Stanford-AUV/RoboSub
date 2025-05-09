@@ -125,7 +125,7 @@ def main(args=None):
 
     try:
         rclpy.spin(arduino)
-    except KeyboardInterrupt:
+    except Exception:
         arduino.kill_motors()
         return
 

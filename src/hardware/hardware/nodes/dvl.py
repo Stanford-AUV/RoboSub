@@ -142,7 +142,6 @@ class DVL(Node):
         dvl_velocity = DVLVelocity()
         dvl_velocity.reference = 0  # Unknown reference frame
         x = data_dict["Velocity X"]
-        self.get_logger().info(f"x {x}")
         if np.isnan(x):
             self.get_logger().error("Velocity X is nan")
             x = 0.0
@@ -161,7 +160,7 @@ class DVL(Node):
         dvl_velocity.mean.z = vel[2]
         err = data_dict["Velocity Err"]
         if np.isnan(err):
-            self.get_logger().error("Velocity Err is nan")
+            # self.get_logger().error("Velocity Err is nan")
             err = 0.05
         covariance = np.eye(3, dtype=np.float32) * (err**2)
         dvl_velocity.covariance = covariance.flatten()
@@ -171,7 +170,7 @@ class DVL(Node):
         dvl_target.type = 0  # Unknown target type
         r = data_dict["Mean range"]
         if np.isnan(r):
-            self.get_logger().error("Mean range is nan")
+            # self.get_logger().error("Mean range is nan")
             r = 0.0
         dvl_target.range_mean = r
 
@@ -183,7 +182,7 @@ class DVL(Node):
             beam.id = beam_id
             br = data_dict[f"Beam {beam_id} range"]
             if np.isnan(br):
-                self.get_logger().error(f"Beam {beam_id} range is nan")
+                # self.get_logger().error(f"Beam {beam_id} range is nan")
                 br = 0.0
             beam.range_mean = br
             beam.locked = True  # Assume locked unless otherwise known
@@ -193,7 +192,7 @@ class DVL(Node):
             beam.velocity.reference = 0  # Unknown reference
             err = data_dict["Velocity Err"]
             if np.isnan(err):
-                self.get_logger().error("Velocity Err is nan")
+                # self.get_logger().error("Velocity Err is nan")
                 err = 0.05
             if beam_id == 1:
                 vx = data_dict["Velocity X"]

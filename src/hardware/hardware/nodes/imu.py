@@ -56,7 +56,9 @@ class IMU(Node):
             [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w]
         )
         q_matrix = quaternion_matrix(q)  # Get 4×4 rotation matrix
-        transformed_q_matrix = self.T_rot @ q_matrix @ self.T_rot.T  # Apply transformation
+        transformed_q_matrix = (
+            self.T_rot @ q_matrix @ self.T_rot.T
+        )  # Apply transformation
         transformed_q = quaternion_from_matrix(transformed_q_matrix)
 
         # Normalize quaternion to avoid numerical drift
