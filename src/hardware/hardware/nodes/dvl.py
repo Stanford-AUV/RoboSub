@@ -10,6 +10,7 @@ import numpy as np
 import glob
 import serial
 
+DEBUG_MODE = True
 
 class DVL(Node):
     def __init__(self, baudrate=115200):
@@ -17,6 +18,11 @@ class DVL(Node):
 
         # ROS publisher
         self.publisher = self.create_publisher(DVLData, "dvl", 10)
+
+        if DEBUG_MODE:
+            self.get_logger().info("Running in DEBUG_MODE, publishing dummy data.")
+            self.timer = self.create_timer(0.1, self.publish_dummy_dvl)
+            return
 
         # Connect to DVL
         self.dvl = self.autodetect_dvl_port(baudrate)
@@ -54,6 +60,35 @@ class DVL(Node):
             except Exception as e:
                 self.get_logger().error(f"Unexpected error on port {port}: {e}")
         return None  # No valid port found
+
+    def publish_dummy_dvl(self):
+        msg = DVLData()
+        msg.header.stamp = self.get_clock().now().to_msg()
+
+        vel = DVLVelocity()
+        vel.reference = 0
+        vel.mean = Vector3(x=0.05, y=0.0, z=0.0)  # Constant X velocity
+        vel.covariance = (np.eye(3) * 0.01).flatten()
+        msg.velocity = vel
+
+        msg.target = DVLTarget()
+        msg.target.type = 0
+        msg.target.range_mean = 1.5
+
+        msg.beams = []
+        for i in range(4):
+            beam = DVLBeam()
+            beam.id = i + 1
+            beam.range_mean = 1.0 + 0.1 * i
+            beam.locked = True
+            beam.velocity = vel
+            msg.beams.append(beam)
+
+        msg.header.frame_id = "base_link"
+
+        self.publisher.publish(msg)
+        # self.get_logger().info("Published dummy DVL message.")
+
 
     def update_data(self, output_data: OutputData, obj):
         """Callback function to process and publish DVL data."""

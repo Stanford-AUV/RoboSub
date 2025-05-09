@@ -1,5 +1,10 @@
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy
+
+qos = QoSProfile(depth=10)
+qos.reliability = QoSReliabilityPolicy.BEST_EFFORT
+
 from sensor_msgs.msg import Imu
 import matplotlib
 import numpy as np
@@ -42,6 +47,7 @@ class SensorsPlot(Node):
         self.plot_timer = self.create_timer(0.1, self.update_plot)
 
     def imu_callback(self, msg: Imu):
+
         current_time = self.get_clock().now()
         time_sec = (current_time - self.start_time).nanoseconds * 1e-9
 
