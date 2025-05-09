@@ -34,7 +34,7 @@
     // "--device=/dev/dri"
   ],
   "containerEnv": {
-    "DISPLAY": "${localEnv:DISPLAY}", // Needed for GUI try ":0" for windows
+    "DISPLAY": "host.docker.internal:0", // "${localEnv:DISPLAY}" for Orin,
     "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
     "XDG_RUNTIME_DIR": "${localEnv:XDG_RUNTIME_DIR}",
     "PULSE_SERVER": "${localEnv:PULSE_SERVER}",
