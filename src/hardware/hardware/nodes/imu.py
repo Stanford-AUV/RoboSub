@@ -40,9 +40,9 @@ class IMU(Node):
 
     def imu_listener_callback(self, msg):
         transformed_msg = self.transform_imu_msg(msg)
-        self.get_logger().info(
-            f"Sending IMU data: {transformed_msg.linear_acceleration}"
-        )
+        # self.get_logger().info(
+        #     f"Sending IMU data: {transformed_msg.linear_acceleration}"
+        # )
         self._imu_pub.publish(transformed_msg)
 
     def transform_imu_msg(self, msg):
@@ -54,7 +54,9 @@ class IMU(Node):
             [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w]
         )
         q_matrix = quaternion_matrix(q)  # Get 4×4 rotation matrix
-        transformed_q_matrix = self.T_rot @ q_matrix @ self.T_rot.T  # Apply transformation
+        transformed_q_matrix = (
+            self.T_rot @ q_matrix @ self.T_rot.T
+        )  # Apply transformation
         transformed_q = quaternion_from_matrix(transformed_q_matrix)
 
         # Normalize quaternion to avoid numerical drift
