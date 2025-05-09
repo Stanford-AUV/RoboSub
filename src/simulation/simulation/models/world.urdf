@@ -2,9 +2,8 @@
 <sdf version="1.6">
   <world name="buoyant_auv">
     <scene>
-      <!-- For turquoise ambient -->
-      <ambient>0.0 1.0 1.0</ambient>
-      <background>0.0 0.7 0.8</background>
+      <ambient>0.0 0.3 0.6</ambient>
+      <background>0.0 0.4 0.8</background>
     </scene>
 
     <physics name="1ms" type="ode">
@@ -94,12 +93,12 @@
       </plugin>
 
       <!-- Path Visualizer Plugin -->
-      <plugin filename="PathVisualizer" name="Path Visualizer">
+      <!-- <plugin filename="PathVisualizer" name="Path Visualizer">
         <gz-gui>
           <title>Path Visualizer</title>
           <property key="state" type="string">docked</property>
         </gz-gui>
-      </plugin>
+      </plugin> -->
     </gui>
 
     <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu">
@@ -124,42 +123,8 @@
       <direction>-0.5 0.1 -0.9</direction>
     </light>
 
-    <!-- Ground plane -->
-    <model name="ground_plane">
-      <static>true</static>
-      <pose>0 0 -20 0 0 0</pose>
-      <link name="link">
-        <collision name="collision">
-          <geometry>
-            <plane>
-              <normal>0 0 1</normal>
-              <size>1000 1000</size>
-            </plane>
-          </geometry>
-          <surface>
-            <contact>
-              <collide_without_contact>true</collide_without_contact>
-            </contact>
-          </surface>
-        </collision>
-        <visual name="visual">
-          <geometry>
-            <plane>
-              <normal>0 0 1</normal>
-              <size>1000 1000</size>
-            </plane>
-          </geometry>
-          <material>
-            <ambient>0.76 0.7 0.5 1</ambient>
-            <diffuse>0.76 0.7 0.5 1</diffuse>
-            <specular>0.1 0.1 0.1 1</specular>
-          </material>
-        </visual>
-      </link>
-    </model>
-
     <include>
-      <pose>0 0 1 0 0 0</pose>
+      <pose>0 0 0 0 0 0</pose>
       <uri>model://auv</uri>
 
       <plugin filename="ignition-gazebo-thruster-system" name="ignition::gazebo::systems::Thruster">
@@ -227,27 +192,32 @@
       </plugin>
 
       <!-- Hydrodynamics plugin-->
-      <!-- <plugin filename="ignition-gazebo-hydrodynamics-system" name="ignition::gazebo::systems::Hydrodynamics">
+      <!-- Values from https://chatgpt.com/share/6811b130-d150-8002-b355-65a1e5cf9dce -->
+      <plugin filename="gz-sim-hydrodynamics-system" name="gz::sim::systems::Hydrodynamics">
         <link_name>base_link</link_name>
-        <xDotU>-4.876161</xDotU>
-        <yDotV>-126.324739</yDotV>
-        <zDotW>-126.324739</zDotW>
-        <kDotP>0</kDotP>
-        <mDotQ>-33.46</mDotQ>
-        <nDotR>-33.46</nDotR>
-        <xUabsU>-6.2282</xUabsU>
-        <xU>0</xU>
-        <yVabsV>-601.27</yVabsV>
-        <yV>0</yV>
-        <zWabsW>-601.27</zWabsW>
-        <zW>0</zW>
-        <kPabsP>-0.1916</kPabsP>
-        <kP>0</kP>
-        <mQabsQ>-632.698957</mQabsQ>
-        <mQ>0</mQ>
-        <nRabsR>-632.698957</nRabsR>
-        <nR>0</nR>
-      </plugin> -->
+
+        <xDotU>-2.4</xDotU>        <!-- 0.1 Δ,  Δ = ρ·V = 24.2 kg -->
+        <yDotV>-24.2</yDotV>        <!-- 1 Δ  -->
+        <zDotW>-24.2</zDotW>
+        <kDotP>-0.22</kDotP>        <!-- roll  : −ρ·V·(b²+c²)/12 × CA ≈ CA=1 -->
+        <mDotQ>-0.52</mDotQ>        <!-- pitch : −ρ·V·(a²+c²)/12 × CA -->
+        <nDotR>-0.49</nDotR>        <!-- yaw   : −ρ·V·(a²+b²)/12 × CA -->
+
+        <xU>-0.17</xU>        <!-- surge -->
+        <yV>-0.33</yV>        <!-- sway  -->
+        <zW>-0.29</zW>        <!-- heave -->
+        <kP>-0.02</kP>        <!-- roll  (small) -->
+        <mQ>-0.05</mQ>        <!-- pitch -->
+        <nR>-0.05</nR>        <!-- yaw   -->
+
+        <xUabsU>-30.3</xUabsU>        <!-- A = 0.22×0.25 m² -->
+        <yVabsV>-60.5</yVabsV>        <!-- A = 0.44×0.25 m² -->
+        <zWabsW>-53.2</zWabsW>        <!-- A = 0.44×0.22 m² -->
+        <!-- rotational |ω|ω moments: ½ρCdA_m|ω|ω ,  A_m = l h⁴/32 etc. :contentReference[oaicite:1]{index=1} -->
+        <kPabsP>-0.03</kPabsP>        <!-- roll -->
+        <mQabsQ>-0.16</mQabsQ>        <!-- pitch -->
+        <nRabsR>-0.02</nRabsR>        <!-- yaw  -->
+      </plugin>
 
     </include>
 

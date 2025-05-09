@@ -49,8 +49,6 @@ class SensorsPlot(Node):
         self.quiver_Z = None
 
     def imu_callback(self, msg: Imu):
-        self.get_logger().info(f"Received quaternion: {msg.orientation}")
-
         q = [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w]
         rot = R.from_quat(q)
 

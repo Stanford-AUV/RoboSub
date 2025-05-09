@@ -89,7 +89,7 @@ class ThrustGenerator(Node):
     def wrench_callback(self, msg: WrenchStamped):
         """Handle incoming wrench messages."""
         self.wrench = msg.wrench
-        self.get_logger().info(f"Received wrench {self.wrench}")
+        # self.get_logger().info(f"Received wrench {self.wrench}")
 
 
 def main(args=None):

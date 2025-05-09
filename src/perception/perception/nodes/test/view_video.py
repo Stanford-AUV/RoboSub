@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 
 
-SMALL_FACTOR = 0.1
+SMALL_FACTOR = 0.2
 
 
 class ViewVideo(Node):
@@ -37,8 +37,14 @@ class ViewVideo(Node):
             # Overlay bounding boxes
             self.overlay_bbox(frame)
 
-            # Display the frame
-            cv2.imshow("RGB Video Stream", frame)
+            # Resize the frame to 20% of its original size
+            height, width = frame.shape[:2]
+            resized_frame = cv2.resize(
+                frame, (int(width * SMALL_FACTOR), int(height * SMALL_FACTOR))
+            )
+
+            # Display the resized frame
+            cv2.imshow("RGB Video Stream", resized_frame)
 
             # Wait for a short time and check for the 'q' key to close the window
             if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -52,15 +58,24 @@ class ViewVideo(Node):
             depth_frame = self.bridge.imgmsg_to_cv2(msg, "passthrough")
 
             # Normalize depth for better visualization
-            ratio = 255 / depth_frame.max()  # Dynamically calculate max depth
+            ratio = (
+                255 / depth_frame.max() if depth_frame.max() > 0 else 0
+            )  # Dynamically calculate max depth
             depth_frame_tmp = (depth_frame * ratio).astype(np.uint8)
             depth_frame_color_map = cv2.applyColorMap(depth_frame_tmp, cv2.COLORMAP_JET)
 
             # Overlay bounding boxes
             self.overlay_bbox(depth_frame_color_map)
 
-            # Display the depth frame
-            cv2.imshow("Depth Video Stream", depth_frame_color_map)
+            # Resize the depth frame to 20% of its original size
+            height, width = depth_frame_color_map.shape[:2]
+            resized_depth_frame = cv2.resize(
+                depth_frame_color_map,
+                (int(width * SMALL_FACTOR), int(height * SMALL_FACTOR)),
+            )
+
+            # Display the resized depth frame
+            cv2.imshow("Depth Video Stream", resized_depth_frame)
 
             # Wait for a short time and check for the 'q' key to close the window
             if cv2.waitKey(1) & 0xFF == ord("q"):

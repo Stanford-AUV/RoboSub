@@ -16,16 +16,18 @@ setup(
     maintainer_email="scotthickmann21@gmail.com",
     description="TODO: Package description",
     license="TODO: License declaration",
-    tests_require=["pytest"],
+    extras_require={
+        "test": ["pytest"],
+    },
     entry_points={
         "console_scripts": [
-            f"perception_node = perception.nodes.perception_node:main",
-            f"test.video = perception.nodes.test.video:main",
-            f"test.view_video = perception.nodes.test.view_video:main",
-            f"test.view_detections_3d = perception.nodes.test.view_detections_3d:main",
-            f"camera = perception.nodes.camera:main",
-            f"objects_localizer = perception.nodes.objects_localizer:main",
-            f"camera_viewer = perception.nodes.camera_viewer:main"
+            "perception_node = perception.nodes.perception_node:main",
+            "test.video = perception.nodes.test.video:main",
+            "test.view_video = perception.nodes.test.view_video:main",
+            "test.view_detections_3d = perception.nodes.test.view_detections_3d:main",
+            "camera = perception.nodes.camera:main",
+            "objects_localizer = perception.nodes.objects_localizer:main",
+            "camera_viewer = perception.nodes.camera_viewer:main"
         ],
     },
 )

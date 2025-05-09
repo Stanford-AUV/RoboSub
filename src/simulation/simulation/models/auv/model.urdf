@@ -6,32 +6,31 @@
         <link name='base_link'>
             <pose>0 0 0 0 0 0</pose>
             <inertial>
-                <mass>995.2</mass>
+                <mass>19.27</mass>
                 <inertia>
-                    <ixx>3.000000</ixx>
-                    <ixy>0.000000</ixy>
-                    <ixz>0.000000</ixz>
-                    <iyy>3.000000</iyy>
-                    <iyz>0.000000</iyz>
-                    <izz>3.000000</izz>
+                    <ixx>0.4718</ixx>
+                    <ixy>0.0000</ixy>
+                    <ixz>0.0000</ixz>
+                    <iyy>0.6063</iyy>
+                    <iyz>0.0000</iyz>
+                    <izz>0.7638</izz>
                 </inertia>
             </inertial>
             <visual name='base_visual'>
                 <geometry>
                     <box>
-                        <size>0.444 0.34 0.5</size>
+                        <size>0.44 0.22 0.25</size>
                     </box>
                 </geometry>
             </visual>
             <collision name='base_collision'>
                 <geometry>
                     <box>
-                        <size>1 1 1</size>
+                        <size>0.44 0.22 0.25</size>
                     </box>
                 </geometry>
             </collision>
-            <sensor name="imu_sensor" type="imu">
-                <pose relative_to="base_link">0 0 0 0 0 0</pose>
+            <!-- <sensor name="imu_sensor" type="imu">
                 <always_on>1</always_on>
                 <update_rate>1</update_rate>
                 <visualize>true</visualize>
@@ -42,61 +41,13 @@
                 <update_rate>1</update_rate>
                 <visualize>true</visualize>
                 <topic>depth</topic>
-            </sensor>
-            <sensor name="dvl_sensor" type="custom" gz:type="dvl">
-                <!-- Account for DVL mounting position and base link rotation -->
-                <pose degrees="true">0 0 -1 0 0 180</pose>
-                <always_on>1</always_on>
-                <update_rate>1</update_rate>
-                <topic>dvl</topic>
-                <gz:dvl>
-                    <type>phased_array</type>
-                    <arrangement degrees="true">
-                        <beam id="1">
-                            <aperture>2.1</aperture>
-                            <rotation>45</rotation>
-                            <tilt>30</tilt>
-                        </beam>
-                        <beam>
-                            <aperture>2.1</aperture>
-                            <rotation>135</rotation>
-                            <tilt>30</tilt>
-                        </beam>
-                        <beam>
-                            <aperture>2.1</aperture>
-                            <rotation>-45</rotation>
-                            <tilt>30</tilt>
-                        </beam>
-                        <beam>
-                            <aperture>2.1</aperture>
-                            <rotation>-135</rotation>
-                            <tilt>30</tilt>
-                        </beam>
-                    </arrangement>
-                    <tracking>
-                        <bottom_mode>
-                            <when>best</when>
-                            <noise type="gaussian">
-                                <!-- +/- 0.4 cm/s precision at 10 m/s within 2 stddevs -->
-                                <!-- <stddev>0.002</stddev> -->
-                            </noise>
-                            <visualize>false</visualize>
-                        </bottom_mode>
-                    </tracking>
-                    <!-- Roughly 1 m resolution at a 100m -->
-                    <resolution>0.01</resolution>
-                    <!-- Approximate maximum range @ ~14.4v -->
-                    <maximum_range>80.</maximum_range>
-                    <minimum_range>0.1</minimum_range>
-                    <!-- ENU to SFM -->
-                    <reference_frame>0 0 0 0 0 -1.570796</reference_frame>
-                </gz:dvl>
-            </sensor>
+            </sensor> -->
+            <!-- Note: DVL deleted as it is not supported on Mac -->
         </link>
 
         <!-- Thruster Links -->
         <link name='box_0'>
-            <pose>0.2025 0.1825 0.0925 0 -1.5707963268 -0.7853981634</pose>            <!-- Position adjustment needed -->
+            <pose>0.2025 0.1825 0.0925 3.1415926536 -1.5707963268 -0.7853981634</pose>            <!-- Position adjustment needed -->
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -130,7 +81,7 @@
         </link>
 
         <link name='box_1'>
-            <pose>0.2025 -0.1825 0.0925 0 -1.5707963268 0.7853981634</pose>            <!-- Position adjustment needed -->
+            <pose>0.2025 -0.1825 0.0925 3.1415926536 -1.5707963268 0.7853981634</pose>            <!-- Position adjustment needed -->
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -164,7 +115,7 @@
         </link>
 
         <link name='box_2'>
-            <pose>-0.2025 0.1825 0.0925 3.1415926536 -1.5707963268 0.7853981634</pose>            <!-- Position adjustment needed -->
+            <pose>-0.2025 0.1825 0.0925 0 -1.5707963268 0.7853981634</pose>            <!-- Position adjustment needed -->
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -266,7 +217,7 @@
         </link>
 
         <link name='box_5'>
-            <pose>0.115 -0.165 -0.0925 0 0 0</pose>            <!-- Position adjustment needed -->
+            <pose>0.115 -0.165 -0.0925 3.1415926536 0 0</pose>            <!-- Position adjustment needed -->
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -389,7 +340,7 @@
             <parent>base_link</parent>
             <child>box_1</child>
             <axis>
-                <xyz>1 1 0</xyz>
+                <xyz>-1 -1 0</xyz>
                 <use_parent_model_frame>1</use_parent_model_frame>
                 <limit>
                     <lower>-1e+12</lower>
@@ -405,7 +356,7 @@
             <parent>base_link</parent>
             <child>box_2</child>
             <axis>
-                <xyz>-1 -1 0</xyz>
+                <xyz>1 1 0</xyz>
                 <use_parent_model_frame>1</use_parent_model_frame>
                 <limit>
                     <lower>-1e+12</lower>
@@ -453,7 +404,7 @@
             <parent>base_link</parent>
             <child>box_5</child>
             <axis>
-                <xyz>0 0 -1</xyz>
+                <xyz>0 0 1</xyz>
                 <use_parent_model_frame>1</use_parent_model_frame>
                 <limit>
                     <lower>-1e+12</lower>

@@ -141,12 +141,30 @@ class PID:
         np.array
             The control signal, constrained by the maximum output limit (ceil).
         """
-        # Position error, world frame
-        error_r_W = reference.position_world - state.position_world
-        # Velocity error, body frame
-        error_v_B = reference.velocity_body - state.velocity_body
+        error = reference - state
+        
+        # Orientation error in axis-angle form
+        angle, axis = error.orientation.angvec()
+        
+        # Only apply control if angle is above dead zone
+        if abs(angle) < 0.05:
+            error_q_W = np.zeros(3)
+        else:
+            # Handle potential NaN or zero-norm axis
+            if np.isnan(axis).any() or np.linalg.norm(axis) < 1e-10:
+                error_q_W = np.zeros(3)
+            else:
+                # Normalize axis for numerical stability
+                axis = axis / np.linalg.norm(axis)
+                error_q_W = axis * angle
+                
+                # Check for angle wrapping (ensure shortest path rotation)
+                if np.linalg.norm(error_q_W) > np.pi:
+                    # Adjust angle to take shortest path
+                    error_q_W = -error_q_W * (2*np.pi - angle) / angle
+
         # Integral sum, clamped
-        self.integral_position = self.integral_position + error_r_W * dt
+        self.integral_position = self.integral_position + error.position * dt
         self.integral_position = np.clip(
             self.integral_position,
             -self.max_integral_position,
@@ -154,17 +172,11 @@ class PID:
         )
         # Calculate force in the world frame
         force_world = (
-            error_r_W * self.kP_position
-            + error_v_B * self.kD_position
-            + self.integral_error * self.kI_position
-        )  # self.integral_position
+            error.position * self.kP_position
+            + error.velocity * self.kD_position
+            + self.integral_position * self.kI_position
+        )
 
-        # Orientation error, world frame, axis-angle form
-        error_q_W = reference.orientation_world * state.orientation_world.inv()
-        angle, axis = error_q_W.angvec()
-        error_q_W = axis * angle
-        # Angular velocity error, body frame
-        error_w_B = reference.angular_velocity_body - state.angular_velocity_body
         self.integral_orientation = self.integral_orientation + error_q_W * dt
         self.integral_orientation = np.clip(
             self.integral_orientation,
@@ -175,12 +187,12 @@ class PID:
         # Calculate torque in the body frame
         torque_body = (
             error_q_W * self.kP_orientation
-            + error_w_B * self.kD_orientation
+            + error.angular_velocity * self.kD_orientation
             + self.integral_orientation * self.kI_orientation
         )
 
         # Convert force to body frame
-        force_body = state.orientation_world.inv().R @ force_world
+        force_body = state.orientation.inv().R @ force_world
 
         # Clamp the control signal
         force_body = np.clip(

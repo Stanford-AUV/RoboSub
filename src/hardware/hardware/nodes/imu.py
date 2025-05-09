@@ -5,7 +5,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 NO_IMU_POSITION = False
-NO_IMU_ROTATION = False
+NO_IMU_ROTATION = True
 
 
 def quaternion_matrix(quaternion):

@@ -16,12 +16,20 @@ setup(
     maintainer_email="scotthickmann21@gmail.com",
     description="TODO: Package description",
     license="TODO: License declaration",
-    tests_require=["pytest"],
+    extras_require={
+        "test": ["pytest"],
+    },
     entry_points={
         "console_scripts": [
             "thrust_generator = control.nodes.thrust_generator:main",
             "controller = control.nodes.controller:main",
-            "sim_tester = control.nodes.sim_tester:main",
+            "path_tracker = control.nodes.path_tracker:main",
+            "test_path = control.nodes.test_path:main",
+            "logger = control.nodes.logger:main",
+            "test_controller = control.nodes.test_controller:main",
+            "test_thrust = control.nodes.test_thrust:main",
+            "path_generator = control.nodes.path_generator:main",
+            "test_waypoints = control.nodes.test_waypoints:main",
         ]
     },
 )

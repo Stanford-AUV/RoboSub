@@ -13,3 +13,4 @@ ipywidgets
 nbformat
 dash
 pyserial
+nats-py

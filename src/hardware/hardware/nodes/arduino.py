@@ -45,6 +45,8 @@ class Arduino(Node):
             self.get_logger().error(f"Failed to open serial port: {e}")
             raise e
 
+        self.send_light(1100)  # 1100 to 1900
+
         self.timer = self.create_timer(0.01, self.update)
 
     def get_servo_command(self, index: int, pwm: int):
@@ -56,6 +58,13 @@ class Arduino(Node):
     def pwms_callback(self, msg: PWMsStamped):
         # self.get_logger().info(f"PWMs received {msg.pwms}")
         self.pwms: List[float] = msg.pwms.tolist()
+
+    def send_light(self, light: int):
+        command = f"light {light}"
+        try:
+            self.portName.write((command + "\n").encode())
+        except serial.SerialException as e:
+            self.get_logger().error(f"Failed to write to serial port: {e}")
 
     def send_pwms(self):
         commands = [
