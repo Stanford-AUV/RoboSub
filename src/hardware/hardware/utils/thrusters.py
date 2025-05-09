@@ -47,10 +47,10 @@ def thrust_to_pwm(thrust: float, voltage=14.8):
 
     """
     if voltage > 20:
-        # raise ValueError("Voltage exceeds the maximum allowed limit of 20V.")
+        print("Voltage exceeds the maximum allowed limit of 20V.")
         voltage = 20
     elif voltage < 10:
-        # raise ValueError("Voltage is below the minimum allowed voltage of 10V.")
+        print("Voltage is below the minimum allowed voltage of 10V.")
         voltage = 10
 
     # Requested thrust must be 20% below saturation limit, according to https://bluerobotics.com/store/thrusters/t100-t200-thrusters/t200-thruster-r2-rp/

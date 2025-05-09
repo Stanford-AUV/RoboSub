@@ -55,16 +55,7 @@ class PathTracker(Node):
     def odometry_callback(self, robot: Odometry):
         robot_odom = State.from_odometry_msg(robot)
         error = self.last_waypoint - robot_odom
-        error.position[2] = 0.0  # Set z error to 0 for now
-        with open("error.txt", "a") as f:
-            f.write(f"{error.position[0]}, {error.position[1]}, {error.position[2]}\n")
-            f.flush()
         error_magnitude = error.magnitude()
-        with open("error_magnitude.txt", "a") as f:
-            f.write(
-                f"{error_magnitude.distance}, {error_magnitude.speed}, {error_magnitude.angle}, {error_magnitude.angular_speed}\n"
-            )
-            f.flush()
         if error_magnitude < ERROR_THRESHOLD:
             self.path_index += 1
             if self.path_index >= len(self.path.poses):
