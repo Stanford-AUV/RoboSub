@@ -10,6 +10,7 @@ NO_IMU_ROTATION = False
 
 NUM_CALIBRATION_QUATERNIONS = 200
 
+
 class IMU(Node):
     def __init__(self):
         super().__init__("imu")
@@ -21,6 +22,7 @@ class IMU(Node):
         # Ideal 4×4 Transformation matrix (includes homogeneous coordinates)
         self.R_rot = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]])
         self.R_lin = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]])
+
         self.num_calibration_quaternions = 0
         self.calibration_quaternions = np.zeros((NUM_CALIBRATION_QUATERNIONS, 4))
         self.calibrated = False
@@ -31,7 +33,18 @@ class IMU(Node):
                 self.calculate_transformation_matrix()
                 self.calibrated = True
             else:
-                self.calibration_quaternions[self.num_calibration_quaternions] = [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w]
+                q = np.array(
+                    [
+                        msg.orientation.x,
+                        msg.orientation.y,
+                        msg.orientation.z,
+                        msg.orientation.w,
+                    ]
+                )
+                transformed_q = self.transform_quaternion(q)
+                self.calibration_quaternions[self.num_calibration_quaternions] = (
+                    transformed_q
+                )
                 self.num_calibration_quaternions += 1
                 return
 
@@ -51,11 +64,9 @@ class IMU(Node):
         # Robot is aligned with world for calibration, so its quaternion is identity
         r_robot = R.from_quat([0, 0, 0, 1])
         # Rotation from IMU to robot
-        r_imu_to_robot = r_robot * r_imu.inv()
-        r_matrix = r_imu_to_robot.as_matrix()
+        self.r_imu_to_robot = r_robot * r_imu.inv()
+        r_matrix = self.r_imu_to_robot.as_matrix()
         self.get_logger().info(f"Calibrated with T:\n{r_matrix}")
-        self.R_rot = r_matrix
-        self.R_lin = r_matrix
 
     def transform_imu_msg(self, msg):
         transformed_msg = Imu()
@@ -65,12 +76,9 @@ class IMU(Node):
         q = np.array(
             [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w]
         )
-        q_matrix = R.from_quat(q).as_matrix()
-        transformed_q_matrix = self.R_rot @ q_matrix
-        transformed_q = R.from_matrix(transformed_q_matrix).as_quat()
-
-        # Normalize quaternion to avoid numerical drift
-        transformed_q /= np.linalg.norm(transformed_q)
+        transformed_q = (
+            self.r_imu_to_robot * R.from_quat(self.transform_quaternion(q))
+        ).as_quat()
 
         if NO_IMU_ROTATION:
             transformed_msg.orientation.x = 0.0
@@ -116,6 +124,17 @@ class IMU(Node):
             transformed_msg.linear_acceleration.z = transformed_linear_acceleration[2]
 
         return transformed_msg
+
+    def transform_quaternion(self, q):
+        q_matrix = R.from_quat(q).as_matrix()
+        # Relabel axes: swap columns to say "Z is where Y used to be"
+        # New X = Old Z
+        # New Y = Old X
+        # New Z = Old Y
+        transformed_q_matrix = self.R_rot @ q_matrix @ self.R_rot.T
+        transformed_q = R.from_matrix(transformed_q_matrix).as_quat()
+        transformed_q /= np.linalg.norm(transformed_q)
+        return transformed_q
 
 
 def main(args=None):
