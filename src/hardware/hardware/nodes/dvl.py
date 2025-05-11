@@ -10,7 +10,7 @@ import numpy as np
 import glob
 import serial
 
-DEBUG_MODE = True
+DEBUG_MODE = False
 
 class DVL(Node):
     def __init__(self, baudrate=115200):
