@@ -23,13 +23,13 @@ When developing with ROS 2 and Gazebo, it's easy to suddenly be reading outdated
 ## Installation
 
 1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop) for your operating system.
-2. Download VSCode.
-3. Open a new VSCode window.
-4. From the files tab on the left, press `Clone Repository`, `Clone from GitHub`, enter the repository name `Stanford-AUV/RoboSub`, and finally enter a location to clone the repository to (something like `~/GitHub/`).
-5. Open that newly cloned repository in a VSCode window.
-6. When prompted to open the project in a Docker container at the bottom right, press `Reopen in Container`.
-7. Wait for the build process to take place and complete.
-8. Create a new VSCode Terminal (`Terminal` > `New Terminal`).
+2. In a new VSCode window, clone the `Stanford-AUV/Robosub` repository:
+    ```bash
+    git clone https://github.com/Stanford-AUV/Robosub.git
+    ```
+3. Open the Command Palette (`Cmd+Shift+P`) and select `Reopen in Container`.
+5. Wait for the build process to take place and complete.
+6. Create a new VSCode Terminal (`Terminal` > `New Terminal` or Ctrl+Shift+`).
 9. Install the Gazebo simulator by following the steps in [SIMULATION.md](/SIMULATION.md).
 
 You should be all set! Proceed to the [building section](#building).
