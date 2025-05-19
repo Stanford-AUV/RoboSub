@@ -1,6 +1,7 @@
 from nav_msgs.msg import Odometry
 from nav_msgs.msg import Path
 from msgs.srv import GetWaypoints
+import time
 
 import numpy as np
 
@@ -11,8 +12,8 @@ from rclpy.node import Node
 ERROR_THRESHOLD = Magnitude(
     distance=0.1,  # m
     speed=2,  # m/s
-    angle=0.5,  # radians
-    angular_speed=0.1,  # radians/s
+    angle=0.5 * 8,  # radians
+    angular_speed=0.1 * 8,  # radians/s
 )
 
 
@@ -39,6 +40,7 @@ class PathTracker(Node):
             self.get_logger().error("No waypoints found")
             return
 
+        time.sleep(1)
         self.publish_waypoint()
 
         self.odometry_subscription = self.create_subscription(
