@@ -22,6 +22,7 @@ setup(
     entry_points={
         "console_scripts": [
             "keyboard = manual.nodes.keyboard:main",
+            "joystick = manual.nodes.joystick:main",
         ]
     },
 )
