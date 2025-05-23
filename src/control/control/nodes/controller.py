@@ -80,7 +80,6 @@ class Controller(Node):
 
         self.policy = policy
 
-        self.cur_state = None
         self.ref_state = None
 
     def reset(self):
@@ -98,9 +97,12 @@ class Controller(Node):
         msg : Odometry
             The message containing the state of the system.
         """
+        cur_state = State.from_odometry_msg(msg)
         with self.lock:
-            self.cur_state = State.from_odometry_msg(msg)
-            self.update() if self.ref_state is not None else None
+            ref_state = self.ref_state
+            if ref_state is not None:
+                ref_state = ref_state.copy()
+        self.update(cur_state, ref_state) if ref_state is not None else None
 
     def reference_callback(self, msg: Odometry):
         """
@@ -115,13 +117,16 @@ class Controller(Node):
             self.ref_state = State.from_odometry_msg(msg)
             self.get_logger().info("Reference state updated")
 
-    def update(self):
+    def update(self, cur_state, ref_state):
         """Update the control signal and publish to the wrench topic."""
         newTime = self.get_clock().now()
         dt = (newTime - self.time).nanoseconds / 1e9
         self.time = newTime
-        wrench = self.policy.update(self.cur_state, self.ref_state, dt)
+        wrench = self.policy.update(cur_state, ref_state, dt)
         wrench.header.stamp = self.time.to_msg()
+        # wrench.wrench.force.z = 0.2
+        # wrench = WrenchStamped()
+        # wrench.wrench.force.z = z
         self.control_publisher.publish(wrench)
 
 
@@ -130,14 +135,14 @@ def main(args=None):
     rclpy.init(args=args)
 
     pid = PID(
-        kP_position=np.array([10, 10, 10]),
-        kD_position=np.array([11, 11, 11]),
+        kP_position=np.array([1, 1, 1]),
+        kD_position=np.array([1.1, 1.1, 1.1]),
         kI_position=np.array([0, 0, 0]),
-        kP_orientation=np.array([0.5, 0.1, 1.0]),
-        kD_orientation=np.array([2.0, 0.2, 2.0]),
+        kP_orientation=np.array([0.1, 0.1, 0.1]),
+        kD_orientation=np.array([0.2, 0.2, 0.2]),
         kI_orientation=np.array([0, 0, 0]),
-        max_signal_force=np.array([0.2, 0.2, 0.2]),
-        max_signal_torque=np.array([0.4, 0.4, 0.01]),
+        max_signal_force=np.array([0.3, 0.3, 0.3]),
+        max_signal_torque=np.array([0.3, 0.3, 0.3]),
         max_integral_position=np.array([1, 1, 1]),
         max_integral_orientation=np.array([1, 1, 1]),
     )

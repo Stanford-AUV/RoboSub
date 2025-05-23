@@ -16,9 +16,11 @@ class SensorsPlot(Node):
     def __init__(self):
         super().__init__("sensors_plot")
         self.imu_sub = self.create_subscription(Imu, "imu", self.imu_callback, 10)
-
-        self.initial_rotation = None
+        self.imu_data_sub = self.create_subscription(
+            Imu, "/imu/data", self.imu_data_callback, 10
+        )
         self.orientation = None
+        self.data_orientation = None
 
         plt.ion()
         self.fig = plt.figure(figsize=(10, 10))
@@ -29,7 +31,7 @@ class SensorsPlot(Node):
         self.ax.set_zlabel("Z")
 
         # Static sphere
-        u, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
+        u, v = np.mgrid[0 : 2 * np.pi : 20j, 0 : np.pi : 10j]
         x = np.cos(u) * np.sin(v)
         y = np.sin(u) * np.sin(v)
         z = np.cos(v)
@@ -40,50 +42,54 @@ class SensorsPlot(Node):
         self.ax.set_zlim([-1.2, 1.2])
 
         plt.show(block=False)
-
         self.plot_timer = self.create_timer(0.1, self.update_plot)
 
-        # For drawing arrows
         self.quiver_X = None
         self.quiver_Y = None
         self.quiver_Z = None
 
+        self.quiver_data_X = None
+        self.quiver_data_Y = None
+        self.quiver_data_Z = None
+
     def imu_callback(self, msg: Imu):
         q = [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w]
-        rot = R.from_quat(q)
+        self.orientation = R.from_quat(q)
 
-        if self.initial_rotation is None:
-            self.initial_rotation = rot
-
-        self.orientation = rot
+    def imu_data_callback(self, msg: Imu):
+        q = [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w]
+        self.data_orientation = R.from_quat(q)
 
     def update_plot(self):
-        if self.orientation is None or self.initial_rotation is None:
+        if self.orientation is None or self.data_orientation is None:
             return
 
-        # Compute delta rotation
-        relative_rotation = self.initial_rotation.inv() * self.orientation
-        R_quat = relative_rotation.as_matrix()
+        R_quat = self.orientation.as_matrix()
+        R_data_quat = self.data_orientation.as_matrix()
 
-        # Axis remapping: new_x = old_z, new_y = old_x, new_z = -old_y
-        # T = np.array([
-        #     [0, 0, 1],
-        #     [1, 0, 0],
-        #     [0, 1, 0]
-        # ])
-        # R_new = T @ R_quat @ T.T
-        R_new = R_quat
-
-        # Remove old arrows (if they exist)
+        # Remove old arrows
         if self.quiver_X:
             self.quiver_X.remove()
             self.quiver_Y.remove()
             self.quiver_Z.remove()
+            # self.quiver_data_X.remove()
+            # self.quiver_data_Y.remove()
+            # self.quiver_data_Z.remove()
 
-        # Draw new axes
-        self.quiver_X = self.ax.quiver(0, 0, 0, *R_new[:, 0], color="r", label="X")
-        self.quiver_Y = self.ax.quiver(0, 0, 0, *R_new[:, 1], color="g", label="Y")
-        self.quiver_Z = self.ax.quiver(0, 0, 0, *R_new[:, 2], color="b", label="Z")
+        # Draw axes
+        self.quiver_X = self.ax.quiver(0, 0, 0, *R_quat[:, 0], color="r", label="X")
+        self.quiver_Y = self.ax.quiver(0, 0, 0, *R_quat[:, 1], color="g", label="Y")
+        self.quiver_Z = self.ax.quiver(0, 0, 0, *R_quat[:, 2], color="b", label="Z")
+
+        # self.quiver_data_X = self.ax.quiver(
+        #     0, 0, 0, *R_data_quat[:, 0], color="m", label="X Data"
+        # )
+        # self.quiver_data_Y = self.ax.quiver(
+        #     0, 0, 0, *R_data_quat[:, 1], color="y", label="Y Data"
+        # )
+        # self.quiver_data_Z = self.ax.quiver(
+        #     0, 0, 0, *R_data_quat[:, 2], color="c", label="Z Data"
+        # )
 
         self.ax.legend()
         self.fig.canvas.draw()
