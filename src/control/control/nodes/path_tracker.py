@@ -11,9 +11,9 @@ from rclpy.node import Node
 
 ERROR_THRESHOLD = Magnitude(
     distance=0.1,  # m
-    speed=2,  # m/s
-    angle=0.5 * 8,  # radians
-    angular_speed=0.1 * 8,  # radians/s
+    speed=0.1,  # m/s
+    angle=0.1,  # radians
+    angular_speed=0.1,  # radians/s
 )
 
 

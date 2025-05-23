@@ -29,7 +29,7 @@ class Thrusters(Node):
         self.get_logger().info(f"Publishing thrusts to Gazebo: {thrusts}")
         for i, thruster in enumerate(self._thruster_ids):
             thrust_msg = Float64()
-            thrust_msg.data = 100 * thrusts[i]
+            thrust_msg.data = 1000 * thrusts[i]
             self._gazebo_thrust_pubs[thruster].publish(thrust_msg)
 
 

@@ -136,14 +136,13 @@ def main(args=None):
 
     pid = PID(
         kP_position=np.array([1, 1, 1]),
-        kD_position=np.array([0, 0, 0]),# np.array([0.11, 0.11, 0.11]),
+        kD_position=np.array([1.1, 1.1, 1.1]),
         kI_position=np.array([0, 0, 0]),
-        kP_orientation=np.array([0.5, 0.1, 1.0]),
-        kD_orientation=np.array([2.0, 0.2, 2.0]),
+        kP_orientation=np.array([0.1, 0.1, 0.1]),
+        kD_orientation=np.array([0.2, 0.2, 0.2]),
         kI_orientation=np.array([0, 0, 0]),
-        max_signal_force=np.array([0.1, 0.1, 0.3]),
-        max_signal_torque=np.array([0, 0, 0.01]),
-        # max_signal_torque=np.array([0, 0, 0]),
+        max_signal_force=np.array([0.3, 0.3, 0.3]),
+        max_signal_torque=np.array([0.3, 0.3, 0.3]),
         max_integral_position=np.array([1, 1, 1]),
         max_integral_orientation=np.array([1, 1, 1]),
     )

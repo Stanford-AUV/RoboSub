@@ -106,8 +106,8 @@ class State:
         return Magnitude(
             distance=position_magnitude,
             speed=velocity_magnitude,
-            angle=0, # angle_magnitude,
-            angular_speed=0 #angular_velocity_magnitude
+            angle=angle_magnitude,
+            angular_speed=angular_velocity_magnitude
         )
     
     @staticmethod
