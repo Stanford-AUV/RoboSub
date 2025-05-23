@@ -14,5 +14,4 @@ nbformat
 dash
 pyserial
 nats-py
-fastapi
-uvicorn
+dataclasses-json
