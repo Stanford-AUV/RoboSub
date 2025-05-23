@@ -209,3 +209,11 @@ class State:
             orientation,
             angular_velocity
         )
+
+    def copy(self):
+        return State(
+            self.position.copy(),
+            self.velocity.copy(),
+            self.orientation.copy(),
+            self.angular_velocity.copy()
+        )

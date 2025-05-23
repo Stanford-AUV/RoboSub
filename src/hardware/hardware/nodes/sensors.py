@@ -44,7 +44,7 @@ class Sensors(Node):
         self.get_logger().info(f"Listening to DVL and IMU")
 
     def sync_callback_imu_only(self, imu_msg: Imu):
-        imu_msg.header.frame_id = "odom"
+        imu_msg.header.frame_id = "base_link"
 
         # fmt: off
         imu_msg.angular_velocity_covariance = [
@@ -61,7 +61,7 @@ class Sensors(Node):
 
         imu_pose_msg = PoseWithCovarianceStamped()
         imu_pose_msg.header.stamp = imu_msg.header.stamp
-        imu_pose_msg.header.frame_id = "odom"
+        imu_pose_msg.header.frame_id = "base_link"
         imu_pose_msg.pose.pose.orientation.x = imu_msg.orientation.x
         imu_pose_msg.pose.pose.orientation.y = imu_msg.orientation.y
         imu_pose_msg.pose.pose.orientation.z = imu_msg.orientation.z
@@ -83,15 +83,15 @@ class Sensors(Node):
         dvl_twist_msg = TwistWithCovarianceStamped()
         dvl_twist_msg.twist.twist.linear = dvl_msg.velocity.mean
         dvl_twist_msg.header.stamp = dvl_msg.header.stamp
-        dvl_twist_msg.header.frame_id = "odom"
+        dvl_twist_msg.header.frame_id = "base_link"
         # fmt: off
         dvl_twist_msg.twist.covariance = [
-            0.01, 0.0, 0.0,  0.0, 0.0, 0.0,
-            0.0, 0.01, 0.0,  0.0, 0.0, 0.0,
-            0.0, 0.0, 0.01,  0.0, 0.0, 0.0,
-            0.0, 0.0, 0.0,  0.01, 0.0, 0.0,
-            0.0, 0.0, 0.0,  0.0, 0.01, 0.0,
-            0.0, 0.0, 0.0,  0.0, 0.0, 0.01
+            0.1, 0.0, 0.0,  0.0, 0.0, 0.0,
+            0.0, 0.1, 0.0,  0.0, 0.0, 0.0,
+            0.0, 0.0, 0.1,  0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0,  0.1, 0.0, 0.0,
+            0.0, 0.0, 0.0,  0.0, 0.1, 0.0,
+            0.0, 0.0, 0.0,  0.0, 0.0, 0.1
         ]
         self.sync_dvl_publisher_.publish(dvl_twist_msg)
 

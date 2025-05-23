@@ -3,47 +3,73 @@ from rclpy.node import Node
 from sensor_msgs.msg import Imu
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+from hardware.utils.average_quaternions import average_quaternions
 
 NO_IMU_POSITION = False
-NO_IMU_ROTATION = True
+NO_IMU_ROTATION = False
 
-
-def quaternion_matrix(quaternion):
-    """Convert quaternion to a homogeneous 4×4 rotation matrix."""
-    q = np.array(quaternion, dtype=np.float64)
-    if np.dot(q, q) < np.finfo(float).eps * 4.0:  # Check for zero quaternion
-        return np.identity(4)
-
-    r = R.from_quat(q)
-    M = np.eye(4)
-    M[:3, :3] = r.as_matrix()
-    return M
-
-
-def quaternion_from_matrix(matrix):
-    """Extract a unit quaternion from a 4×4 rotation matrix."""
-    return R.from_matrix(matrix[:3, :3]).as_quat()
+NUM_CALIBRATION_QUATERNIONS = 200
 
 
 class IMU(Node):
     def __init__(self):
         super().__init__("imu")
+        self._imu_pub = self.create_publisher(Imu, "imu", 10)
         self.imu_subscription = self.create_subscription(
             Imu, "/imu/data", self.imu_listener_callback, 10
         )
 
-        # 4×4 Transformation matrix (includes homogeneous coordinates)
-        self.T_rot = np.array([[0, 0, 1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
-        self.T_lin = np.array([[0, 0, 1, 0], [1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 0, 1]])
+        # Ideal 4×4 Transformation matrix (includes homogeneous coordinates)
+        self.R_hardware = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]])
+        self.R_calib = None
 
-        self._imu_pub = self.create_publisher(Imu, "imu", 10)
+        self.num_calibration_quaternions = 0
+        self.calibration_quaternions = np.zeros((NUM_CALIBRATION_QUATERNIONS, 4))
+        self.calibrated = False
 
-    def imu_listener_callback(self, msg):
+    def imu_listener_callback(self, msg: Imu):
+        if not self.calibrated:
+            if self.num_calibration_quaternions == NUM_CALIBRATION_QUATERNIONS:
+                self.calculate_transformation_matrix()
+                self.calibrated = True
+            else:
+                q = np.array(
+                    [
+                        msg.orientation.x,
+                        msg.orientation.y,
+                        msg.orientation.z,
+                        msg.orientation.w,
+                    ]
+                )
+                q_matrix = R.from_quat(q).as_matrix()
+                transformed_q_matrix = self.R_hardware @ q_matrix @ self.R_hardware.T
+                transformed_q = R.from_matrix(transformed_q_matrix).as_quat()
+                transformed_q /= np.linalg.norm(transformed_q)
+                self.calibration_quaternions[self.num_calibration_quaternions] = (
+                    transformed_q
+                )
+                self.num_calibration_quaternions += 1
+                return
+
         transformed_msg = self.transform_imu_msg(msg)
-        # self.get_logger().info(
-        #     f"Sending IMU data: {transformed_msg.linear_acceleration}"
-        # )
+        transformed_msg.header.frame_id = "base_link"
+
         self._imu_pub.publish(transformed_msg)
+        # self.get_logger().info(
+        #     f"Sent IMU data: {transformed_msg}"
+        # )
+
+    def calculate_transformation_matrix(self):
+        # Average quaternions
+        avg_quat = average_quaternions(self.calibration_quaternions)
+        # avg_quat = self.callibration_quaternions[0]
+        r_imu = R.from_quat(avg_quat)  # convert to x, y, z, w
+        # Robot is aligned with world for calibration, so its quaternion is identity
+        r_robot = R.from_quat([0, 0, 0, 1])
+        # Rotation from IMU to robot
+        self.r_imu_to_robot = r_robot * r_imu.inv()
+        self.R_calib = self.r_imu_to_robot.as_matrix()
+        self.get_logger().info(f"Calibrated with:\n{self.R_calib}")
 
     def transform_imu_msg(self, msg):
         transformed_msg = Imu()
@@ -53,13 +79,11 @@ class IMU(Node):
         q = np.array(
             [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w]
         )
-        q_matrix = quaternion_matrix(q)  # Get 4×4 rotation matrix
+        q_matrix = R.from_quat(q).as_matrix()
         transformed_q_matrix = (
-            self.T_rot @ q_matrix @ self.T_rot.T
-        )  # Apply transformation
-        transformed_q = quaternion_from_matrix(transformed_q_matrix)
-
-        # Normalize quaternion to avoid numerical drift
+            self.R_calib @ self.R_hardware @ q_matrix @ self.R_hardware.T
+        )
+        transformed_q = R.from_matrix(transformed_q_matrix).as_quat()
         transformed_q /= np.linalg.norm(transformed_q)
 
         if NO_IMU_ROTATION:
@@ -77,7 +101,7 @@ class IMU(Node):
         angular_velocity = np.array(
             [msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z]
         )
-        transformed_angular_velocity = self.T_rot[:3, :3] @ angular_velocity
+        transformed_angular_velocity = self.R_hardware @ angular_velocity
         if NO_IMU_ROTATION:
             transformed_msg.angular_velocity.x = 0.0
             transformed_msg.angular_velocity.y = 0.0
@@ -95,7 +119,7 @@ class IMU(Node):
                 msg.linear_acceleration.z,
             ]
         )
-        transformed_linear_acceleration = self.T_lin[:3, :3] @ linear_acceleration
+        transformed_linear_acceleration = self.R_hardware @ linear_acceleration
         if NO_IMU_POSITION:
             transformed_msg.linear_acceleration.x = 0.0
             transformed_msg.linear_acceleration.y = 0.0

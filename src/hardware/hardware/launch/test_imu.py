@@ -12,18 +12,18 @@ parameters_file_path = Path(
 def generate_launch_description():
     return LaunchDescription(
         [
-            Node(
-                package="xsens_mti_ros2_driver",
-                executable="xsens_mti_node",
-                name="xsens_mti_node",
-                output="screen",
-                parameters=[parameters_file_path],
-                arguments=[],
-            ),
-            Node(
-                package="hardware",
-                executable="imu",
-            ),
+            # Node(
+            #     package="xsens_mti_ros2_driver",
+            #     executable="xsens_mti_node",
+            #     name="xsens_mti_node",
+            #     output="screen",
+            #     parameters=[parameters_file_path],
+            #     arguments=[],
+            # ),
+            # Node(
+            #     package="hardware",
+            #     executable="imu",
+            # ),
             Node(
                 package="hardware",
                 executable="imu_plot",

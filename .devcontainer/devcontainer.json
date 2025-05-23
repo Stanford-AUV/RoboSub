@@ -13,8 +13,10 @@
     "--security-opt=seccomp:unconfined",
     "--security-opt=apparmor:unconfined",
     "--ipc=host",
+    "--net=host",
     "--privileged",
     "--volume=/tmp/.X11-unix:/tmp/.X11-unix",
+    "--volume=${env:HOME}/.Xauthority:/home/ros/.Xauthority:rw",
     "--volume=/dev/bus/usb:/dev/bus/usb",
     "--volume=/dev/ttyACM0:/dev/ttyACM0",
     "--volume=/dev/ttyACM1:/dev/ttyACM1",
@@ -34,11 +36,11 @@
     // "--device=/dev/dri"
   ],
   "containerEnv": {
-    "DISPLAY": "host.docker.internal:0", // "${localEnv:DISPLAY}" for Orin,
+    "DISPLAY": "host.docker.internal:0",
     "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
     "XDG_RUNTIME_DIR": "${localEnv:XDG_RUNTIME_DIR}",
     "PULSE_SERVER": "${localEnv:PULSE_SERVER}",
-    "LIBGL_ALWAYS_SOFTWARE": "1" // Needed for software rendering of opengl
+    "LIBGL_ALWAYS_SOFTWARE": "1"
   },
   // Set *default* container specific settings.json values on container create.
   "customizations": {

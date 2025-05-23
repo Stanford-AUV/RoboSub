@@ -42,6 +42,9 @@ RUN apt-get update && apt-get install -y less fzf
 # Install nats-server
 RUN apt-get update && apt-get install -y nats-server
 
+# Install xquartz testing stuff
+RUN apt-get update && apt-get install -y xauth x11-apps
+
 # Setup SSH server
 RUN apt update && apt install -y openssh-server
 RUN sed -i 's/\(^Port\)/#\1/' /etc/ssh/sshd_config && echo Port 2222 >> /etc/ssh/sshd_config
