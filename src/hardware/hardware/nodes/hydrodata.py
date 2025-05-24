@@ -5,7 +5,8 @@ import time
 import serial
 import rclpy
 from rclpy.node import Node
-from msgs.msg import HydroData  # Replace with your actual package name
+from msgs.msg import HydroDataStamped
+from std_msgs.msg import Header
 
 # Sensor and calibration constants
 SeaWater = False
@@ -72,7 +73,7 @@ def conductivity_mScm(C_raw, T_c):
 class CTDSensorNode(Node):
     def __init__(self):
         super().__init__('ctd_sensor_node')
-        self.publisher_ = self.create_publisher(HydroData, '/hydrodata', 10)
+        self.publisher_ = self.create_publisher(HydroDataStamped, '/hydrodata', 10)
         self.timer = self.create_timer(0.1, self.timer_callback)  # 10 Hz polling
 
         self.ser = serial.Serial(CTD_port, 4800, timeout=TIMEOUT)
@@ -107,7 +108,10 @@ class CTDSensorNode(Node):
                 D_m = depth_m(P_bar)
                 C_mScm = conductivity_mScm(C_raw, T_c)
 
-                msg = HydroData()
+                msg = HydroDataStamped()
+                msg.header = Header()
+                msg.header.stamp = self.get_clock().now().to_msg()
+                msg.header.frame_id = "ctd_link"  # Set this to match your TF frame or leave empty
                 msg.temperature = T_c
                 msg.pressure = P_bar
                 msg.depth = D_m
