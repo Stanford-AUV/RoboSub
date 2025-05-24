@@ -135,6 +135,8 @@ class Bridge:
         # Handle messages coming from Docker
         topic = msg.subject
         data = msg.data
+        if topic not in self.publisher_topics:
+            return
         publisher_topic = self.publisher_topics[topic]
         publisher_topic.publisher.publish_raw(
             base64.b64decode(data), publisher_topic.type

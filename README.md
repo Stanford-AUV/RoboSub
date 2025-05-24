@@ -90,6 +90,30 @@ To use the Gazebo simulator, follow these steps:
 4. A window should pop up in the VM with the simulation environment displayed. Press play to start the simulation.
 5. To stop the simulation, press `Control` + `C` on the VSCode Terminal
 
+## Joystick
+
+Please run these commands in order.
+
+## Part 1. Docker Portion
+
+On three seperate Terminals within VSCode, run the following commands:
+
+```bash
+nats-server
+ros2 launch main manual.py
+ros2 run manual joystick
+```
+
+## Part 2. Local Portion
+
+Open a Terminal window from the Terminal app (not VSCode!), and cd into this repository's root.
+
+Then run the following command:
+
+```bash
+./joystick_local.sh
+```
+
 ## Viewing the ROS Graph
 
 After launching a launch file, you can view the ROS graph of all nodes and topics currently active. To do so, run the following command in another Terminal:
