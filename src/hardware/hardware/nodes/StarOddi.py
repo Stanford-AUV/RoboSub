@@ -1,3 +1,5 @@
+### Glorious original code from Vassili Alexopoulos, template for hydrodata.py ###
+
 import serial
 import time
 #############################################################################################
