@@ -20,11 +20,11 @@ def generate_launch_description():
                     os.path.join(launch_dir, "localization.py")
                 )
             ),
-            # IncludeLaunchDescription(
-            #     PythonLaunchDescriptionSource(os.path.join(launch_dir, "manual.py"))
-            # ),
             IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(os.path.join(launch_dir, "control.py"))
+                PythonLaunchDescriptionSource(os.path.join(launch_dir, "manual.py"))
             ),
+            # IncludeLaunchDescription(
+            #     PythonLaunchDescriptionSource(os.path.join(launch_dir, "control.py"))
+            # ),
         ]
     )

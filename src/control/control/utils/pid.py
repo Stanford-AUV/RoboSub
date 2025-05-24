@@ -61,8 +61,6 @@ class PID:
         kP_orientation: np.ndarray,
         kD_orientation: np.ndarray,
         kI_orientation: np.ndarray,
-        max_signal_force: np.ndarray,
-        max_signal_torque: np.ndarray,
         max_integral_position: np.ndarray,
         max_integral_orientation: np.ndarray,
     ):
@@ -83,10 +81,6 @@ class PID:
             The derivative gains for the orientation error.
         kI_orientation : np.ndarray
             The integral gains for the orientation error.
-        max_signal_force : np.ndarray
-            The maximum control signal for the position.
-        max_signal_torque : np.ndarray
-            The maximum control signal for the orientation.
         max_integral_position : np.ndarray
             The maximum integral error for the position.
         max_integral_orientation : np.ndarray
@@ -101,8 +95,6 @@ class PID:
 
         self.integral_position = np.array([0, 0, 0])
         self.integral_orientation = np.array([0, 0, 0])
-        self.max_signal_force = max_signal_force
-        self.max_signal_torque = max_signal_torque
         self.max_integral_position = max_integral_position
         self.max_integral_orientation = max_integral_orientation
 
@@ -200,18 +192,6 @@ class PID:
 
         # Convert force to body frame
         force_body = state.orientation.inv().R @ force_world
-
-        # Clamp the control signal
-        force_body = np.clip(
-            force_body,
-            -self.max_signal_force,  # max_signal_position
-            self.max_signal_force,
-        )
-        torque_body = np.clip(
-            torque_body,
-            -self.max_signal_torque,  # max_signal_orientation
-            self.max_signal_torque,
-        )
 
         wrench = AbstractWrench(force_body, torque_body)
 
