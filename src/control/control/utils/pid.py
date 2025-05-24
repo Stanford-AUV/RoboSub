@@ -118,7 +118,7 @@ class PID:
         self.integral_position = np.zeros(3)
         self.integral_orientation = np.zeros(3)
 
-    def update(self, state: State, reference: State, dt: float) -> WrenchStamped:
+    def update(self, state: State, reference: State, dt: float, velocity_only=False) -> WrenchStamped:
         """
         Compute the control signal.
 
@@ -162,34 +162,41 @@ class PID:
                 if np.linalg.norm(error_q_W) > np.pi:
                     # Adjust angle to take shortest path
                     error_q_W = -error_q_W * (2*np.pi - angle) / angle
-
-        # Integral sum, clamped
-        self.integral_position = self.integral_position + error.position * dt
-        self.integral_position = np.clip(
-            self.integral_position,
-            -self.max_integral_position,
-            self.max_integral_position,
-        )
+        
         # Calculate force in the world frame
-        force_world = (
-            error.position * self.kP_position
-            + error.velocity * self.kD_position
-            + self.integral_position * self.kI_position
-        )
+        if velocity_only:
+            force_world = error.velocity * self.kD_position
+        else:
+            # Integral sum, clamped
+            self.integral_position = self.integral_position + error.position * dt
+            self.integral_position = np.clip(
+                self.integral_position,
+                -self.max_integral_position,
+                self.max_integral_position,
+            )
 
-        self.integral_orientation = self.integral_orientation + error_q_W * dt
-        self.integral_orientation = np.clip(
-            self.integral_orientation,
-            -self.max_integral_orientation,
-            self.max_integral_orientation,
-        )
+            force_world = (
+                error.position * self.kP_position
+                + error.velocity * self.kD_position
+                + self.integral_position * self.kI_position
+            )
 
-        # Calculate torque in the body frame
-        torque_body = (
-            error_q_W * self.kP_orientation
-            + error.angular_velocity * self.kD_orientation
-            + self.integral_orientation * self.kI_orientation
-        )
+        if velocity_only:
+            torque_body = error.angular_velocity * self.kD_orientation
+        else:
+            self.integral_orientation = self.integral_orientation + error_q_W * dt
+            self.integral_orientation = np.clip(
+                self.integral_orientation,
+                -self.max_integral_orientation,
+                self.max_integral_orientation,
+            )
+
+            # Calculate torque in the body frame
+            torque_body = (
+                error_q_W * self.kP_orientation
+                + error.angular_velocity * self.kD_orientation
+                + self.integral_orientation * self.kI_orientation
+            )
 
         # Convert force to body frame
         force_body = state.orientation.inv().R @ force_world

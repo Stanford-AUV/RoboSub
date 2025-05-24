@@ -12,6 +12,16 @@ def generate_launch_description():
                 package="control",
                 executable="thrust_generator",
                 parameters=[global_params],
-            )
+            ),
+            Node(
+                package="control",
+                executable="controller",
+                parameters=[global_params, {"velocity_only": True}],
+            ),
+            Node(
+                package="manual",
+                executable="joystick",
+                parameters=[global_params],
+            ),
         ]
     )

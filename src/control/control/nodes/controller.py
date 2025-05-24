@@ -39,6 +39,7 @@ import numpy as np
 
 import rclpy
 from rclpy.node import Node
+from rclpy import Parameter
 
 
 class Controller(Node):
@@ -65,6 +66,12 @@ class Controller(Node):
             The policy to use for the controller.
         """
         super().__init__("controller")
+
+        self.declare_parameter("velocity_only", Parameter.Type.BOOL)
+
+        self.velocity_only = (
+            self.get_parameter("velocity_only").get_parameter_value().bool_value
+        )
 
         self.state_subscription = self.create_subscription(
             Odometry, "/odometry/filtered", self.state_callback, 10
@@ -122,7 +129,7 @@ class Controller(Node):
         newTime = self.get_clock().now()
         dt = (newTime - self.time).nanoseconds / 1e9
         self.time = newTime
-        wrench = self.policy.update(cur_state, ref_state, dt)
+        wrench = self.policy.update(cur_state, ref_state, dt, self.velocity_only)
         wrench.header.stamp = self.time.to_msg()
         # wrench.wrench.force.z = 0.2
         # wrench = WrenchStamped()

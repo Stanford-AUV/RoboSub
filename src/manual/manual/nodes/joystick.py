@@ -1,17 +1,17 @@
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import WrenchStamped
 from manual.utils.joystick import JoystickState
 import threading
 import asyncio
 import nats
+from nav_msgs.msg import Odometry
 
 
 class JoystickNode(Node):
     def __init__(self):
         super().__init__('joystick_node')
 
-        self.wrench_publisher = self.create_publisher(WrenchStamped, 'wrench', 10)
+        self.waypoint_publisher = self.create_publisher(Odometry, 'waypoint', 10)
         self.get_logger().info('Joystick node initialized')
 
         # Flag to control the async server
@@ -33,32 +33,32 @@ class JoystickNode(Node):
             loop.close()
 
     async def set_state(self, state: JoystickState):
-        wrench_msg = WrenchStamped()
-        wrench_msg.header.stamp = self.get_clock().now().to_msg()
-        wrench_msg.header.frame_id = "base_link"
+        waypoint_msg = Odometry()
+        waypoint_msg.header.stamp = self.get_clock().now().to_msg()
+        waypoint_msg.header.frame_id = "base_link"
 
         if state.enabled:
-            wrench_msg.wrench.force.x = state.ly * 0.05
-            wrench_msg.wrench.force.y = state.lx * 0.05
-            wrench_msg.wrench.force.z = state.ry * 0.05
-            wrench_msg.wrench.torque.x = 0.0
-            wrench_msg.wrench.torque.y = 0.0
-            wrench_msg.wrench.torque.z = state.rx * 0.05
+            waypoint_msg.twist.twist.linear.x = state.ly * 0.05
+            waypoint_msg.twist.twist.linear.y = state.lx * 0.05
+            waypoint_msg.twist.twist.linear.z = state.ry * 0.05
+            waypoint_msg.twist.twist.angular.x = 0.0
+            waypoint_msg.twist.twist.angular.y = 0.0
+            waypoint_msg.twist.twist.angular.z = state.rx * 0.05
         else:
-            wrench_msg.wrench.force.x = 0.0
-            wrench_msg.wrench.force.y = 0.0
-            wrench_msg.wrench.force.z = 0.0
-            wrench_msg.wrench.torque.x = 0.0
-            wrench_msg.wrench.torque.y = 0.0
-            wrench_msg.wrench.torque.z = 0.0
+            waypoint_msg.twist.twist.linear.x = 0.0
+            waypoint_msg.twist.twist.linear.y = 0.0
+            waypoint_msg.twist.twist.linear.z = 0.0
+            waypoint_msg.twist.twist.angular.x = 0.0
+            waypoint_msg.twist.twist.angular.y = 0.0
+            waypoint_msg.twist.twist.angular.z = 0.0
 
-        self.get_logger().info(f"Publishing wrench: {wrench_msg.wrench}")
+        self.get_logger().info(f"Publishing twist: {waypoint_msg.twist.twist}")
 
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, self.publish_wrench, wrench_msg)
+        await loop.run_in_executor(None, self.publish_waypoint, waypoint_msg)
 
-    def publish_wrench(self, wrench_msg):
-        self.wrench_publisher.publish(wrench_msg)
+    def publish_waypoint(self, msg):
+        self.waypoint_publisher.publish(msg)
 
     async def run_server(self):
         self.nc = await nats.connect("nats://localhost:4222")
