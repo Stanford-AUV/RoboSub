@@ -45,6 +45,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/DVLVelocity.msg"
   "msg/Detection3DPoints.msg"
   "msg/Detection3DPointsArray.msg"
+  "msg/HydroData.msg"
   "srv/GetWaypoints.srv"
   DEPENDENCIES geometry_msgs vision_msgs sensor_msgs nav_msgs nmea_msgs mavros_msgs std_msgs
 )

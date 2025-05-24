@@ -49,5 +49,11 @@ def generate_launch_description():
                 parameters=[global_params],
                 arguments=["--ros-args"],
             ),
+            Node(
+                package="hardware",
+                executable="hydrodata",
+                parameters=[global_params],
+                arguments=["--ros-args"],
+            ),
         ]
     )

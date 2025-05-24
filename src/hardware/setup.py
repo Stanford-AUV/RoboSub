@@ -32,6 +32,7 @@ setup(
             "imu_plot = hardware.nodes.imu_plot:main",
             "dvl_plot = hardware.nodes.dvl_plot:main",
             "sensors_plot = hardware.nodes.sensors_plot:main",
+            "hydrodata = hardware.nodes.hydrodata:main",
         ],
     },
 )
