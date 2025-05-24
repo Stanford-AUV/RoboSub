@@ -34,12 +34,14 @@ def thruster_configs_to_TAM_inv(
     TAM_inv = np.linalg.pinv(TAM)
     return TAM_inv
 
+max_wrench = np.array([0.3, 0.3, 0.3, 0.1, 0.1, 0.1])
+min_wrench = -max_wrench
 
 def total_force_to_individual_thrusts(TAM_inv: np.ndarray, wrench: Wrench):
     """
     Convert a desired force to motor thrusts.
 
-    Force is a 6x1 vector with the desired force in the x, y, z, roll, pitch,
+    Wrench is a 6x1 vector with the desired force in the x, y, z, roll, pitch,
     and yaw directions.
 
     Parameters
@@ -65,4 +67,5 @@ def total_force_to_individual_thrusts(TAM_inv: np.ndarray, wrench: Wrench):
             wrench.torque.z,
         ]
     )
+    wrench_vector = np.clip(wrench_vector, min_wrench, max_wrench)
     return TAM_inv @ wrench_vector
