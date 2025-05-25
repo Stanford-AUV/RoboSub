@@ -1,39 +1,109 @@
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch_ros.actions import Node
+from launch_ros.actions import Node, ComposableNodeContainer
+from launch_ros.descriptions import ComposableNode
 from launch.substitutions import LaunchConfiguration
 import os
 from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
-    params_file = LaunchConfiguration("params_file")
+    # Get paths to package directories
     depthai_prefix = get_package_share_directory("depthai_ros_driver")
     
-    return LaunchDescription(
-        [
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    os.path.join(depthai_prefix, 'launch', 'camera.launch.py')
-                )
+    # Create a container for the camera nodes
+    container = ComposableNodeContainer(
+        name='oak_container',
+        namespace='',
+        package='rclcpp_components',
+        executable='component_container',
+        composable_node_descriptions=[
+            # First camera
+            ComposableNode(
+                package='depthai_ros_driver',
+                plugin='depthai_ros_driver::Camera',
+                name='oak1',
+                parameters=[{
+                    'name': 'oak1',
+                    'camera_model': 'OAK-D',
+                    # 'mxid': '1944301021531E1300',
+                    'sync_nn': True,
+                    'nn_type': 'mobilenet',
+                }],
+                extra_arguments=[{'use_intra_process_comms': True}],
             ),
-            Node(
-                package="perception",
-                executable="camera_viewer",
-                output="screen",
-                parameters=[],
+            # Second camera
+            ComposableNode(
+                package='depthai_ros_driver',
+                plugin='depthai_ros_driver::Camera',
+                name='oak2',
+                parameters=[{
+                    'name': 'oak2',
+                    'camera_model': 'OAK-D',
+                    'sync_nn': True,
+                    'nn_type': 'mobilenet',
+                }],
+                extra_arguments=[{'use_intra_process_comms': True}],
             ),
-            # Node(
-            #     package="perception",
-            #     executable="camera",
-            #     output="screen",
-            #     parameters=[],
-            # ),
-            # Node(
-            #     package="perception",
-            #     executable="test.view_video",
-            #     output="screen",
-            #     parameters=[],
-            # ),
-        ]
+            # Rectify nodes
+            ComposableNode(
+                package='image_proc',
+                plugin='image_proc::RectifyNode',
+                name='rectify_color_node1',
+                parameters=[{'camera_name': 'oak1'}],
+                remappings=[
+                    ('image', '/oak1/rgb/image_raw'),
+                    ('camera_info', '/oak1/rgb/camera_info'),
+                    ('image_rect', '/oak1/rgb/image_rect')
+                ],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            ),
+            ComposableNode(
+                package='image_proc',
+                plugin='image_proc::RectifyNode',
+                name='rectify_color_node2',
+                parameters=[{'camera_name': 'oak2'}],
+                remappings=[
+                    ('image', '/oak2/rgb/image_raw'),
+                    ('camera_info', '/oak2/rgb/camera_info'),
+                    ('image_rect', '/oak2/rgb/image_rect')
+                ],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            ),
+        ],
+        output='screen',
     )
+    
+    # Camera Viewer
+    camera_viewer = Node(
+        package="perception",
+        executable="camera_viewer",
+        output="screen",
+        parameters=[{
+            'camera_name': 'oak1'
+        }],
+        remappings=[
+            ('/rgb', '/oak1/rgb/image_rect'),
+            ('/depth', '/oak1/stereo/depth')
+        ],
+    )
+
+    camera_viewer2 = Node(
+        package="perception",
+        executable="camera_viewer",
+        name="camera_viewer2",
+        output="screen",
+        parameters=[{
+            'camera_name': 'oak2'
+        }],
+        remappings=[
+            ('/rgb', '/oak2/rgb/image_rect'),
+            ('/depth', '/oak2/stereo/depth')
+        ],
+    )
+    
+    return LaunchDescription([
+        container,
+        camera_viewer,
+        camera_viewer2,
+    ])
