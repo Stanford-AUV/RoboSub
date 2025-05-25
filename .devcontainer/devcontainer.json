@@ -41,7 +41,6 @@
     "--volume=/dev/ttyUSB4:/dev/ttyUSB4",
     "--volume=/dev/ttyUSB5:/dev/ttyUSB5",
     "--device-cgroup-rule=c 189:* rmw",
-    "--privileged",
     "--device=/dev/bus/usb"
     // uncomment to use intel iGPU
     // "--device=/dev/dri"
