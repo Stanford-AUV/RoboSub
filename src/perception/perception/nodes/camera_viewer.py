@@ -2,6 +2,8 @@
 
 import rclpy
 from rclpy.node import Node
+from rclpy.parameter import Parameter
+
 from sensor_msgs.msg import Image, CompressedImage
 from cv_bridge import CvBridge
 import cv2
@@ -10,91 +12,63 @@ class CameraViewerNode(Node):
     def __init__(self):
         super().__init__('camera_viewer_node')
         self.bridge = CvBridge()
-        
-        self.declare_parameter('camera_name', 'oak1')
-        self.camera_name = self.get_parameter('camera_name').get_parameter_value().string_value
-        
-        self.subscription_raw_oak1 = self.create_subscription(
-            Image,
-            '/oak1/rgb/image_rect',
-            self.image_callback_oak1,
-            10
-        )
-        
-        self.subscription_raw_oak2 = self.create_subscription(
-            Image,
-            '/oak2/rgb/image_rect',
-            self.image_callback_oak2,
-            10
-        )
-        
-        self.subscription_depth_oak1 = self.create_subscription(
-            Image,
-            '/oak1/stereo/depth',
-            self.depth_callback_oak1,
-            10
-        )
-        
-        self.subscription_depth_oak2 = self.create_subscription(
-            Image,
-            '/oak2/stereo/depth',
-            self.depth_callback_oak2,
-            10
-        )
-        
-        self.get_logger().info(f"Camera viewer initialized, primary camera: {self.camera_name}")
 
-    def image_callback_oak1(self, msg):
-        """Callback for oak1 RGB image frames."""
+        self.declare_parameter("camera_name", Parameter.Type.STRING)
+
+        self.camera_name = (
+            self.get_parameter("camera_name").get_parameter_value().string_value
+        )
+
+        # Subscribe to RAW topic
+        # self.subscription_raw = self.create_subscription(
+        #     Image,
+        #     f'/{self.camera_name}/rgb/image_rect',
+        #     self.image_callback,
+        #     10
+        # )
+
+        # Subscribe to COMPRESSED topic
+        self.subscription_compressed = self.create_subscription(
+            CompressedImage,
+            f'/{self.camera_name}/rgb/image_rect/compressed',
+            self.compressed_image_callback,
+            10
+        )
+
+        # Subscribe to DEPTH topic
+        self.subscription_depth = self.create_subscription(
+            Image,
+            f'/{self.camera_name}/stereo/depth',
+            self.depth_callback,
+            10
+        )
+
+    def image_callback(self, msg):
+        """Callback for raw image frames."""
         try:
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-            cv2.imshow("OAK1 RGB", cv_image)
+            cv2.imshow("Camera Feed (RAW)", cv_image)
             cv2.waitKey(1)
         except Exception as e:
-            self.get_logger().error(f"Failed to convert oak1 RGB image: {e}")
+            self.get_logger().error(f"Failed to convert raw image: {e}")
 
-    def image_callback_oak2(self, msg):
-        """Callback for oak2 RGB image frames."""
+    def compressed_image_callback(self, msg):
+        """Callback for compressed image frames."""
+        try:
+            cv_image = self.bridge.compressed_imgmsg_to_cv2(msg)
+            cv2.imshow("Camera Feed (COMPRESSED)", cv_image)
+            cv2.waitKey(1)
+        except Exception as e:
+            self.get_logger().error(f"Failed to convert compressed image: {e}")
+
+    def depth_callback(self, msg):
+        """Callback for depth image frames."""
         try:
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-            cv2.imshow("OAK2 RGB", cv_image)
+            cv2.imshow("Camera Feed (DEPTH)", cv_image)
             cv2.waitKey(1)
         except Exception as e:
-            self.get_logger().error(f"Failed to convert oak2 RGB image: {e}")
-            
-    def depth_callback_oak1(self, msg):
-        """Callback for oak1 depth image frames."""
-        try:
-            # Convert depth image (typically 16-bit single channel)
-            cv_image = self.bridge.imgmsg_to_cv2(msg)
-            # Normalize for display
-            min_val, max_val, _, _ = cv2.minMaxLoc(cv_image)
-            if max_val > 0:
-                cv_image_normalized = cv2.normalize(cv_image, None, 0, 255, cv2.NORM_MINMAX)
-                cv_image_display = cv_image_normalized.astype('uint8')
-                # Apply colormap for better visualization
-                cv_image_colormap = cv2.applyColorMap(cv_image_display, cv2.COLORMAP_JET)
-                cv2.imshow("OAK1 Depth", cv_image_colormap)
-                cv2.waitKey(1)
-        except Exception as e:
-            self.get_logger().error(f"Failed to convert oak1 depth image: {e}")
-    
-    def depth_callback_oak2(self, msg):
-        """Callback for oak2 depth image frames."""
-        try:
-            # Convert depth image (typically 16-bit single channel)
-            cv_image = self.bridge.imgmsg_to_cv2(msg)
-            # Normalize for display
-            min_val, max_val, _, _ = cv2.minMaxLoc(cv_image)
-            if max_val > 0:
-                cv_image_normalized = cv2.normalize(cv_image, None, 0, 255, cv2.NORM_MINMAX)
-                cv_image_display = cv_image_normalized.astype('uint8')
-                # Apply colormap for better visualization
-                cv_image_colormap = cv2.applyColorMap(cv_image_display, cv2.COLORMAP_JET)
-                cv2.imshow("OAK2 Depth", cv_image_colormap)
-                cv2.waitKey(1)
-        except Exception as e:
-            self.get_logger().error(f"Failed to convert oak2 depth image: {e}")
+            self.get_logger().error(f"Failed to convert depth image: {e}")
 
 def main(args=None):
     rclpy.init(args=args)

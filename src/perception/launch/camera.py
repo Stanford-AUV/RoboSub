@@ -54,7 +54,8 @@ def generate_launch_description():
                 remappings=[
                     ('image', '/oak1/rgb/image_raw'),
                     ('camera_info', '/oak1/rgb/camera_info'),
-                    ('image_rect', '/oak1/rgb/image_rect')
+                    ('image_rect', '/oak1/rgb/image_rect'),
+                    ('image_rect/compressed', '/oak1/rgb/image_rect/compressed'),
                 ],
                 extra_arguments=[{'use_intra_process_comms': True}],
             ),
@@ -66,7 +67,8 @@ def generate_launch_description():
                 remappings=[
                     ('image', '/oak2/rgb/image_raw'),
                     ('camera_info', '/oak2/rgb/camera_info'),
-                    ('image_rect', '/oak2/rgb/image_rect')
+                    ('image_rect', '/oak2/rgb/image_rect'),
+                    ('image_rect/compressed', '/oak2/rgb/image_rect/compressed'),
                 ],
                 extra_arguments=[{'use_intra_process_comms': True}],
             ),
@@ -74,18 +76,15 @@ def generate_launch_description():
         output='screen',
     )
     
-    # Camera Viewer
-    camera_viewer = Node(
+    # Camera Viewers
+
+    camera_viewer1 = Node(
         package="perception",
         executable="camera_viewer",
         output="screen",
         parameters=[{
             'camera_name': 'oak1'
         }],
-        remappings=[
-            ('/rgb', '/oak1/rgb/image_rect'),
-            ('/depth', '/oak1/stereo/depth')
-        ],
     )
 
     camera_viewer2 = Node(
@@ -96,14 +95,10 @@ def generate_launch_description():
         parameters=[{
             'camera_name': 'oak2'
         }],
-        remappings=[
-            ('/rgb', '/oak2/rgb/image_rect'),
-            ('/depth', '/oak2/stereo/depth')
-        ],
     )
     
     return LaunchDescription([
         container,
-        camera_viewer,
+        camera_viewer1,
         camera_viewer2,
     ])
