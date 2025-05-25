@@ -96,11 +96,25 @@
   ros__parameters:
     camera:
       i_mx_id: 19443010B17E1C1300
-      i_nn_type: none
       i_pipeline_type: RGBD
+    stereo:
+      i_depth_preset: HIGH_ACCURACY
+      i_depth_filter_size: 5
+      i_extended_disp: true
+    left:
+      i_resolution: 400P
+    right:
+      i_resolution: 400P
 /bottom_cam:
   ros__parameters:
     camera:
       i_mx_id: 1944301021531E1300
-      i_nn_type: none
       i_pipeline_type: RGBD
+    stereo:
+      i_depth_preset: HIGH_ACCURACY
+      i_depth_filter_size: 5
+      i_extended_disp: true
+    left:
+      i_resolution: 400P
+    right:
+      i_resolution: 400P

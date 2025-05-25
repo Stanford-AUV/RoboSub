@@ -36,7 +36,7 @@
     // "--device=/dev/dri"
   ],
   "containerEnv": {
-    "DISPLAY": "${localEnv:DISPLAY}", // host.docker.internal for Mac
+    "DISPLAY": "host.docker.internal:0", // Get DISPLAY from ssh Terminal for Orin
     "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
     "XDG_RUNTIME_DIR": "${localEnv:XDG_RUNTIME_DIR}",
     "PULSE_SERVER": "${localEnv:PULSE_SERVER}",
