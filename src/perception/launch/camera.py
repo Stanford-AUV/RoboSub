@@ -26,7 +26,7 @@ def generate_launch_description():
                 parameters=[{
                     'name': 'oak1',
                     'camera_model': 'OAK-D',
-                    # 'mxid': '1944301021531E1300',
+                    'mxid': '19443010B17E1C1300',
                     'sync_nn': True,
                     'nn_type': 'mobilenet',
                     'enable_depth': True,
@@ -44,6 +44,7 @@ def generate_launch_description():
                 parameters=[{
                     'name': 'oak2',
                     'camera_model': 'OAK-D',
+                    'mxid': '1944301021531E1300',
                     'sync_nn': True,
                     'nn_type': 'mobilenet',
                     'enable_depth': True,
