@@ -1,11 +1,14 @@
-// See https://aka.ms/vscode-remote/devcontainer.json for format details.
 {
+  "name": "RoboSub Development",
   "dockerFile": "Dockerfile",
   "build": {
     "args": {
-      "WORKSPACE": "${containerWorkspaceFolder}"
+      "WORKSPACE": "/workspaces/RoboSub"
     }
   },
+  "workspaceFolder": "/workspaces/RoboSub",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/RoboSub,type=bind",
+  "initializeCommand": "mkdir -p /workspaces/RoboSub",
   "remoteUser": "ros",
   "runArgs": [
     "--publish=4222:4222",
@@ -18,6 +21,12 @@
     "--volume=/tmp/.X11-unix:/tmp/.X11-unix",
     "--volume=${env:HOME}/.Xauthority:/home/ros/.Xauthority:rw",
     "--volume=/dev/bus/usb:/dev/bus/usb",
+    "--device-cgroup-rule='c 189:* rmw'",
+    "--device-cgroup-rule='c 166:* rmw'",
+    "--volume=/dev/:/dev/",
+    "--volume=/sys/class/:/sys/class/",
+    "--volume=/sys/devices/:/sys/devices/",
+    "--volume=/sys/bus/:/sys/bus/",
     "--volume=/dev/ttyACM0:/dev/ttyACM0",
     "--volume=/dev/ttyACM1:/dev/ttyACM1",
     "--volume=/dev/ttyACM2:/dev/ttyACM2",
@@ -31,9 +40,14 @@
     "--volume=/dev/ttyUSB3:/dev/ttyUSB3",
     "--volume=/dev/ttyUSB4:/dev/ttyUSB4",
     "--volume=/dev/ttyUSB5:/dev/ttyUSB5",
-    "--device-cgroup-rule=c 189:* rmw"
+    "--device-cgroup-rule=c 189:* rmw",
+    "--privileged",
+    "--device=/dev/bus/usb"
     // uncomment to use intel iGPU
     // "--device=/dev/dri"
+  ],
+  "mounts": [
+    "source=/dev/bus/usb,target=/dev/bus/usb,type=bind"
   ],
   "containerEnv": {
     "DISPLAY": "host.docker.internal:0",
