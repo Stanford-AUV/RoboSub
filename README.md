@@ -94,7 +94,7 @@ To use the Gazebo simulator, follow these steps:
 
 Please run these commands in order.
 
-## Part 1. Docker Portion
+### Part 1. Docker Portion
 
 On three seperate Terminals within VSCode, run the following commands:
 
@@ -104,7 +104,7 @@ ros2 launch main manual.py
 ros2 run manual joystick
 ```
 
-## Part 2. Local Portion
+### Part 2. Local Portion
 
 Open a Terminal window from the Terminal app (not VSCode!), and cd into this repository's root.
 
@@ -112,6 +112,25 @@ Then run the following command:
 
 ```bash
 ./joystick_local.sh
+```
+
+## Camera
+
+To record data from the camera, run:
+```bash
+ros2 launch perception camera.py
+```
+Then once both camera show that they are ready, run:
+```bash
+ros2 run perception camera_viewer
+```
+Finally, to also record camera data, run:
+```bash
+./record_cameras.sh PATH_TO_RECORDING
+```
+To replay camera data:
+```bash
+ros2 bag play PATH_TO_RECORDING
 ```
 
 ## Viewing the ROS Graph

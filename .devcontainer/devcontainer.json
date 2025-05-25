@@ -1,5 +1,5 @@
-// See https://aka.ms/vscode-remote/devcontainer.json for format details.
 {
+  "name": "RoboSub Development",
   "dockerFile": "Dockerfile",
   "build": {
     "args": {
@@ -36,7 +36,7 @@
     // "--device=/dev/dri"
   ],
   "containerEnv": {
-    "DISPLAY": "host.docker.internal:0",
+    "DISPLAY": "host.docker.internal:0", // Get DISPLAY from ssh Terminal for Orin
     "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
     "XDG_RUNTIME_DIR": "${localEnv:XDG_RUNTIME_DIR}",
     "PULSE_SERVER": "${localEnv:PULSE_SERVER}",
