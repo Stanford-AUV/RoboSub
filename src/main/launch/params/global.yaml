@@ -92,3 +92,15 @@
     mag0_differential: false
     mag0_relative: false
     mag0_queue_size: 10
+/forward_cam:
+  ros__parameters:
+    camera:
+      i_mx_id: 19443010B17E1C1300
+      i_nn_type: none
+      i_pipeline_type: RGBD
+/bottom_cam:
+  ros__parameters:
+    camera:
+      i_mx_id: 1944301021531E1300
+      i_nn_type: none
+      i_pipeline_type: RGBD
