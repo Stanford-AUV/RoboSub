@@ -29,6 +29,10 @@ def generate_launch_description():
                     # 'mxid': '1944301021531E1300',
                     'sync_nn': True,
                     'nn_type': 'mobilenet',
+                    'enable_depth': True,
+                    'lr_check': True,
+                    'subpixel': True,
+                    'extended_disparity': True,
                 }],
                 extra_arguments=[{'use_intra_process_comms': True}],
             ),
@@ -42,6 +46,10 @@ def generate_launch_description():
                     'camera_model': 'OAK-D',
                     'sync_nn': True,
                     'nn_type': 'mobilenet',
+                    'enable_depth': True,
+                    'lr_check': True,
+                    'subpixel': True,
+                    'extended_disparity': True,
                 }],
                 extra_arguments=[{'use_intra_process_comms': True}],
             ),
@@ -86,6 +94,12 @@ def generate_launch_description():
             ('/rgb', '/oak1/rgb/image_rect'),
             ('/depth', '/oak1/stereo/depth')
         ],
+        parameters=[{
+            'rgb_topic': '/oak1/rgb/image_rect',
+            'depth_topic': '/oak1/stereo/depth',
+            'depth_units': 0.001,  # Convert mm to meters
+            'use_sim_time': False
+        }],
     )
 
     camera_viewer2 = Node(
@@ -100,6 +114,12 @@ def generate_launch_description():
             ('/rgb', '/oak2/rgb/image_rect'),
             ('/depth', '/oak2/stereo/depth')
         ],
+        parameters=[{
+            'rgb_topic': '/oak2/rgb/image_rect',
+            'depth_topic': '/oak2/stereo/depth',
+            'depth_units': 0.001,  # Convert mm to meters
+            'use_sim_time': False
+        }]
     )
     
     return LaunchDescription([
