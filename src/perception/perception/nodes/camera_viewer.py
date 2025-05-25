@@ -2,10 +2,22 @@
 
 import rclpy
 from rclpy.node import Node
+from rclpy.subscription import Subscription
 
-from sensor_msgs.msg import CompressedImage
+from sensor_msgs.msg import Image, CompressedImage
 from cv_bridge import CvBridge
 import cv2
+import numpy as np
+
+from typing import Optional, List
+from dataclasses import dataclass, field
+
+@dataclass
+class Camera:
+    name: str
+    rgb: Optional[np.ndarray] = None
+    depth: Optional[np.ndarray] = None
+    subscribers: List[Subscription] = field(default_factory=list)
 
 class CameraViewerNode(Node):
     def __init__(self):
@@ -17,36 +29,28 @@ class CameraViewerNode(Node):
         self.oak1_depth = None
         self.oak2_rgb = None
         self.oak2_depth = None
+
+        self.cameras = [Camera(name='forward_cam'), Camera(name='bottom_cam')]
         
-        # Subscribe to OAK1 topics
-        self.oak1_rgb_sub = self.create_subscription(
-            CompressedImage,
-            '/oak1/rgb/image_rect/compressed',
-            lambda msg: self.image_callback(msg, 'oak1', 'rgb'),
-            10
-        )
-        
-        self.oak1_depth_sub = self.create_subscription(
-            CompressedImage,
-            '/oak1/stereo/depth/compressed',
-            lambda msg: self.image_callback(msg, 'oak1', 'depth'),
-            10
-        )
-        
-        # Subscribe to OAK2 topics
-        self.oak2_rgb_sub = self.create_subscription(
-            CompressedImage,
-            '/oak2/rgb/image_rect/compressed',
-            lambda msg: self.image_callback(msg, 'oak2', 'rgb'),
-            10
-        )
-        
-        self.oak2_depth_sub = self.create_subscription(
-            CompressedImage,
-            '/oak2/stereo/depth/compressed',
-            lambda msg: self.image_callback(msg, 'oak2', 'depth'),
-            10
-        )
+        # Subscribe to topics
+        rgb_topic_suffix = 'rgb/image_rect/compressed'
+        depth_topic_suffix = 'stereo/image_raw'
+        for camera in self.cameras:
+            rgb_topic = f'/{camera.name}/{rgb_topic_suffix}'
+            depth_topic = f'/{camera.name}/{depth_topic_suffix}'
+            camera.subscribers.append(self.create_subscription(
+                CompressedImage,
+                rgb_topic,
+                self.image_callback(camera, 'rgb'),
+                10
+            ))
+            camera.subscribers.append(self.create_subscription(
+                Image,
+                depth_topic,
+                self.image_callback(camera, 'depth'),
+                10
+            ))
+            self.get_logger().info(f"Subscribed to {rgb_topic} and {depth_topic}")
         
         # Window name
         self.window_name = "Dual Camera View"
@@ -54,23 +58,20 @@ class CameraViewerNode(Node):
         # Create a timer for displaying the view
         self.display_timer = self.create_timer(0.03, self.display_view)  # ~30fps
 
-    def image_callback(self, msg, oak, image_type):
+    def image_callback(self, camera: Camera, image_type: str):
         """Callback for compressed image frames."""
-        try:
-            if image_type == 'rgb':
-                img = self.bridge.compressed_imgmsg_to_cv2(msg, 'bgr8')
-                if oak == 'oak1':
-                    self.oak1_rgb = img
-                else:  # oak2
-                    self.oak2_rgb = img
-            else:  # depth
-                img = self.bridge.compressed_imgmsg_to_cv2(msg, 'mono16')
-                if oak == 'oak1':
-                    self.oak1_depth = img
-                else:  # oak2
-                    self.oak2_depth = img
-        except Exception as e:
-            self.get_logger().error(f"Failed to process {image_type} image from {oak}: {e}")
+        def callback(msg):
+            try:
+                if image_type == 'rgb':
+                    img = self.bridge.compressed_imgmsg_to_cv2(msg, 'bgr8')
+                    camera.rgb = img
+                else:
+                    img = self.bridge.imgmsg_to_cv2(msg, 'passthrough')
+                    camera.depth = img
+            except Exception as e:
+                self.get_logger().error(f"Failed to process {image_type} image from {camera.name}: {e}")
+            self.get_logger().info(f"Processed {image_type} image from {camera.name}")
+        return callback
             
     def process_camera_view(self, rgb_img, depth_img, camera_name):
         """Process a single camera's view (RGB + Depth side by side)."""
@@ -102,31 +103,18 @@ class CameraViewerNode(Node):
             
     def display_view(self):
         """Display both cameras' views stacked vertically."""
-        # Process each camera's view
-        oak1_view = self.process_camera_view(self.oak1_rgb, self.oak1_depth, 'OAK1')
-        oak2_view = self.process_camera_view(self.oak2_rgb, self.oak2_depth, 'OAK2')
-        
-        # Stack the views vertically if both are available
-        if oak1_view is not None and oak2_view is not None:
-            # Make sure both views have the same width (resize oak2 to match oak1)
-            if oak1_view.shape[1] != oak2_view.shape[1]:
-                oak2_view = cv2.resize(oak2_view, (oak1_view.shape[1], oak2_view.shape[0]))
+        # Stack vertically all views
+        display_img = None
+        for camera in self.cameras:
+            view = self.process_camera_view(camera.rgb, camera.depth, camera.name)
+            if view is not None:
+                if display_img is not None:
+                    display_img = cv2.vconcat([display_img, view])
+                else:
+                    display_img = view
             
-            # Stack vertically
-            display_img = cv2.vconcat([oak1_view, oak2_view])
-            
-            # Add separator line
-            sep_y = oak1_view.shape[0]
-            cv2.line(display_img, (0, sep_y), (display_img.shape[1], sep_y), (0, 255, 0), 2)
-            
-            # Display the combined view
+        if display_img is not None:
             cv2.imshow(self.window_name, display_img)
-            cv2.waitKey(1)
-        elif oak1_view is not None:
-            cv2.imshow(self.window_name, oak1_view)
-            cv2.waitKey(1)
-        elif oak2_view is not None:
-            cv2.imshow(self.window_name, oak2_view)
             cv2.waitKey(1)
 
 def main(args=None):
