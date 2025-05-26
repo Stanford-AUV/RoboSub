@@ -16,7 +16,7 @@
     "--net=host",
     "--privileged",
     "--volume=/tmp/.X11-unix:/tmp/.X11-unix",
-    "--volume=${env:HOME}/.Xauthority:/home/ros/.Xauthority:rw",
+    "--mount=type=bind,source=${env:HOME},target=/host_home,readonly",
     "--volume=/dev/bus/usb:/dev/bus/usb",
     "--volume=/dev/ttyACM0:/dev/ttyACM0",
     "--volume=/dev/ttyACM1:/dev/ttyACM1",
@@ -36,7 +36,7 @@
     // "--device=/dev/dri"
   ],
   "containerEnv": {
-    "DISPLAY": "host.docker.internal:0", // Get DISPLAY from ssh Terminal for Orin
+    "DISPLAY": "localhost:10.0", // "host.docker.internal:0",
     "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
     "XDG_RUNTIME_DIR": "${localEnv:XDG_RUNTIME_DIR}",
     "PULSE_SERVER": "${localEnv:PULSE_SERVER}",

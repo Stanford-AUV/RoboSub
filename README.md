@@ -169,6 +169,31 @@ ros2 run manual keyboard
 
 ## FAQ
 
+## Display Issue
+
+Getting a display or xcb/XQuartz issue? ssh into a Terminal on your local device and try again. If you still get the issue, run on the non-VSCode Terminal:
+```bash
+echo $DISPLAY
+```
+If the value is anything other than `localhost:10.0`, run:
+```bash
+sudo lsof -iTCP:6010 -sTCP:LISTEN
+```
+Then kill all processes outputted by the `lsof` command:
+```bash
+sudo kill PROCESS_ID
+```
+Finally, logout and ssh again from your local device's Terminal. Ensure that:
+```bash
+echo $DISPLAY
+```
+is now `localhost:10.0`.
+Back on the Orin, run:
+```bash
+xeyes
+```
+and you should see a GUI pop up through XQuartz. If not, check you XQuartz installation and ensure it allows remote networks.
+
 ### Out of storage
 
 If you have less than 30 GB total on your machine, contact Scott Hickmann for how to resize to at least 30 GB. If you do have a max storage above 30 GB but still ran out of storage, make sure to clean up unused Docker files. You can do so by running the following command from the VM Terminal:
