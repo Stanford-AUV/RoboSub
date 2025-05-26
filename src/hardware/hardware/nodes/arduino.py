@@ -45,7 +45,7 @@ class Arduino(Node):
             self.get_logger().error(f"Failed to open serial port: {e}")
             raise e
 
-        self.send_light(1100)  # 1100 to 1900
+        self.send_light(1500)  # 1100 to 1900
 
         self.timer = self.create_timer(0.01, self.update)
 
