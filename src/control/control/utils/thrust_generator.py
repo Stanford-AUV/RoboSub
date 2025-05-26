@@ -34,7 +34,7 @@ def thruster_configs_to_TAM_inv(
     TAM_inv = np.linalg.pinv(TAM)
     return TAM_inv
 
-max_wrench = np.array([0.3, 0.3, 0.3, 0.1, 0.1, 0.1])
+max_wrench = np.array([0.2, 0.2, 0.2, 0.05, 0.05, 0.05])
 min_wrench = -max_wrench
 
 def total_force_to_individual_thrusts(TAM_inv: np.ndarray, wrench: Wrench):
