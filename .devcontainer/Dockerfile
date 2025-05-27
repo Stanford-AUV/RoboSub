@@ -19,15 +19,6 @@ ENV DEBIAN_FRONTEND=dialog
 
 ENV USER ros
 
-RUN python3 -m venv /home/ros/env --system-site-packages --symlinks
-
-# Set up auto-source of workspace for ros user
-ARG WORKSPACE
-RUN echo "if [ -f ${WORKSPACE}/install/setup.bash ]; then source ${WORKSPACE}/install/setup.bash; fi" >> /home/ros/.bashrc
-RUN echo "if [ -f /workspaces/RoboSub/ports.sh ]; then sudo bash /workspaces/RoboSub/ports.sh; fi" >> /home/ros/.bashrc
-RUN echo "if [ -f ${WORKSPACE}/requirements.txt ]; then /home/ros/env/bin/pip install -r ${WORKSPACE}/requirements.txt; fi" >> /home/ros/.bashrc
-RUN echo "export GZ_PARTITION=127.0.0.1:ros" >> /home/ros/.bashrc
-
 # Setup IMU Utils
 RUN apt-get update && apt-get install -y kmod \
     sharutils \
@@ -55,3 +46,14 @@ RUN sed -i 's/\(^PermitEmptyPasswords\)/#\1/' /etc/ssh/sshd_config && echo Permi
 RUN passwd -d ${USER}
 EXPOSE 2222
 RUN service ssh restart
+
+# Set up auto-source of workspace for ros user
+ARG WORKSPACE
+RUN python3 -m venv /home/ros/env --system-site-packages --symlinks
+
+# Set up auto-source of workspace for ros user
+ARG WORKSPACE
+RUN echo "if [ -f ${WORKSPACE}/requirements.txt ]; then source /home/ros/env/bin/activate; fi" >> /home/ros/.bashrc
+RUN echo "if [ -f ${WORKSPACE}/install/setup.bash ]; then source ${WORKSPACE}/install/setup.bash; fi" >> /home/ros/.bashrc
+RUN echo "if [ -f /workspaces/RoboSub/ports.sh ]; then sudo bash /workspaces/RoboSub/ports.sh; fi" >> /home/ros/.bashrc
+RUN echo "export GZ_PARTITION=127.0.0.1:ros" >> /home/ros/.bashrc
