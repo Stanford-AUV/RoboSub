@@ -42,6 +42,9 @@
     "PULSE_SERVER": "${localEnv:PULSE_SERVER}",
     "LIBGL_ALWAYS_SOFTWARE": "1"
   },
+  "features": {
+    "ghcr.io/va-h/devcontainers-features/uv:1": {}
+  },
   // Set *default* container specific settings.json values on container create.
   "customizations": {
     "vscode": {
