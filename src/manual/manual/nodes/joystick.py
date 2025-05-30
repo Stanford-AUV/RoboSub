@@ -6,14 +6,16 @@ import threading
 import asyncio
 import nats
 from msgs.msg import Float32Stamped
+from std_msgs.msg import Int16
 
 
 class JoystickNode(Node):
     def __init__(self):
-        super().__init__('joystick_node')
+        super().__init__("joystick_node")
 
-        self.wrench_publisher = self.create_publisher(WrenchStamped, 'wrench', 10)
-        self.get_logger().info('Joystick node initialized')
+        self.wrench_publisher = self.create_publisher(WrenchStamped, "wrench", 10)
+        self.light_publisher = self.create_publisher(Int16, "light", 10)
+        self.get_logger().info("Joystick node initialized")
 
         # Flag to control the async server
         self.running = True
@@ -29,7 +31,7 @@ class JoystickNode(Node):
         self.depth_subscription = self.create_subscription(
             Float32Stamped, "depth", self.depth_callback, 10
         )
-        
+
         # Start the async server in a separate thread
         self.async_thread = threading.Thread(target=self._run_async_server, daemon=True)
         self.async_thread.start()
@@ -54,7 +56,7 @@ class JoystickNode(Node):
         try:
             loop.run_until_complete(self.run_server())
         except Exception as e:
-            self.get_logger().error(f'Error in async server: {str(e)}')
+            self.get_logger().error(f"Error in async server: {str(e)}")
         finally:
             loop.close()
 
@@ -79,7 +81,9 @@ class JoystickNode(Node):
             d_error = -self.depth_rate
             force_z = self.kp * error + self.kd * d_error
 
-            self.get_logger().info(f"Desired depth: {self.desired_depth}, Current depth: {self.depth}, {force_z}")
+            self.get_logger().info(
+                f"Desired depth: {self.desired_depth}, Current depth: {self.depth}, {force_z}"
+            )
 
             wrench_msg.wrench.force.z = force_z
 
@@ -99,27 +103,33 @@ class JoystickNode(Node):
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, self.publish_wrench, wrench_msg)
 
+        light_msg = Int16()
+        light_msg.data = int(1100 + state.light_power * (1900 - 1100))
+        self.light_publisher.publish(light_msg)
+
     def publish_wrench(self, wrench_msg):
         self.wrench_publisher.publish(wrench_msg)
 
     async def run_server(self):
         self.nc = await nats.connect("nats://localhost:4222")
         try:
-            self.get_logger().info('Connected to NATS server')
+            self.get_logger().info("Connected to NATS server")
 
             sub = await self.nc.subscribe("joystick")
             while self.running:
                 try:
-                    msg = await sub.next_msg(timeout=1.0)
+                    msg = await sub.next_msg(timeout=0.5)
                     state = JoystickState.from_json(msg.data.decode("utf-8"))
                     await self.set_state(state)
                 except nats.errors.TimeoutError:
+                    self.get_logger().info("No joystick message received, waiting...")
+                    await self.set_state(JoystickState())
                     continue
                 except Exception as e:
-                    self.get_logger().error(f'Error processing message: {str(e)}')
+                    self.get_logger().error(f"Error processing message: {str(e)}")
                     continue
         except Exception as e:
-            self.get_logger().error(f'Error in NATS server: {str(e)}')
+            self.get_logger().error(f"Error in NATS server: {str(e)}")
             if self.running:
                 # Attempt to reconnect after a delay
                 await asyncio.sleep(5)
@@ -136,17 +146,17 @@ class JoystickNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = JoystickNode()
-    
+
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
         if rclpy.ok():
-            node.get_logger().info('Shutting down...')
+            node.get_logger().info("Shutting down...")
     finally:
         if rclpy.ok():
             node.destroy_node()
             rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

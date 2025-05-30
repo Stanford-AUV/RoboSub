@@ -39,14 +39,22 @@ async def main():
             ly = get_axis(5)
             rx = get_axis(3)
             ry = get_axis(4)
-            enabled = get_axis(1) < 0 and get_axis(7) < 0
+            enabled = get_axis(1) > 0 and get_axis(7) > 0
+            light_state = get_axis(2)
+            if light_state < -0.5:
+                light_power = 0
+            elif light_state > 0.5:
+                light_power = 1
+            else:
+                light_power = 0.5
 
             state = JoystickState(
                 lx=lx,
                 ly=ly,
                 rx=rx,
                 ry=ry,
-                enabled=enabled
+                light_power=light_power,
+                enabled=enabled,
             )
 
             try:
