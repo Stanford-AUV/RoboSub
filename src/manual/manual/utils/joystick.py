@@ -8,5 +8,5 @@ class JoystickState:
     ly: float = 0.0  # Left joystick Y
     rx: float = 0.0  # Right joystick X
     ry: float = 0.0  # Right joystick Y
-    light_on: bool = False
+    light_power: float = 0.0
     enabled: bool = False
