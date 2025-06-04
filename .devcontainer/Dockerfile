@@ -19,6 +19,12 @@ ENV DEBIAN_FRONTEND=dialog
 
 ENV USER ros
 
+# Refresh ROS GPG key (fix EXPKEYSIG error)
+RUN rm -f /etc/apt/sources.list.d/ros2.list && \
+    rm -f /usr/share/keyrings/ros-archive-keyring.gpg && \
+    curl -fsSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | gpg --dearmor -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list
+
 # Setup IMU Utils
 RUN apt-get update && apt-get install -y kmod \
     sharutils \
