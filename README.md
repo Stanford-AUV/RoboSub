@@ -171,28 +171,27 @@ ros2 run manual keyboard
 
 ## Display Issue
 
-Getting a display or xcb/XQuartz issue? ssh into a Terminal on your local device and try again. If you still get the issue, run on the non-VSCode Terminal:
-```bash
-echo $DISPLAY
-```
-If the value is anything other than `localhost:10.0`, run:
-```bash
-sudo lsof -iTCP:6010 -sTCP:LISTEN
-```
-Then kill all processes outputted by the `lsof` command:
-```bash
-sudo kill PROCESS_ID
-```
-Finally, logout and ssh again from your local device's Terminal. Ensure that:
-```bash
-echo $DISPLAY
-```
-is now `localhost:10.0`.
-Back on the Orin, run:
-```bash
-xeyes
-```
-and you should see a GUI pop up through XQuartz. If not, check you XQuartz installation and ensure it allows remote networks.
+Getting a display or xcb/XQuartz issue? Follow these steps:
+
+1. **Make sure XQuartz is running on your Mac** and that you ran `xhost +` on your Mac Terminal.
+
+2. **Get the display value from SSH Terminal (outside Docker):**
+    ```bash
+    echo $DISPLAY
+    ```
+    Copy the result.
+
+3. **Set the display variable in Docker Terminal where you need XQuartz:**
+    ```bash
+    export DISPLAY=result
+    ```
+    (Replace `result` with the actual value you copied from step 2)
+
+4. Back on the Orin, run:
+    ```bash
+    xeyes
+    ```
+and you should see a GUI pop up through XQuartz. If not, check your XQuartz installation and ensure it allows remote networks.
 
 ### Out of storage
 
