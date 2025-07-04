@@ -55,7 +55,16 @@ RUN service ssh restart
 
 # Set up auto-source of workspace for ros user
 ARG WORKSPACE
+
+ARG WORKSPACE=/workspaces/RoboSub
+ENV WORKSPACE=${WORKSPACE}
+
 RUN python3 -m venv /home/ros/env --system-site-packages --symlinks
+
+COPY requirements.txt /tmp/requirements.txt
+RUN /home/ros/env/bin/pip install --upgrade pip \
+    && /home/ros/env/bin/pip install -r /tmp/requirements.txt \
+    && rm /tmp/requirements.txt
 
 # Set up auto-source of workspace for ros user
 ARG WORKSPACE
