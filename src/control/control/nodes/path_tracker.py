@@ -1,95 +1,142 @@
-from nav_msgs.msg import Odometry
-from nav_msgs.msg import Path
-from msgs.srv import GetWaypoints
+#!/usr/bin/env python3
+import os
+import json
 import time
 
-import numpy as np
-
-from control.utils.state import State, Magnitude
 import rclpy
 from rclpy.node import Node
+from rclpy.parameter import Parameter
+from nav_msgs.msg import Path, Odometry
+from geometry_msgs.msg import PoseStamped
+from scipy.spatial.transform import Rotation as R
+
+from control.utils.state import State, Magnitude
 
 ERROR_THRESHOLD = Magnitude(
-    distance=0.1,  # m
-    speed=0.1,  # m/s
-    angle=0.1,  # radians
-    angular_speed=0.1,  # radians/s
+    distance=0.1,        # m
+    speed=0.1,           # m/s
+    angle=0.1,           # rad
+    angular_speed=0.1,   # rad/s
 )
 
-
 class PathTracker(Node):
-    """
-    Node that determines the next waypoint on the path to follow for the controller node.
-    """
-
     def __init__(self):
-        super().__init__("path_tracker")
+        super().__init__('path_tracker')
 
-        self.waypoint_publisher = self.create_publisher(Odometry, "waypoint", 10)
+        # allow user to override JSON file on the command line
+        self.declare_parameter(
+            'waypoints_file',
+            os.path.join(os.path.dirname(__file__), 'test_waypoints.json')
+        )
+        wp_file = self.get_parameter('waypoints_file').get_parameter_value().string_value
 
-        self.path_index = 0
-        self.path: Path | None = None
-        self.last_waypoint: Odometry | None = None
-
-        self.waypoints_cli = self.create_client(GetWaypoints, "get_waypoints")
-        while not self.waypoints_cli.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info("Waiting for waypoints service...")
-
-        self.set_waypoints()
-        if len(self.path.poses) == 0:
-            self.get_logger().error("No waypoints found")
+        # load the JSON into a nav_msgs/Path
+        self.path = self._load_path_from_json(wp_file)
+        n = len(self.path.poses)
+        if n == 0:
+            self.get_logger().error(f"No waypoints loaded from {wp_file}!")
             return
+        self.get_logger().info(f"Loaded {n} waypoints from {wp_file}")
 
-        time.sleep(1)
-        self.publish_waypoint()
+        # publisher for one‐by‐one Odometry‐waypoints
+        self.waypoint_pub = self.create_publisher(Odometry, 'waypoint', 10)
 
-        self.odometry_subscription = self.create_subscription(
-            Odometry, "/odometry/filtered", self.odometry_callback, 10
+        # tracking state
+        self.index = 0
+        self.last_wp_state = None
+
+        # give time for connections, then publish first
+        time.sleep(0.5)
+        self._publish_current_waypoint()
+
+        # now subscribe to odometry and drive the tracker
+        self.create_subscription(
+            Odometry, '/odometry/filtered', self._odom_cb, 10
         )
 
-    def set_waypoints(self):
-        req = GetWaypoints.Request()
-        future = self.waypoints_cli.call_async(req)
-        rclpy.spin_until_future_complete(self, future)
-        self.path = future.result().waypoints
-        self.get_logger().info(f"Got {len(self.path.poses)} waypoints")
+        self.count = 0
 
-    def odometry_callback(self, robot: Odometry):
-        robot_odom = State.from_odometry_msg(robot)
-        error = self.last_waypoint - robot_odom
-        error_magnitude = error.magnitude()
-        if error_magnitude < ERROR_THRESHOLD:
-            self.path_index += 1
-            if self.path_index >= len(self.path.poses):
-                self.get_logger().info("Reached end of path")
+    def _load_path_from_json(self, json_path: str) -> Path:
+        path = Path()
+        path.header.frame_id = 'map'
+        path.header.stamp = self.get_clock().now().to_msg()
+
+        try:
+            with open(json_path, 'r') as f:
+                data = json.load(f)
+        except Exception as e:
+            self.get_logger().error(f"Failed to open {json_path}: {e}")
+            return path
+
+        for wp in data.get('waypoints', []):
+            ps = PoseStamped()
+            ps.header.frame_id = 'map'
+            ps.header.stamp = self.get_clock().now().to_msg()
+            # position
+            pos = wp['position']
+            ps.pose.position.x = pos['x']
+            ps.pose.position.y = pos['y']
+            ps.pose.position.z = pos['z']
+            # orientation in roll/pitch/yaw (deg) → quaternion
+            ori = wp['orientation']
+            quat = R.from_euler(
+                'xyz',
+                [ori['roll'], ori['pitch'], ori['yaw']],
+                degrees=True
+            ).as_quat()  # returns [x,y,z,w]
+            ps.pose.orientation.x = quat[0]
+            ps.pose.orientation.y = quat[1]
+            ps.pose.orientation.z = quat[2]
+            ps.pose.orientation.w = quat[3]
+            path.poses.append(ps)
+
+        return path
+
+    def _publish_current_waypoint(self):
+        wp_msg = Odometry()
+        wp_msg.header = self.path.header
+        # copy the PoseStamped → Odometry.pose.pose
+        wp_msg.pose.pose = self.path.poses[self.index].pose
+        self.waypoint_pub.publish(wp_msg)
+
+        # record for proximity checks
+        self.last_wp_state = State.from_odometry_msg(wp_msg)
+        self.get_logger().info(f"Published waypoint {self.index} {wp_msg.pose.pose}")
+
+    def _odom_cb(self, odom: Odometry):
+        if self.last_wp_state is None:
+            return
+
+        current = State.from_odometry_msg(odom)
+        err = self.last_wp_state - current
+        # err = current
+
+        if self.count >= 10:
+            self.get_logger().info(f"Current error: {err.magnitude()}")
+            self.get_logger().info(f"Position {err.position}")
+            self.get_logger().info(f"Velocity {err.velocity}")
+            self.get_logger().info(f"Orientation {err.orientation}")
+            self.get_logger().info(f"Angular Velocity {err.angular_velocity}")
+            self.count = 0
+        else:
+            self.count += 1
+
+        if err.magnitude() < ERROR_THRESHOLD:
+            self.index += 1
+            if self.index < len(self.path.poses):
+                self.get_logger().info("Reached waypoint, advancing to next")
+                self._publish_current_waypoint()
             else:
-                self.get_logger().info("Next waypoint")
-                self.publish_waypoint()
-
-    def publish_waypoint(self):
-        assert self.path is not None, "Path is not set"
-        assert self.path_index < len(
-            self.path.poses
-        ), f"Path index {self.path_index} is out of bounds for path length {len(self.path.poses)}"
-
-        waypoint = Odometry()
-        waypoint.header = self.path.header
-        waypoint.pose.pose = self.path.poses[self.path_index].pose
-        # waypoint.twist.twist = self.path.twists[self.path_index]
-
-        self.get_logger().info(f"Publishing waypoint for {self.path_index}")
-        self.waypoint_publisher.publish(waypoint)
-
-        self.last_waypoint = State.from_odometry_msg(waypoint)
-
+                self.get_logger().info("All waypoints reached!")
+                # optionally: shut down or stop subscribing
+                rclpy.shutdown()
 
 def main(args=None):
     rclpy.init(args=args)
-    path_tracker = PathTracker()
-    rclpy.spin(path_tracker)
-    path_tracker.destroy_node()
+    node = PathTracker()
+    rclpy.spin(node)
+    node.destroy_node()
     rclpy.shutdown()
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
