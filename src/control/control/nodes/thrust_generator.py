@@ -19,6 +19,7 @@ class ThrustGenerator(Node):
     def __init__(self):
         """Initialize the ThrustGenerator node."""
         super().__init__("thrust_generator")
+        # self.get_logger().info("SDKOFAJDSOFJAS")
 
         self.declare_parameter("timer_period", Parameter.Type.DOUBLE)
         self.declare_parameter("history_depth", Parameter.Type.INTEGER)
@@ -56,6 +57,19 @@ class ThrustGenerator(Node):
             thruster_count, thruster_positions, thruster_orientations
         )
 
+        # # --- 2) build your ENU‐map matrix from the axis_map ---
+        # axis_map = {
+        #     'x': ('z', -1),   # ENU X = –raw Z
+        #     'y': ('x', -1),   # ENU Y = –raw X
+        #     'z': ('y', +1),   # ENU Z =  raw Y
+        # }
+        # # R_hw[i,j] = sign means ENU-axis i takes raw-axis j times sign
+        # self._R_hw = np.zeros((3,3))
+        # for i, axis in enumerate(('x','y','z')):
+        #     src, sgn = axis_map[axis]
+        #     j = ('x','y','z').index(src)
+        #     self._R_hw[i,j] = sgn
+
         self.wrench = Wrench()
 
         history_depth = (
@@ -71,6 +85,7 @@ class ThrustGenerator(Node):
         timer_period = (
             self.get_parameter("timer_period").get_parameter_value().double_value
         )
+        # self.get_logger().info(f"dfsdfsd{self.get_parameter("timer_period").get_parameter_value().double_value}")
         self.get_logger().info(
             f"Converting wrench to individual thruster magnitudes every {timer_period} seconds"
         )
@@ -89,7 +104,29 @@ class ThrustGenerator(Node):
     def wrench_callback(self, msg: WrenchStamped):
         """Handle incoming wrench messages."""
         self.wrench = msg.wrench
-        # self.get_logger().info(f"Received wrench {self.wrench}")
+        self.get_logger().info(f"Received wrench {self.wrench}")
+
+    # def wrench_callback(self, msg: WrenchStamped):
+    #     """Receive the incoming wrench, remap axes into ENU, then store."""
+    #     f = msg.wrench.force
+    #     t = msg.wrench.torque
+
+    #     # raw vectors in [x,y,z]
+    #     f_raw = np.array([f.x, f.y, f.z], dtype=float)
+    #     t_raw = np.array([t.x, t.y, t.z], dtype=float)
+
+    #     # apply the same hw→ENU mapping to force & torque
+    #     f_enu = self._R_hw.dot(f_raw)
+    #     t_enu = self._R_hw.dot(t_raw)
+
+    #     # assemble back into a Wrench
+    #     w = msg.wrench
+    #     w.force.x, w.force.y, w.force.z   = f_enu.tolist()
+    #     w.torque.x, w.torque.y, w.torque.z = t_enu.tolist()
+
+    #     self.wrench = w
+    # self.get_logger().info(f"Received wrench {self.wrench}")
+    # self.get_logger().info(f"Received wrench {f_raw} {f_enu}")
 
 
 def main(args=None):

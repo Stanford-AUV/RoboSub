@@ -40,7 +40,9 @@ class DVL(Node):
     def autodetect_dvl_port(self, baudrate, timeout=2):
         """Scan available serial ports and attempt to connect to the DVL."""
         possible_ports = glob.glob("/dev/ttyUSB*") + glob.glob("/dev/ttyACM*")
+        print(possible_ports)
         for port in possible_ports:
+            print(f"Trying {port}")
             try:
                 # Attempt a basic serial connection to check if the port is valid
                 with serial.Serial(port, baudrate, timeout=timeout) as ser:
@@ -143,15 +145,15 @@ class DVL(Node):
         dvl_velocity.reference = 0  # Unknown reference frame
         x = data_dict["Velocity X"]
         if np.isnan(x):
-            self.get_logger().error("Velocity X is nan")
+            # self.get_logger().error("Velocity X is nan")
             x = 0.0
         y = data_dict["Velocity Y"]
         if np.isnan(y):
-            self.get_logger().error("Velocity Y is nan")
+            # self.get_logger().error("Velocity Y is nan")
             y = 0.0
         z = data_dict["Velocity Z"]
         if np.isnan(z):
-            self.get_logger().error("Velocity Z is nan")
+            # self.get_logger().error("Velocity Z is nan")
             z = 0.0
         vel = T @ np.array([x, y, z])
         dvl_velocity.mean = Vector3()

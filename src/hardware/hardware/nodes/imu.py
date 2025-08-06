@@ -1,144 +1,124 @@
+#!/usr/bin/env python3
+import numpy as np
+from scipy.spatial.transform import Rotation as R
+
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Imu
-import numpy as np
-from scipy.spatial.transform import Rotation as R
 from hardware.utils.average_quaternions import average_quaternions
 
-NO_IMU_POSITION = False
-NO_IMU_ROTATION = False
+NUM_CALIBRATION_SAMPLES = 200
 
-NUM_CALIBRATION_QUATERNIONS = 200
-
-
-class IMU(Node):
+class IMUZeroed(Node):
     def __init__(self):
-        super().__init__("imu")
-        self._imu_pub = self.create_publisher(Imu, "imu", 10)
-        self.imu_subscription = self.create_subscription(
-            Imu, "/imu/data", self.imu_listener_callback, 10
-        )
+        super().__init__('imu_zeroed')
+        self.get_logger().info(f"Collecting {NUM_CALIBRATION_SAMPLES} samples for zero‐pose…")
 
-        # Ideal 4×4 Transformation matrix (includes homogeneous coordinates)
-        self.R_hardware = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]])
-        self.R_calib = None
+        # 1) build fixed “raw→ENU” rotation:
+        #    raw axes: +X=right, +Y=up, +Z=back
+        #    ENU axes: +X=forward, +Y=left, +Z=up
+        axis_map = {
+            'x': ('z', -1),   # ENU X = –raw Z
+            'y': ('x', -1),   # ENU Y = –raw X
+            'z': ('y', +1),   # ENU Z =  raw Y
+        }
+        R_hw = np.zeros((3,3))
+        for i, a in enumerate(('x','y','z')):
+            src, sgn = axis_map[a]
+            j = ('x','y','z').index(src)
+            R_hw[i, j] = sgn
+        self.q_hw = R.from_matrix(R_hw)
 
-        self.num_calibration_quaternions = 0
-        self.calibration_quaternions = np.zeros((NUM_CALIBRATION_QUATERNIONS, 4))
-        self.calibrated = False
+        # 2) buffer to average your “zero‐pose” ENU quaternions
+        self._buf = np.zeros((NUM_CALIBRATION_SAMPLES, 4))
+        self._count = 0
+        self._q_ref_inv = None
 
-    def imu_listener_callback(self, msg: Imu):
-        if not self.calibrated:
-            if self.num_calibration_quaternions == NUM_CALIBRATION_QUATERNIONS:
-                self.calculate_transformation_matrix()
-                self.calibrated = True
-            else:
-                q = np.array(
-                    [
-                        msg.orientation.x,
-                        msg.orientation.y,
-                        msg.orientation.z,
-                        msg.orientation.w,
-                    ]
-                )
-                q_matrix = R.from_quat(q).as_matrix()
-                transformed_q_matrix = self.R_hardware @ q_matrix @ self.R_hardware.T
-                transformed_q = R.from_matrix(transformed_q_matrix).as_quat()
-                transformed_q /= np.linalg.norm(transformed_q)
-                self.calibration_quaternions[self.num_calibration_quaternions] = (
-                    transformed_q
-                )
-                self.num_calibration_quaternions += 1
-                return
+        # subscribe raw → publish zeroed ENU
+        self.create_subscription(Imu, '/imu/data', self._on_raw, 10)
+        self._pub = self.create_publisher(Imu, 'imu', 10)
 
-        transformed_msg = self.transform_imu_msg(msg)
-        transformed_msg.header.frame_id = "base_link"
+    def _on_raw(self, msg: Imu):
+        # normalize raw quaternion [x,y,z,w]
+        q_xyzw = np.array([
+            msg.orientation.x,
+            msg.orientation.y,
+            msg.orientation.z,
+            msg.orientation.w
+        ], dtype=float)
+        q_xyzw /= np.linalg.norm(q_xyzw)
+        r_raw = R.from_quat(q_xyzw)
 
-        self._imu_pub.publish(transformed_msg)
-        # self.get_logger().info(
-        #     f"Sent IMU data: {transformed_msg}"
-        # )
+        # --- collect calibration samples (must conjugate to ENU) ---
+        if self._count < NUM_CALIBRATION_SAMPLES:
+            r_mapped = self.q_hw * r_raw * self.q_hw.inv()
+            qm       = r_mapped.as_quat()       # [x,y,z,w]
+            q_wxyz   = np.array([qm[3], qm[0], qm[1], qm[2]])
+            q_wxyz  /= np.linalg.norm(q_wxyz)
+            self._buf[self._count] = q_wxyz
+            self._count += 1
+            if self._count == NUM_CALIBRATION_SAMPLES:
+                self._finish_calibration()
+            return
 
-    def calculate_transformation_matrix(self):
-        # Average quaternions
-        avg_quat = average_quaternions(self.calibration_quaternions)
-        # avg_quat = self.callibration_quaternions[0]
-        r_imu = R.from_quat(avg_quat)  # convert to x, y, z, w
-        # Robot is aligned with world for calibration, so its quaternion is identity
-        r_robot = R.from_quat([0, 0, 0, 1])
-        # Rotation from IMU to robot
-        self.r_imu_to_robot = r_robot * r_imu.inv()
-        self.R_calib = self.r_imu_to_robot.as_matrix()
-        self.get_logger().info(f"Calibrated with:\n{self.R_calib}")
+        # --- after calibration, compute zeroed‐ENU outputs ---
 
-    def transform_imu_msg(self, msg):
-        transformed_msg = Imu()
-        transformed_msg.header = msg.header
+        # 1) change‐of‐basis: conjugate raw→ENU
+        r_mapped = self.q_hw * r_raw * self.q_hw.inv()
+        # 2) zero‐pose delta: left‐multiply by q_ref_inv
+        r_out = self._q_ref_inv * r_mapped
+        q_out = r_out.as_quat()  # [x,y,z,w]
 
-        # Transform orientation
-        q = np.array(
-            [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w]
-        )
-        q_matrix = R.from_quat(q).as_matrix()
-        transformed_q_matrix = (
-            self.R_calib @ self.R_hardware @ q_matrix @ self.R_hardware.T
-        )
-        transformed_q = R.from_matrix(transformed_q_matrix).as_quat()
-        transformed_q /= np.linalg.norm(transformed_q)
+        # self.get_logger().info(f"Δ-quat = {q_out}")
 
-        if NO_IMU_ROTATION:
-            transformed_msg.orientation.x = 0.0
-            transformed_msg.orientation.y = 0.0
-            transformed_msg.orientation.z = 0.0
-            transformed_msg.orientation.w = 1.0
-        else:
-            transformed_msg.orientation.x = transformed_q[0]
-            transformed_msg.orientation.y = transformed_q[1]
-            transformed_msg.orientation.z = transformed_q[2]
-            transformed_msg.orientation.w = transformed_q[3]
+        # now build the same composite for vector fields:
+        #    first hw→ENU, then zero‐pose
+        r_vec = self._q_ref_inv * self.q_hw
 
-        # Transform angular velocity
-        angular_velocity = np.array(
-            [msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z]
-        )
-        transformed_angular_velocity = self.R_hardware @ angular_velocity
-        if NO_IMU_ROTATION:
-            transformed_msg.angular_velocity.x = 0.0
-            transformed_msg.angular_velocity.y = 0.0
-            transformed_msg.angular_velocity.z = 0.0
-        else:
-            transformed_msg.angular_velocity.x = transformed_angular_velocity[0]
-            transformed_msg.angular_velocity.y = transformed_angular_velocity[1]
-            transformed_msg.angular_velocity.z = transformed_angular_velocity[2]
+        # raw gyro & accel
+        av_raw = np.array([
+            msg.angular_velocity.x,
+            msg.angular_velocity.y,
+            msg.angular_velocity.z
+        ], dtype=float)
+        la_raw = np.array([
+            msg.linear_acceleration.x,
+            msg.linear_acceleration.y,
+            msg.linear_acceleration.z
+        ], dtype=float)
 
-        # Transform linear acceleration
-        linear_acceleration = np.array(
-            [
-                msg.linear_acceleration.x,
-                msg.linear_acceleration.y,
-                msg.linear_acceleration.z,
-            ]
-        )
-        transformed_linear_acceleration = self.R_hardware @ linear_acceleration
-        if NO_IMU_POSITION:
-            transformed_msg.linear_acceleration.x = 0.0
-            transformed_msg.linear_acceleration.y = 0.0
-            transformed_msg.linear_acceleration.z = 0.0
-        else:
-            transformed_msg.linear_acceleration.x = transformed_linear_acceleration[0]
-            transformed_msg.linear_acceleration.y = transformed_linear_acceleration[1]
-            transformed_msg.linear_acceleration.z = transformed_linear_acceleration[2]
+        # apply identical ENU + zero transforms
+        av_out = self.q_hw.apply(av_raw)
+        la_out = self.q_hw.apply(la_raw)
 
-        return transformed_msg
+        # self.get_logger().info(f"lav-raw = {av_raw}")
+        # self.get_logger().info(f"av-out = {av_out}")
 
 
-def main(args=None):
-    rclpy.init(args=args)
-    imu = IMU()
-    rclpy.spin(imu)
-    imu.destroy_node()
+        # publish the “zeroed” ENU IMU
+        out = Imu()
+        out.header = msg.header
+        out.orientation.x, out.orientation.y, out.orientation.z, out.orientation.w = q_out
+        out.angular_velocity.x, out.angular_velocity.y, out.angular_velocity.z = av_out
+        out.linear_acceleration.x, out.linear_acceleration.y, out.linear_acceleration.z = la_out
+        self._pub.publish(out)
+
+    def _finish_calibration(self):
+        # average_quaternions expects rows=[w,x,y,z]
+        avg_w, avg_x, avg_y, avg_z = average_quaternions(self._buf)
+        # convert to SciPy’s [x,y,z,w]
+        q_ref = [avg_x, avg_y, avg_z, avg_w]
+        r_ref = R.from_quat(q_ref)
+        # invert so reference pose → identity
+        self._q_ref_inv = r_ref.inv()
+        self.get_logger().info(f"Zero-pose calibration done; q_ref = {q_ref}")
+
+def main():
+    rclpy.init()
+    node = IMUZeroed()
+    rclpy.spin(node)
+    node.destroy_node()
     rclpy.shutdown()
 
-
-if __name__ == "__main__":
+if __name__=='__main__':
     main()

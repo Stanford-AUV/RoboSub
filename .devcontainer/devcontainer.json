@@ -1,9 +1,15 @@
 {
   "name": "RoboSub Development",
-  "dockerFile": "Dockerfile",
   "build": {
+    "dockerfile": "Dockerfile",
+    "context": "..",
     "args": {
-      "WORKSPACE": "${containerWorkspaceFolder}"
+      "WORKSPACE": "."
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "installPipDependencies": false
     }
   },
   "remoteUser": "ros",
@@ -15,28 +21,41 @@
     "--ipc=host",
     "--net=host",
     "--privileged",
+    "--device=/dev/ttyUSB0",      // your DVL’s FTDI port
+    "--device=/dev/ttyUSB1",      // your DVL’s FTDI port
+    "--device=/dev/ttyUSB2",      // your DVL’s FTDI port
+    "--device=/dev/ttyUSB3",      // your DVL’s FTDI port
+    "--device=/dev/ttyUSB4",      // your DVL’s FTDI port
+    "--device=/dev/ttyUSB5",      // your DVL’s FTDI port
+    "--device=/dev/ttyACM0",       // any other serial port you need
+    "--device=/dev/ttyACM1",       // any other serial port you need
+    "--device=/dev/ttyACM2",       // any other serial port you need
+    "--device=/dev/ttyACM3",       // any other serial port you need
+    "--device=/dev/ttyACM4",       // any other serial port you need
+    "--device=/dev/ttyACM5",       // any other serial port you need
     "--volume=/tmp/.X11-unix:/tmp/.X11-unix",
     "--mount=type=bind,source=${env:HOME},target=/host_home,readonly",
-    "--volume=/dev/bus/usb:/dev/bus/usb",
-    "--volume=/dev/ttyACM0:/dev/ttyACM0",
-    "--volume=/dev/ttyACM1:/dev/ttyACM1",
-    "--volume=/dev/ttyACM2:/dev/ttyACM2",
-    "--volume=/dev/ttyACM3:/dev/ttyACM3",
-    "--volume=/dev/ttyACM4:/dev/ttyACM4",
-    "--volume=/dev/ttyACM5:/dev/ttyACM5",
-    "--volume=/dev/ttyUSB_teensy:/dev/ttyUSB_teensy",
-    "--volume=/dev/ttyUSB0:/dev/ttyUSB0",
-    "--volume=/dev/ttyUSB1:/dev/ttyUSB1",
-    "--volume=/dev/ttyUSB2:/dev/ttyUSB2",
-    "--volume=/dev/ttyUSB3:/dev/ttyUSB3",
-    "--volume=/dev/ttyUSB4:/dev/ttyUSB4",
-    "--volume=/dev/ttyUSB5:/dev/ttyUSB5",
-    "--device-cgroup-rule=c 189:* rmw"
+    // "--device=/dev/bus/usb:/dev/bus/usb",
+    // "--device=/dev/ttyACM0:/dev/ttyACM0",
+    // "--device=/dev/ttyACM1:/dev/ttyACM1",
+    // "--device=/dev/ttyACM2:/dev/ttyACM2",
+    // "--device=/dev/ttyACM3:/dev/ttyACM3",
+    // "--device=/dev/ttyACM4:/dev/ttyACM4",
+    // "--device=/dev/ttyACM5:/dev/ttyACM5",
+    // "--device=/dev/ttyUSB_teensy:/dev/ttyUSB_teensy",
+    // "--device=/dev/ttyUSB0:/dev/ttyUSB0",
+    // "--device=/dev/ttyUSB1:/dev/ttyUSB1",
+    // "--device=/dev/ttyUSB2:/dev/ttyUSB2",
+    // "--device=/dev/ttyUSB3:/dev/ttyUSB3",
+    // "--device=/dev/ttyUSB4:/dev/ttyUSB4",
+    // "--device=/dev/ttyUSB5:/dev/ttyUSB5",
+    // "--device-cgroup-rule=c 189:* rmw",
+    "--mount=type=bind,source=/dev,target=/dev"
     // uncomment to use intel iGPU
     // "--device=/dev/dri"
   ],
   "containerEnv": {
-    "DISPLAY": "localhost:10.0", // "host.docker.internal:0",
+    "DISPLAY": "${localEnv:DISPLAY}",
     "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
     "XDG_RUNTIME_DIR": "${localEnv:XDG_RUNTIME_DIR}",
     "PULSE_SERVER": "${localEnv:PULSE_SERVER}",

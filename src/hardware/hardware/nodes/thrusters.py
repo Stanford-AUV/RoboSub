@@ -27,6 +27,7 @@ class Thrusters(Node):
         )
 
         self.pwms = np.zeros(thruster_count, dtype=np.int16)
+        self._invert = [False, True, True, True, True, True, False, False]
 
         history_depth = (
             self.get_parameter("history_depth").get_parameter_value().integer_value
@@ -53,14 +54,24 @@ class Thrusters(Node):
         return np.mean(self.last_voltages)
 
     def thrusts_callback(self, msg: ThrustsStamped):
+        self.get_logger().info(f"HIIIII!!!!!! {msg}")
         try:
             voltage = self.get_voltage()
             self.get_logger().info(f"Voltage {voltage}")
             self.get_logger().info(f"Received thrusts {msg.thrusts}")
             self.pwms = np.array(
-                [thrust_to_pwm(thrust, voltage) for thrust in msg.thrusts],
+                [
+                    (
+                        1100 + 1900 - thrust_to_pwm(thrust, voltage)
+                        if self._invert[i]
+                        else thrust_to_pwm(thrust, voltage)
+                    )
+                    for i, thrust in enumerate(msg.thrusts)
+                ],
                 dtype=np.int16,
             )
+            self.get_logger().info(f"Constructed pwms {self.pwms}")
+
         except ValueError as e:
             self.get_logger().error(f"Failed to convert thrusts to PWMs: {e}")
 

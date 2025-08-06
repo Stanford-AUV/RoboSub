@@ -28,6 +28,8 @@ class JoystickNode(Node):
         self.kp = 3  # Proportional gain
         self.kd = 1  # Derivative gain
 
+        self.count = 0
+
         self.depth_subscription = self.create_subscription(
             Float32Stamped, "depth", self.depth_callback, 10
         )
@@ -69,27 +71,30 @@ class JoystickNode(Node):
             wrench_msg.wrench.force.x = state.ly * 0.5
             wrench_msg.wrench.force.y = -state.lx * 0.5
 
-            # Handle depth control
-            z_input = state.ry
-            if abs(z_input) > 0.05:  # User wants to move up/down
-                self.desired_depth = self.depth + z_input  # Move in increments
-            elif self.desired_depth is None:
-                self.desired_depth = self.depth
+            # # Handle depth control
+            # z_input = state.ry
+            # if abs(z_input) > 0.05:  # User wants to move up/down
+            #     self.desired_depth = self.depth + z_input  # Move in increments
+            # elif self.desired_depth is None:
+            #     self.desired_depth = self.depth
 
-            # PD Controller
-            error = self.desired_depth - self.depth
-            d_error = -self.depth_rate
-            force_z = self.kp * error + self.kd * d_error
+            # # PD Controller
+            # error = self.desired_depth - self.depth
+            # d_error = -self.depth_rate
+            # force_z = self.kp * error + self.kd * d_error
 
-            self.get_logger().info(
-                f"Desired depth: {self.desired_depth}, Current depth: {self.depth}, {force_z}"
-            )
+            # self.get_logger().info(
+            #     f"Desired depth: {self.desired_depth}, Current depth: {self.depth}, {force_z}"
+            # )
 
-            wrench_msg.wrench.force.z = force_z
+            # wrench_msg.wrench.force.z = force_z
+            wrench_msg.wrench.force.z = state.ry * 0.5
+
 
             wrench_msg.wrench.torque.x = 0.0
             wrench_msg.wrench.torque.y = 0.0
             wrench_msg.wrench.torque.z = -state.rx * 0.1
+            # self.get_logger().info(wrench_msg)
         else:
             wrench_msg.wrench.force.x = 0.0
             wrench_msg.wrench.force.y = 0.0
@@ -98,9 +103,14 @@ class JoystickNode(Node):
             wrench_msg.wrench.torque.y = 0.0
             wrench_msg.wrench.torque.z = 0.0
 
-        # self.get_logger().info(f"Publishing wrench: {wrench_msg.wrench}")
-
         loop = asyncio.get_event_loop()
+        if self.count >= 10:
+            self.get_logger().info(f"Publishing {wrench_msg}")
+            self.count = 0
+        else:
+            self.count += 1
+
+
         await loop.run_in_executor(None, self.publish_wrench, wrench_msg)
 
         light_msg = Int16()

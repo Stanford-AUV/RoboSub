@@ -30,6 +30,7 @@ setup(
             "test_thrust = control.nodes.test_thrust:main",
             "path_generator = control.nodes.path_generator:main",
             "test_waypoints = control.nodes.test_waypoints:main",
+            "stop = control.nodes.stop:main",
         ]
     },
 )

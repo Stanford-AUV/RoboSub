@@ -32,6 +32,7 @@ from control.utils.state import State
 
 from geometry_msgs.msg import WrenchStamped
 from spatialmath.quaternion import UnitQuaternion
+from tf_transformations import euler_from_quaternion
 
 from nav_msgs.msg import Odometry
 
@@ -67,7 +68,7 @@ class Controller(Node):
         """
         super().__init__("controller")
 
-        self.declare_parameter("velocity_only", Parameter.Type.BOOL)
+        self.declare_parameter("velocity_only", False)
 
         self.velocity_only = (
             self.get_parameter("velocity_only").get_parameter_value().bool_value
@@ -89,6 +90,8 @@ class Controller(Node):
 
         self.ref_state = None
 
+        self.count = 0
+
     def reset(self):
         """Reset the controller."""
         self.get_logger.info("Resetting controller...")
@@ -104,6 +107,28 @@ class Controller(Node):
         msg : Odometry
             The message containing the state of the system.
         """
+        if self.count >= 10:
+            px = msg.pose.pose.position.x
+            py = msg.pose.pose.position.y
+            pz = msg.pose.pose.position.z
+            self.get_logger().info(f"Currently at {px:.3f}, {py:.3f}, {pz:.3f}")
+
+            q = msg.pose.pose.orientation
+            quat = [q.x, q.y, q.z, q.w]
+            roll, pitch, yaw = euler_from_quaternion(quat)
+            self.get_logger().info(
+                f"Orientation (r,p,y): roll={roll:.3f}, pitch={pitch:.3f}, yaw={yaw:.3f}"
+            )
+
+            if self.ref_state is None:
+                self.get_logger().info("Waiting for target state...")
+            else:
+                self.get_logger().info(f"Target state: {self.ref_state.position} {self.ref_state.orientation}")
+            
+            self.count = 0
+        else:
+            self.count += 1
+
         cur_state = State.from_odometry_msg(msg)
         with self.lock:
             ref_state = self.ref_state
@@ -120,6 +145,8 @@ class Controller(Node):
         msg : Odometry
             The message containing the reference state.
         """
+        self.get_logger().info(f"Received state {msg}")
+        # raise ValueError()
         with self.lock:
             self.ref_state = State.from_odometry_msg(msg)
             self.get_logger().info("Reference state updated")
@@ -134,6 +161,8 @@ class Controller(Node):
         # wrench.wrench.force.z = 0.2
         # wrench = WrenchStamped()
         # wrench.wrench.force.z = z
+        if self.count >= 9:
+            self.get_logger().info(f"Publishing wrench {wrench}") 
         self.control_publisher.publish(wrench)
 
 
@@ -142,11 +171,11 @@ def main(args=None):
     rclpy.init(args=args)
 
     pid = PID(
-        kP_position=np.array([1, 1, 1]),
-        kD_position=np.array([1.1, 1.1, 1.1]),
-        kI_position=np.array([0, 0, 0]),
-        kP_orientation=np.array([0.1, 0.1, 0.1]),
-        kD_orientation=np.array([0.2, 0.2, 0.2]),
+        kP_position=np.array([1.5, 1.5, 1.5]),
+        kD_position=np.array([0.05, 0.05, 0.05]),
+        kI_position=np.array([0.2, 0.2, 0.2]),
+        kP_orientation=np.array([0.025, 0.025, 0.025]),
+        kD_orientation=np.array([0.025, 0.025, 0.025]),
         kI_orientation=np.array([0, 0, 0]),
         max_integral_position=np.array([1, 1, 1]),
         max_integral_orientation=np.array([1, 1, 1]),
@@ -158,6 +187,10 @@ def main(args=None):
         rclpy.spin(controller_node)
     except KeyboardInterrupt:
         controller_node.get_logger().info("Shutting down controller...")
+        stop = WrenchStamped()
+        stop.header.stamp = controller_node.get_clock().now().to_msg()
+        # all fields of stop.wrench are already zero by default
+        controller_node.control_publisher.publish(stop)
         pass
 
     controller_node.destroy_node()

@@ -85,6 +85,9 @@ class Arduino(Node):
         ]
         message = " ".join(commands)
         try:
+            # self.get_logger().info(f":DdDDDDDDD YAY! {message}")
+            # message = "1500 " * 8
+            # message = message[:-1]
             self.portName.write((message + "\n").encode())
         except serial.SerialException as e:
             self.get_logger().error(f"Failed to write to serial port: {e}")
@@ -98,7 +101,7 @@ class Arduino(Node):
         parts = response.split(" ")
         if parts[0] != ">":
             self.get_logger().error(f"Unexpected response from Arduino: {response}")
-            return
+            returncp
         sensors = {
             "pressure": None,
             "temperature": None,

@@ -44,7 +44,13 @@ class Sensors(Node):
         self.get_logger().info(f"Listening to DVL and IMU")
 
     def sync_callback_imu_only(self, imu_msg: Imu):
-        imu_msg.header.frame_id = "base_link"
+        imu_msg.header.frame_id = "odom"
+
+        # imu_msg.orientation_covariance = [
+        #     0.05, 0.0, 0.0,   # roll  ±√0.05 rad (~13°)
+        #     0.0, 0.05, 0.0,   # pitch ±√0.05 rad (~13°)
+        #     0.0, 0.0, 0.05    # yaw   ±√0.05 rad (~13°)
+        # ]
 
         # fmt: off
         imu_msg.angular_velocity_covariance = [
@@ -54,26 +60,26 @@ class Sensors(Node):
         ]
         # fmt: off
         imu_msg.linear_acceleration_covariance = [
-            5.0, 0.0, 0.0,
-            0.0, 5.0, 0.0,
-            0.0, 0.0, 5.0
+            0.5, 0.0, 0.0,
+            0.0, 0.5, 0.0,
+            0.0, 0.0, 0.5
         ]
 
         imu_pose_msg = PoseWithCovarianceStamped()
         imu_pose_msg.header.stamp = imu_msg.header.stamp
-        imu_pose_msg.header.frame_id = "base_link"
+        imu_pose_msg.header.frame_id = "odom"
         imu_pose_msg.pose.pose.orientation.x = imu_msg.orientation.x
         imu_pose_msg.pose.pose.orientation.y = imu_msg.orientation.y
         imu_pose_msg.pose.pose.orientation.z = imu_msg.orientation.z
         imu_pose_msg.pose.pose.orientation.w = imu_msg.orientation.w
         # fmt: off
         imu_pose_msg.pose.covariance = [
-            0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-            0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-            0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-            0.0,  0.0,  0.0,  0.05,  0.0,  0.0,
-            0.0,  0.0,  0.0,  0.0,  0.05,  0.0,
-            0.0,  0.0,  0.0,  0.0,  0.0,  0.05
+            0.25,  0.0,  0.0,  0.0,  0.0,  0.0,
+            0.0,  0.25,  0.0,  0.0,  0.0,  0.0,
+            0.0,  0.0,  0.25,  0.0,  0.0,  0.0,
+            0.0,  0.0,  0.0,  0.25,  0.0,  0.0,
+            0.0,  0.0,  0.0,  0.0,  0.25,  0.0,
+            0.0,  0.0,  0.0,  0.0,  0.0,  0.25
         ]
 
         self.sync_imu_publisher_.publish(imu_msg)
@@ -86,12 +92,12 @@ class Sensors(Node):
         dvl_twist_msg.header.frame_id = "base_link"
         # fmt: off
         dvl_twist_msg.twist.covariance = [
-            0.1, 0.0, 0.0,  0.0, 0.0, 0.0,
-            0.0, 0.1, 0.0,  0.0, 0.0, 0.0,
-            0.0, 0.0, 0.1,  0.0, 0.0, 0.0,
-            0.0, 0.0, 0.0,  0.1, 0.0, 0.0,
-            0.0, 0.0, 0.0,  0.0, 0.1, 0.0,
-            0.0, 0.0, 0.0,  0.0, 0.0, 0.1
+            0.2, 0.0, 0.0,  0.0, 0.0, 0.0,
+            0.0, 0.2, 0.0,  0.0, 0.0, 0.0,
+            0.0, 0.0, 0.2,  0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0,  0.2, 0.0, 0.0,
+            0.0, 0.0, 0.0,  0.0, 0.2, 0.0,
+            0.0, 0.0, 0.0,  0.0, 0.0, 0.2
         ]
         self.sync_dvl_publisher_.publish(dvl_twist_msg)
 
