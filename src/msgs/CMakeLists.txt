@@ -38,6 +38,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/PWMsStamped.msg"
   "msg/SensorsStamped.msg"
   "msg/ThrustsStamped.msg"
+  "msg/Waypoint.msg"
   "msg/Float32Stamped.msg"
   "msg/DVLBeam.msg"
   "msg/DVLData.msg"

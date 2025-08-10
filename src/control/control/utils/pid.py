@@ -110,89 +110,149 @@ class PID:
         self.integral_position = np.zeros(3)
         self.integral_orientation = np.zeros(3)
 
+    # def update(self, state: State, reference: State, dt: float, velocity_only=False) -> WrenchStamped:
+    #     """
+    #     Compute the control signal.
+
+    #     The function calculates the control signal by evaluating the between
+    #     the error between the current state and the target reference. It then
+    #     computes the control signal by multiplying the error by the gains
+    #     and clamp the output to the maximum limit.
+
+    #     Parameters
+    #     ----------
+    #     state : State
+    #         State object representing the current state of the system.
+    #     reference : State
+    #         State object representing the desired reference state.
+    #     dt : float
+    #         The time step between the current and previous state.
+
+    #     Returns
+    #     -------
+    #     np.array
+    #         The control signal, constrained by the maximum output limit (ceil).
+    #     """
+    #     error = reference - state
+        
+    #     # Orientation error in axis-angle form
+    #     angle, axis = error.orientation.angvec()
+        
+    #     # Only apply control if angle is above dead zone
+    #     if abs(angle) < 0.05:
+    #         error_q_W = np.zeros(3)
+    #     else:
+    #         # Handle potential NaN or zero-norm axis
+    #         if np.isnan(axis).any() or np.linalg.norm(axis) < 1e-10:
+    #             error_q_W = np.zeros(3)
+    #         else:
+    #             # Normalize axis for numerical stability
+    #             axis = axis / np.linalg.norm(axis)
+    #             error_q_W = axis * angle
+                
+    #             # Check for angle wrapping (ensure shortest path rotation)
+    #             if np.linalg.norm(error_q_W) > np.pi:
+    #                 # Adjust angle to take shortest path
+    #                 error_q_W = -error_q_W * (2*np.pi - angle) / angle
+        
+    #     # Calculate force in the world frame
+    #     if velocity_only:
+    #         force_world = error.velocity * self.kD_position
+    #     else:
+    #         # Integral sum, clamped
+    #         self.integral_position = self.integral_position + error.position * dt
+    #         self.integral_position = np.clip(
+    #             self.integral_position,
+    #             -self.max_integral_position,
+    #             self.max_integral_position,
+    #         )
+
+    #         force_world = (
+    #             error.position * self.kP_position
+    #             + error.velocity * self.kD_position
+    #             + self.integral_position * self.kI_position
+    #         )
+
+    #     if velocity_only:
+    #         torque_body = error.angular_velocity * self.kD_orientation
+    #     else:
+    #         self.integral_orientation = self.integral_orientation + error_q_W * dt
+    #         self.integral_orientation = np.clip(
+    #             self.integral_orientation,
+    #             -self.max_integral_orientation,
+    #             self.max_integral_orientation,
+    #         )
+
+    #         # Calculate torque in the body frame
+    #         torque_body = (
+    #             error_q_W * self.kP_orientation
+    #             + error.angular_velocity * self.kD_orientation
+    #             + self.integral_orientation * self.kI_orientation
+    #         )
+
+    #     # Convert force to body frame
+    #     force_body = state.orientation.inv().R @ force_world
+
+    #     wrench = AbstractWrench(force_body, torque_body)
+
+    #     return wrench.to_msg()
+
+    ## TEMPORARY TEST ##
     def update(self, state: State, reference: State, dt: float, velocity_only=False) -> WrenchStamped:
         """
         Compute the control signal.
-
-        The function calculates the control signal by evaluating the between
-        the error between the current state and the target reference. It then
-        computes the control signal by multiplying the error by the gains
-        and clamp the output to the maximum limit.
-
-        Parameters
-        ----------
-        state : State
-            State object representing the current state of the system.
-        reference : State
-            State object representing the desired reference state.
-        dt : float
-            The time step between the current and previous state.
-
-        Returns
-        -------
-        np.array
-            The control signal, constrained by the maximum output limit (ceil).
         """
         error = reference - state
-        
-        # Orientation error in axis-angle form
-        angle, axis = error.orientation.angvec()
-        
-        # Only apply control if angle is above dead zone
-        if abs(angle) < 0.05:
-            error_q_W = np.zeros(3)
+
+        # -------- Orientation error in BODY frame (fixes large roll commands) --------
+        # q_err_body = R_current^T * R_ref
+        q_err_body = state.orientation.inv() * reference.orientation
+        angle, axis_b = q_err_body.angvec()  # principal angle in [0, pi], axis in BODY
+
+        deadband = 0.05  # ~3 deg
+        if not np.isfinite(angle) or abs(angle) < deadband or axis_b is None or np.isnan(axis_b).any():
+            error_q_B = np.zeros(3)
         else:
-            # Handle potential NaN or zero-norm axis
-            if np.isnan(axis).any() or np.linalg.norm(axis) < 1e-10:
-                error_q_W = np.zeros(3)
-            else:
-                # Normalize axis for numerical stability
-                axis = axis / np.linalg.norm(axis)
-                error_q_W = axis * angle
-                
-                # Check for angle wrapping (ensure shortest path rotation)
-                if np.linalg.norm(error_q_W) > np.pi:
-                    # Adjust angle to take shortest path
-                    error_q_W = -error_q_W * (2*np.pi - angle) / angle
-        
-        # Calculate force in the world frame
+            # axis_b is already unit-length from angvec()
+            error_q_B = axis_b * angle  # body-frame Euler vector
+
+        # -------- Position control (WORLD frame) --------
         if velocity_only:
             force_world = error.velocity * self.kD_position
         else:
-            # Integral sum, clamped
+            # Integral with anti-windup clamp
             self.integral_position = self.integral_position + error.position * dt
             self.integral_position = np.clip(
                 self.integral_position,
                 -self.max_integral_position,
                 self.max_integral_position,
             )
-
             force_world = (
                 error.position * self.kP_position
                 + error.velocity * self.kD_position
                 + self.integral_position * self.kI_position
             )
 
+        # -------- Attitude control (BODY frame) --------
+        # NOTE: assuming error.angular_velocity is in BODY frame (common for ROS odom/twist).
+        # If it's in world, convert: omega_body_err = state.orientation.inv().R @ error.angular_velocity
         if velocity_only:
             torque_body = error.angular_velocity * self.kD_orientation
         else:
-            self.integral_orientation = self.integral_orientation + error_q_W * dt
+            self.integral_orientation = self.integral_orientation + error_q_B * dt
             self.integral_orientation = np.clip(
                 self.integral_orientation,
                 -self.max_integral_orientation,
                 self.max_integral_orientation,
             )
-
-            # Calculate torque in the body frame
             torque_body = (
-                error_q_W * self.kP_orientation
+                error_q_B * self.kP_orientation
                 + error.angular_velocity * self.kD_orientation
                 + self.integral_orientation * self.kI_orientation
             )
 
-        # Convert force to body frame
+        # Convert force to body frame for thrusters
         force_body = state.orientation.inv().R @ force_world
 
         wrench = AbstractWrench(force_body, torque_body)
-
         return wrench.to_msg()

@@ -9,6 +9,8 @@ from rclpy.parameter import Parameter
 from nav_msgs.msg import Path, Odometry
 from geometry_msgs.msg import PoseStamped
 from scipy.spatial.transform import Rotation as R
+from rclpy.qos import QoSProfile, QoSDurabilityPolicy, QoSReliabilityPolicy
+from msgs.msg import Waypoint
 
 from control.utils.state import State, Magnitude
 
@@ -39,7 +41,11 @@ class PathTracker(Node):
         self.get_logger().info(f"Loaded {n} waypoints from {wp_file}")
 
         # publisher for one‐by‐one Odometry‐waypoints
-        self.waypoint_pub = self.create_publisher(Odometry, 'waypoint', 10)
+        qos = QoSProfile(depth=1)
+        qos.durability = QoSDurabilityPolicy.TRANSIENT_LOCAL   # latch last msg
+        qos.reliability = QoSReliabilityPolicy.RELIABLE
+
+        self.waypoint_pub = self.create_publisher(Waypoint, 'waypoint', qos)
 
         # tracking state
         self.index = 0
@@ -84,6 +90,7 @@ class PathTracker(Node):
                 [ori['roll'], ori['pitch'], ori['yaw']],
                 degrees=True
             ).as_quat()  # returns [x,y,z,w]
+            self.get_logger().info(f"{ori} and then {quat}")
             ps.pose.orientation.x = quat[0]
             ps.pose.orientation.y = quat[1]
             ps.pose.orientation.z = quat[2]
@@ -93,15 +100,24 @@ class PathTracker(Node):
         return path
 
     def _publish_current_waypoint(self):
-        wp_msg = Odometry()
-        wp_msg.header = self.path.header
-        # copy the PoseStamped → Odometry.pose.pose
-        wp_msg.pose.pose = self.path.poses[self.index].pose
-        self.waypoint_pub.publish(wp_msg)
+        # Build an Odometry for the target pose (same as you were publishing before)
+        odom_target = Odometry()
+        odom_target.header = self.path.header
+        odom_target.pose.pose = self.path.poses[self.index].pose
 
-        # record for proximity checks
-        self.last_wp_state = State.from_odometry_msg(wp_msg)
-        self.get_logger().info(f"Published waypoint {self.index} {wp_msg.pose.pose}")
+        # Wrap it in your custom Waypoint
+        wp = Waypoint()
+        wp.purpose = "target"
+        wp.subject = "N/A"
+        wp.target = odom_target
+        wp.hold_time = 0.0  # set a value or load from JSON if you add it there
+
+        self.waypoint_pub.publish(wp)
+
+        # keep using State for proximity checks
+        self.last_wp_state = State.from_odometry_msg(odom_target)
+        self.get_logger().info(f"Published waypoint {self.index} (purpose={wp.purpose})")
+
 
     def _odom_cb(self, odom: Odometry):
         if self.last_wp_state is None:
@@ -123,6 +139,7 @@ class PathTracker(Node):
 
         if err.magnitude() < ERROR_THRESHOLD:
             self.index += 1
+            self.count = 10
             if self.index < len(self.path.poses):
                 self.get_logger().info("Reached waypoint, advancing to next")
                 self._publish_current_waypoint()

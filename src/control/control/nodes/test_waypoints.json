@@ -1,3 +1,4 @@
+
 {
     "waypoints": [
         {
@@ -5,12 +6,9 @@
             "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
         },
         {
-            "position": {"x": 8.0, "y": 0.0, "z": -1.6},
-            "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
-        },
-        {
-            "position": {"x": 8.0, "y": 0.0, "z": 0.0},
+            "position": {"x": 6.0, "y": 0.0, "z": -1.0},
             "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
         }
+        
     ]
 }
