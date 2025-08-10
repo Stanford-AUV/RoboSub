@@ -29,6 +29,7 @@ setup(
             "test.view_video = perception.nodes.test.view_video:main",
             "test.view_detections_3d = perception.nodes.test.view_detections_3d:main",
             "objects_localizer = perception.nodes.objects_localizer:main",
+            "gate_localizer = perception.nodes.gate_localizer:main",
             "camera_viewer = perception.nodes.camera_viewer:main",
         ],
     },

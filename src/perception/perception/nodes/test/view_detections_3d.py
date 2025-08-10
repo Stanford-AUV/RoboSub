@@ -87,7 +87,9 @@ def create_dash_app(node):
         [Input("update-interval", "n_intervals")],
     )
     def update_plot(n):
+
         data = node.detections_data["rectangles"]
+        self.get_logger().info()(f"update_plot fired: {data}")
 
         fig_data = []
 
@@ -155,9 +157,11 @@ def main(args=None):
     # Run ROS2 spin in a separate thread
     ros_thread = Thread(target=ros2_thread, args=(node,))
     ros_thread.start()
+    print("hi")
 
     # Run Dash app
-    app.run_server(debug=True, use_reloader=False)
+    app.run(debug=True, use_reloader=False)
+    print("hi")
 
 
 if __name__ == "__main__":

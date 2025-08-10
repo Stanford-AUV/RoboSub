@@ -30,8 +30,8 @@ class ObjectsLocalizer(Node):
         self.pub = self.create_publisher(Detection3DArray, "detections3d", 10)
 
         # Use https://tools.luxonis.com for generating blob and config files from a PyTorch model (.pt). Set input image size to 416x416.
-        nnBlobPath = "yolo11n_openvino_2022.1_6shave.blob"
-        configPath = "yolo11n.json"
+        nnBlobPath = "best_openvino_2022.1_6shave.blob"
+        configPath = "best.json"
         syncNN = True
 
         with open(configPath) as f:
