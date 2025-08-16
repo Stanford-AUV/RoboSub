@@ -1,14 +1,356 @@
 
+
+
 {
-    "waypoints": [
+  "waypoints": [
+    {
+      name: "gate_left",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+      task: "roll_style"
+    }
         {
-            "position": {"x": 0.0, "y": 0.0, "z": -1.0},
-            "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
-        },
-        {
-            "position": {"x": 6.0, "y": 0.0, "z": -1.0},
-            "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
-        }
-        
-    ]
+      name: "torpedo_site",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+      decorator: "torpedo"
+    }
+
+      "slalom 1"
+    "slalom 2"
+    ..
+
+    gate: 1 2 3, 90 deg 100 deg iu9ehfa9u
+    slalom 1: dfifidsooi
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 0.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    },
+    {
+      "purpose": "target",
+      "position": {"x": 1.0, "y": 0.0, "z": -0.5},
+      "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+    }
+  ]
 }

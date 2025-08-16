@@ -32,6 +32,8 @@ setup(
             "path_generator = control.nodes.path_generator:main",
             "test_waypoints = control.nodes.test_waypoints:main",
             "stop = control.nodes.stop:main",
+            "prequal = control.nodes.prequal:main",
+            "plot = control.nodes.plot:main",
         ]
     },
 )

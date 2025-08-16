@@ -14,13 +14,12 @@
   },
   "remoteUser": "ros",
   "runArgs": [
-    "--publish=4222:4222",
+    "--network=host",
+    "--ipc=host",
+    "--privileged",
     "--cap-add=SYS_PTRACE",
     "--security-opt=seccomp:unconfined",
     "--security-opt=apparmor:unconfined",
-    "--ipc=host",
-    "--net=host",
-    "--privileged",
     "--device=/dev/ttyUSB0",      // your DVL’s FTDI port
     "--device=/dev/ttyUSB1",      // your DVL’s FTDI port
     "--device=/dev/ttyUSB2",      // your DVL’s FTDI port
@@ -33,8 +32,8 @@
     "--device=/dev/ttyACM3",       // any other serial port you need
     "--device=/dev/ttyACM4",       // any other serial port you need
     "--device=/dev/ttyACM5",       // any other serial port you need
-    "--volume=/tmp/.X11-unix:/tmp/.X11-unix",
-    "--mount=type=bind,source=${env:HOME},target=/host_home,readonly",
+    // "--volume=/tmp/.X11-unix:/tmp/.X11-unix",
+    // "--mount=type=bind,source=${env:HOME},target=/host_home,readonly",
     // "--device=/dev/bus/usb:/dev/bus/usb",
     // "--device=/dev/ttyACM0:/dev/ttyACM0",
     // "--device=/dev/ttyACM1:/dev/ttyACM1",
@@ -53,6 +52,11 @@
     "--mount=type=bind,source=/dev,target=/dev"
     // uncomment to use intel iGPU
     // "--device=/dev/dri"
+  ],
+  "mounts": [
+    "type=bind,source=${env:HOME},target=/host_home,readonly",
+    "type=bind,source=/tmp/.X11-unix,target=/tmp/.X11-unix",
+    "type=bind,source=${env:HOME}/.Xauthority,target=/home/ros/.Xauthority,readonly"
   ],
   "containerEnv": {
     "DISPLAY": "${localEnv:DISPLAY}",

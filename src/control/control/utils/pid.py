@@ -61,8 +61,11 @@ class PID:
         kP_orientation: np.ndarray,
         kD_orientation: np.ndarray,
         kI_orientation: np.ndarray,
+        max_signal_force: np.ndarray,
+        max_signal_torque: np.ndarray,
         max_integral_position: np.ndarray,
         max_integral_orientation: np.ndarray,
+        z_offset = 0
     ):
         """
         Initialize the PID controller gains and limits.
@@ -95,8 +98,11 @@ class PID:
 
         self.integral_position = np.array([0, 0, 0])
         self.integral_orientation = np.array([0, 0, 0])
+        self.max_signal_force = max_signal_force
+        self.max_signal_torque = max_signal_torque
         self.max_integral_position = max_integral_position
         self.max_integral_orientation = max_integral_orientation
+        self.z_offset = z_offset
 
         self.index = 0  # index of where we are in the paths
 
@@ -209,12 +215,23 @@ class PID:
         q_err_body = state.orientation.inv() * reference.orientation
         angle, axis_b = q_err_body.angvec()  # principal angle in [0, pi], axis in BODY
 
-        deadband = 0.05  # ~3 deg
+        v_state_world = state.orientation.R @ state.velocity
+        v_ref_world   = reference.velocity  # (or rotate if given in body)
+        v_err_world   = v_ref_world - v_state_world
+
+        deadband = 0.0  # ~3 deg
         if not np.isfinite(angle) or abs(angle) < deadband or axis_b is None or np.isnan(axis_b).any():
             error_q_B = np.zeros(3)
         else:
             # axis_b is already unit-length from angvec()
             error_q_B = axis_b * angle  # body-frame Euler vector
+
+            # ---- Replace yaw component with shortest-path wrapped error ----
+            yaw_state = state.orientation.rpy()[2]      # extract yaw [rad]
+            yaw_ref   = reference.orientation.rpy()[2]
+            yaw_err   = np.arctan2(np.sin(yaw_ref - yaw_state),
+                                np.cos(yaw_ref - yaw_state))
+            error_q_B[2] = yaw_err
 
         # -------- Position control (WORLD frame) --------
         if velocity_only:
@@ -227,11 +244,9 @@ class PID:
                 -self.max_integral_position,
                 self.max_integral_position,
             )
-            force_world = (
-                error.position * self.kP_position
-                + error.velocity * self.kD_position
-                + self.integral_position * self.kI_position
-            )
+            force_world = (error.position * self.kP_position
+                        + v_err_world    * self.kD_position
+                        + self.integral_position * self.kI_position)
 
         # -------- Attitude control (BODY frame) --------
         # NOTE: assuming error.angular_velocity is in BODY frame (common for ROS odom/twist).
@@ -245,14 +260,35 @@ class PID:
                 -self.max_integral_orientation,
                 self.max_integral_orientation,
             )
-            torque_body = (
-                error_q_B * self.kP_orientation
-                + error.angular_velocity * self.kD_orientation
-                + self.integral_orientation * self.kI_orientation
-            )
+            # omega_err_body = reference.angular_velocity - state.angular_velocity
+            # omega_body_err = state.orientation.inv().R @ error.angular_velocity
+            omega_body_state = state.orientation.inv().R @ state.angular_velocity
+            omega_body_ref   = state.orientation.inv().R @ reference.angular_velocity
+            omega_body_err   = omega_body_ref - omega_body_state
+
+            # torque_body = (
+            #     error_q_B * self.kP_orientation
+            #     + error.angular_velocity * self.kD_orientation
+            #     + self.integral_orientation * self.kI_orientation
+            # )
+            torque_body = (error_q_B * self.kP_orientation + omega_body_err * self.kD_orientation + self.integral_orientation * self.kI_orientation)
+
 
         # Convert force to body frame for thrusters
         force_body = state.orientation.inv().R @ force_world
+
+        force_body = np.clip(
+            force_body,
+            -self.max_signal_force,  # max_signal_position
+            self.max_signal_force,
+        )
+        torque_body = np.clip(
+            torque_body,
+            -self.max_signal_torque,  # max_signal_orientation
+            self.max_signal_torque,
+        )
+
+        force_body[2] += self.z_offset
 
         wrench = AbstractWrench(force_body, torque_body)
         return wrench.to_msg()

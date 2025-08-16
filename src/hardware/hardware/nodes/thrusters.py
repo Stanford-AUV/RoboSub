@@ -62,7 +62,7 @@ class Thrusters(Node):
             self.pwms = np.array(
                 [
                     (
-                        1100 + 1900 - thrust_to_pwm(thrust, voltage)
+                        1100 + 1900 - thrust_to_pwm(thrust * (0.9 if i <= 1 else 1), voltage) 
                         if self._invert[i]
                         else thrust_to_pwm(thrust, voltage)
                     )

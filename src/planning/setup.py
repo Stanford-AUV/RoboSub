@@ -21,6 +21,10 @@ setup(
         "test": ["pytest"],
     },
     entry_points={
-        'console_scripts': [],
+        'console_scripts': [
+            "dropper_task = planning.nodes.dropper_task:main",
+            "torpedo_task = planning.nodes.torpedo_task:main",
+            "track_object = planning.nodes.track_object:main",
+        ],
     },
 )

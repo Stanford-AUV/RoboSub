@@ -31,11 +31,11 @@ import termios
 import tty
 import threading
 from control.utils.pid import PID
-from control.utils.state import State
+from control.utils.state import State, Magnitude
 
 from geometry_msgs.msg import WrenchStamped
 from spatialmath.quaternion import UnitQuaternion
-from tf_transformations import euler_from_quaternion
+from scipy.spatial.transform import Rotation as R
 
 from nav_msgs.msg import Odometry
 
@@ -43,10 +43,11 @@ import numpy as np
 
 import rclpy
 from rclpy.node import Node
-from rclpy import Parameter
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy, QoSReliabilityPolicy
 
 from msgs.msg import Waypoint
+from msgs.msg import Float32Stamped
+
 
 def _publish_stop(node: "Controller"):
     """Publish a single zero wrench and give DDS a brief moment to send it."""
@@ -81,8 +82,10 @@ def _keyboard_watch(node: "Controller"):
             # poll stdin every 100ms without blocking the executor
             if select.select([sys.stdin], [], [], 0.1)[0]:
                 ch = sys.stdin.read(1)
-                if ch.lower() == 'q':
-                    node.get_logger().info("q pressed: publishing zero wrench and shutting down")
+                if ch.lower() == "q":
+                    node.get_logger().info(
+                        "q pressed: publishing zero wrench and shutting down"
+                    )
                     _publish_stop(node)
                     node._alive = False
                     try:
@@ -92,6 +95,17 @@ def _keyboard_watch(node: "Controller"):
                     break
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, orig_attr)
+
+
+def _yaw_from_quat_xyzw(x, y, z, w):
+    # same convention as tf's euler_from_quaternion (r,p,y)
+    r, p, yaw = R.from_quat([x, y, z, w]).as_euler("xyz", degrees=False)
+    return yaw
+
+
+def _angdiff(a, b):
+    d = (a - b + np.pi) % (2 * np.pi) - np.pi
+    return d
 
 
 class Controller(Node):
@@ -119,8 +133,12 @@ class Controller(Node):
         qos.reliability = QoSReliabilityPolicy.RELIABLE
 
         self.reference_subscription = self.create_subscription(
-            Waypoint, 'waypoint', self.reference_callback, qos
+            Waypoint, "waypoint", self.reference_callback, qos
         )
+        self.depth_subscription = self.create_subscription(
+            Float32Stamped, "depth", self.depth_callback, 10
+        )
+        self.curr_depth = 0.0
         self.control_publisher = self.create_publisher(WrenchStamped, "wrench", 10)
 
         self.lock = threading.Lock()
@@ -130,10 +148,15 @@ class Controller(Node):
         self.ref_state = None
         self.count = 0
 
+        # FOLLOW support retained
         self.follow_subject = None
         self.follow_sub = None
         self.latest_follow_target = None
 
+        # Removed nudge/subtarget parameters and state; we will always target the final waypoint directly.
+
+    def depth_callback(self, depth):
+        self.depth = depth.data
 
     def reset(self):
         self.get_logger().info("Resetting controller...")
@@ -141,6 +164,7 @@ class Controller(Node):
             self.policy.reset()
 
     def state_callback(self, msg: Odometry):
+        # Debug print current vs goal periodically
         if self.count >= 10:
             px = msg.pose.pose.position.x
             py = msg.pose.pose.position.y
@@ -156,10 +180,14 @@ class Controller(Node):
                 )
 
             q = msg.pose.pose.orientation
-            roll, pitch, yaw = euler_from_quaternion([q.x, q.y, q.z, q.w])
+            roll, pitch, yaw = R.from_quat([q.x, q.y, q.z, q.w]).as_euler(
+                "xyz", degrees=False
+            )
             if self.ref_state is not None:
                 fq = self.ref_state.orientation
-                froll, fpitch, fyaw = euler_from_quaternion([fq.v[0], fq.v[1], fq.v[2], fq.s])
+                froll, fpitch, fyaw = R.from_quat(
+                    [fq.v[0], fq.v[1], fq.v[2], fq.s]
+                ).as_euler("xyz", degrees=False)
                 self.get_logger().info(
                     f"Orientation (r,p,y): {roll:.3f}, {pitch:.3f}, {yaw:.3f} | "
                     f"goal {froll:.3f}, {fpitch:.3f}, {fyaw:.3f}"
@@ -173,12 +201,16 @@ class Controller(Node):
             self.count += 1
 
         cur_state = State.from_odometry_msg(msg)
+
+        # Use the current final target directly (no subtargets)
         with self.lock:
             ref_state = self.ref_state.copy() if self.ref_state is not None else None
+
         if ref_state is not None:
             self.update(cur_state, ref_state)
 
     def _attach_follow(self, subject: str):
+        # FOLLOW: keep as-is
         topic = "/cam_lock/waypoint"
         qos = QoSProfile(depth=1)
         qos.durability = QoSDurabilityPolicy.TRANSIENT_LOCAL
@@ -199,7 +231,6 @@ class Controller(Node):
         )
         self.get_logger().info(f"FOLLOW: listening for subject '{subject}' at {topic}")
 
-
     def _follow_cb(self, wp: Waypoint):
         # Only take follow waypoints for the subject we’re tracking
         if (wp.purpose or "").lower() != "follow":
@@ -211,32 +242,40 @@ class Controller(Node):
             self.ref_state = State.from_odometry_msg(wp.target)  # use embedded Odometry
             self.latest_follow_target = wp.target
 
-
     def reference_callback(self, msg: Waypoint):
         purpose = (msg.purpose or "").lower()
+        self.get_logger().info("New waypoint")
 
         match purpose:
             case "target":
                 self.get_logger().info("Received TARGET waypoint update")
+                # Directly set the final target; no nudges or subdivision
                 with self.lock:
                     self.ref_state = State.from_odometry_msg(msg.target)
-                self.get_logger().info("Reference state updated (TARGET)")
+                self.get_logger().info("Final target set (no nudges).")
 
             case "follow":
                 subject = (msg.subject or "").strip()
                 if not subject:
-                    self.get_logger().warn("FOLLOW waypoint missing 'subject' — ignoring")
+                    self.get_logger().warn(
+                        "FOLLOW waypoint missing 'subject' — ignoring"
+                    )
                     return
-                self.get_logger().info(f"Received FOLLOW waypoint for subject '{subject}'")
+                self.get_logger().info(
+                    f"Received FOLLOW waypoint for subject '{subject}'"
+                )
                 self._attach_follow(subject)
 
             case "stop" | "abort":
-                self.get_logger().info(f"Received {purpose.upper()} waypoint — ignoring updates for now")
+                self.get_logger().info(
+                    f"Received {purpose.upper()} waypoint — ignoring updates for now"
+                )
                 # TODO: publish zero wrench or set a stop flag
 
             case _:
-                self.get_logger().info(f"Ignoring waypoint with unknown purpose '{msg.purpose}'")
-
+                self.get_logger().info(
+                    f"Ignoring waypoint with unknown purpose '{msg.purpose}'"
+                )
 
     def update(self, cur_state, ref_state):
         newTime = self.get_clock().now()
@@ -262,14 +301,17 @@ def main(args=None):
     rclpy.init(args=args)
 
     pid = PID(
-        kP_position=np.array([1.5, 1.5, 1.5]),
-        kD_position=np.array([0.05, 0.05, 0.05]),
-        kI_position=np.array([0.2, 0.2, 0.2]),
-        kP_orientation=np.array([0.05, 0.05, 0.025]),
-        kD_orientation=np.array([0.05, 0.05, 0.025]),
-        kI_orientation=np.array([0, 0, 0]),
-        max_integral_position=np.array([1, 1, 1]),
-        max_integral_orientation=np.array([1, 1, 1]),
+        kP_position=np.array([1.0, 1.0, 2.0]),
+        kI_position=np.array([0.1, 0.1, 0.1]),
+        kD_position=np.array([0.05, 0.05, 1.0]),
+        kP_orientation=np.array([0.0, 0.0, 0.025]),
+        kI_orientation=np.array([0.00, 0.00, 0.00]),
+        kD_orientation=np.array([0.0, 0.0, 0.05]),
+        max_signal_force=np.array([0.3, 0.3, 0.2]),
+        max_signal_torque=np.array([0.3, 0.3, 0.3]),
+        max_integral_position=np.array([0.2, 0.2, 0.2]),
+        max_integral_orientation=np.array([5.0, 5.0, 5.0]),
+        z_offset=-0.005
     )
 
     node = Controller(pid)

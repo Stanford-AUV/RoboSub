@@ -15,6 +15,15 @@
       thruster_5: [+0.115, -0.165, -0.0925]
       thruster_6: [-0.115, +0.165, -0.0925]
       thruster_7: [-0.115, -0.165, -0.0925]
+      # thruster_0: [+0.33255, +0.1825, +0.0925]
+      # thruster_1: [+0.33255, -0.1825, +0.0925]
+      # thruster_2: [-0.07245, +0.1825, +0.0925]
+      # thruster_3: [-0.07245, -0.1825, +0.0925]
+      # thruster_4: [+0.24505, +0.165, -0.0925]
+      # thruster_5: [+0.24505, -0.165, -0.0925]
+      # thruster_6: [+0.01505, +0.165, -0.0925]
+      # thruster_7: [+0.01505, -0.165, -0.0925]
+
     # Thruster orientations (pointing in the direction of positive thrust; z axis can be changed accordingly)
     # Blue is CCW, red is CW in sim
     thruster_orientations:
@@ -31,7 +40,7 @@
   ros__parameters:
     print_diagnostics: true
     # debug: true
-    initial_state: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+    initial_state: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
 
     # See https://stanfordstudentrobo.slack.com/files/U04ULBF9ZUM/F08ELRVKF6F/ekf_params.yaml
     publish_tf: false
@@ -79,6 +88,7 @@
                    false, false, false] # x_accel , y_accel  , z_accel
     pose0_relative: false
     pose0_differential: false
+    pose0_pose_rejection_threshold: 0.4
 
     pose1: "/imu/pose_sync"
     pose1_config: [false, false, false, # x_pos   , y_pos    , z_pos,
@@ -90,7 +100,7 @@
     pose1_differential: false
 
     mag0: "/imu/mag"
-    mag0_config: [false, false, true]
+    mag0_config: [true, true, false]
     mag0_differential: false
     mag0_relative: false
     mag0_queue_size: 10
@@ -120,3 +130,32 @@
       i_resolution: 400P
     right:
       i_resolution: 400P
+prequal:
+  ros__parameters:
+    odom_topic: "/odometry/filtered"
+    wrench_topic: "wrench"
+
+    target_depth_m: 1.0
+    depth_tolerance_m: 0.05
+    depth_positive_down: false   # set true if your odom z is positive down
+
+    # Match joystick "full stick" feel
+    forward_force_x: 0.5         # ≈ full manual stick forward
+    descend_force_z: -0.3        # bump toward -0.5 if you don't descend
+
+    forward_duration_s: 7.5
+    control_rate_hz: 20.0
+    descend_timeout_s: 25.0
+odometry_logger:
+  ros__parameters:
+    udp_enable: true
+    udp_host: "10.13.37.1"
+    udp_port: 9999
+    udp_rate_hz: 15.0
+detections3d_udp:
+  ros__parameters:
+    topic: "/detections3d"
+    udp_enable: true
+    udp_host: "10.13.37.1"   # Mac Ethernet IP
+    udp_port: 10000
+    newline_delimited: true

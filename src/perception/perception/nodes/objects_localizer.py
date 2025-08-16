@@ -1,82 +1,154 @@
-import rclpy
-from rclpy import Parameter
-from rclpy.node import Node
-import cv2
-from geometry_msgs.msg import Pose
-from vision_msgs.msg import (
-    Detection3D,
-    Detection3DArray,
-    ObjectHypothesisWithPose,
-)
-import depthai as dai
-import numpy as np
+#!/usr/bin/env python3
+import threading
 import time
 import json
+from dataclasses import dataclass
+from typing import Optional, Tuple, Dict, List
+
+import rclpy
+from rclpy.node import Node
+from rclpy import Parameter
+
+import numpy as np
+import cv2
+import depthai as dai
+
+from geometry_msgs.msg import Pose
+from vision_msgs.msg import Detection3DArray, Detection3D, ObjectHypothesisWithPose
 
 
-class ObjectsLocalizer(Node):
+@dataclass
+class CamCfg:
+    name: str                 # "forward_cam" or "bottom_cam"
+    mx_id: str                # device MXID
+    nn_blob: str              # per-camera blob path
+    nn_json: str              # per-camera json path
+    view_detections: bool     # draw local windows
+    pub_topic: str            # e.g. "forward_cam/detections3d"
 
+
+class ObjectsLocalizerBoth(Node):
     def __init__(self):
-        super().__init__("objects_localizer")
+        super().__init__("objects_localizer_both")
 
-        self.declare_parameter("view_detections", Parameter.Type.BOOL)
+        # ---------- Device IDs ----------
+        self.declare_parameter("forward.mx_id", "19443010B17E1C1300")
+        self.declare_parameter("bottom.mx_id",  "1944301021531E1300")
+
+        # ---------- Global default NN (used if per-camera not provided) ----------
+        self.declare_parameter("nn.blob",  "new_arvp_front_openvino_2022.1_6shave.blob")
+        self.declare_parameter("nn.config","new_arvp_front.json")
+
+        # ---------- Per-camera NN overrides ----------
+        # If these are set, they override the global defaults for that camera.
+        self.declare_parameter("forward.nn.blob", "new_arvp_front_openvino_2022.1_6shave.blob")
+        self.declare_parameter("forward.nn.config", "new_arvp_front.json")
+        self.declare_parameter("bottom.nn.blob", "")
+        self.declare_parameter("bottom.nn.config", "")
+
+        # Show OpenCV windows for debugging
+        self.declare_parameter("view_detections", False)
+
+        # Pull params
+        f_mx = self.get_parameter("forward.mx_id").get_parameter_value().string_value
+        b_mx = self.get_parameter("bottom.mx_id").get_parameter_value().string_value
+        default_blob  = self.get_parameter("nn.blob").get_parameter_value().string_value
+        default_json  = self.get_parameter("nn.config").get_parameter_value().string_value
+        view_det = self.get_parameter("view_detections").get_parameter_value().bool_value
+
+        f_blob = self._pick(self.get_parameter("forward.nn.blob").get_parameter_value().string_value, default_blob)
+        f_json = self._pick(self.get_parameter("forward.nn.config").get_parameter_value().string_value, default_json)
+        b_blob = self._pick(self.get_parameter("bottom.nn.blob").get_parameter_value().string_value, default_blob)
+        b_json = self._pick(self.get_parameter("bottom.nn.config").get_parameter_value().string_value, default_json)
+
+        # Validate blobs: must be .blob (DepthAI cannot load .pt/.pth directly)
+        for cam_name, blob in [("forward", f_blob), ("bottom", b_blob)]:
+            if not blob.lower().endswith(".blob"):
+                self.get_logger().error(
+                    f"[{cam_name}] Model path does not look like a compiled DepthAI blob: {blob}\n"
+                    "DepthAI cannot load .pt/.pth/.pts directly. Please convert your PyTorch model "
+                    "to a .blob (e.g., via Luxonis tools) and set <camera>.nn.blob to that file."
+                )
+                raise RuntimeError(f"{cam_name} NN blob must be a .blob")
+
+        # Camera configs (per-camera models)
+        self.cams: List[CamCfg] = [
+            CamCfg(name="forward_cam", mx_id=f_mx, nn_blob=f_blob, nn_json=f_json,
+                   view_detections=view_det, pub_topic="forward_cam/detections3d"),
+            CamCfg(name="bottom_cam",  mx_id=b_mx, nn_blob=b_blob, nn_json=b_json,
+                   view_detections=view_det, pub_topic="bottom_cam/detections3d"),
+        ]
+
+        # Publishers
+        self.pubs: Dict[str, rclpy.publisher.Publisher] = {
+            c.name: self.create_publisher(Detection3DArray, c.pub_topic, 10) for c in self.cams
+        }
+
+        # Threads
+        self.stop_flag = False
+        self.threads: List[threading.Thread] = []
+        for cfg in self.cams:
+            t = threading.Thread(target=self._run_device_loop, args=(cfg,), daemon=True)
+            t.start()
+            self.threads.append(t)
+            self.get_logger().info(f"Started device thread for {cfg.name} (MXID {cfg.mx_id}) "
+                                   f"with model '{cfg.nn_blob}' / config '{cfg.nn_json}'")
+
+        self.get_logger().info("ObjectsLocalizerBoth running (two cameras, per-camera models).")
+
+    @staticmethod
+    def _pick(primary: str, fallback: str) -> str:
+        return primary if primary else fallback
+
+    # --------- DepthAI per-device runner ----------
+    def _run_device_loop(self, cfg: CamCfg):
+        # Load NN config (per camera)
         try:
-            view_detections = (
-                self.get_parameter("view_detections").get_parameter_value().bool_value
-            )
-        except:
-            view_detections = False
+            with open(cfg.nn_json, "r") as f:
+                conf = json.load(f)
+        except Exception as e:
+            self.get_logger().error(f"[{cfg.name}] Failed to read NN config '{cfg.nn_json}': {e}")
+            return
 
-        self.pub = self.create_publisher(Detection3DArray, "detections3d", 10)
+        nn_cfg = conf.get("nn_config", {})
+        if "input_size" not in nn_cfg:
+            self.get_logger().error(f"[{cfg.name}] nn_config.input_size missing in {cfg.nn_json}")
+            return
+        try:
+            W, H = tuple(map(int, nn_cfg["input_size"].split("x")))
+        except Exception as e:
+            self.get_logger().error(f"[{cfg.name}] Bad input_size format in {cfg.nn_json}: {e}")
+            return
 
-        # Use https://tools.luxonis.com for generating blob and config files from a PyTorch model (.pt). Set input image size to 416x416.
-        nnBlobPath = "best_openvino_2022.1_6shave.blob"
-        configPath = "best.json"
-        syncNN = True
+        meta = nn_cfg.get("NN_specific_metadata", {})
+        classes = int(meta.get("classes", 0))
+        coordinates = int(meta.get("coordinates", 0))
+        anchors = meta.get("anchors", [])
+        anchorMasks = meta.get("anchor_masks", {})
+        iouThreshold = float(meta.get("iou_threshold", 0.5))
+        confidenceThreshold = float(meta.get("confidence_threshold", 0.5))
+        labels = conf.get("mappings", {}).get("labels", [])
 
-        with open(configPath) as f:
-            config = json.load(f)
-
-        nnConfig = config.get("nn_config", {})
-
-        # parse input shape
-        if "input_size" in nnConfig:
-            W, H = tuple(map(int, nnConfig.get("input_size").split("x")))
-
-        # extract metadata
-        metadata = nnConfig.get("NN_specific_metadata", {})
-        classes = metadata.get("classes", {})
-        coordinates = metadata.get("coordinates", {})
-        anchors = metadata.get("anchors", {})
-        anchorMasks = metadata.get("anchor_masks", {})
-        iouThreshold = metadata.get("iou_threshold", {})
-        confidenceThreshold = metadata.get("confidence_threshold", {})
-
-        # parse labels
-        nnMappings = config.get("mappings", {})
-        labels = nnMappings.get("labels", {})
-
-        # Create pipeline
+        # Build pipeline
         pipeline = dai.Pipeline()
 
-        # Define sources and outputs
         camRgb = pipeline.create(dai.node.ColorCamera)
-        spatialDetectionNetwork = pipeline.create(dai.node.YoloSpatialDetectionNetwork)
         monoLeft = pipeline.create(dai.node.MonoCamera)
         monoRight = pipeline.create(dai.node.MonoCamera)
         stereo = pipeline.create(dai.node.StereoDepth)
-        nnNetworkOut = pipeline.create(dai.node.XLinkOut)
+        yolo = pipeline.create(dai.node.YoloSpatialDetectionNetwork)
 
         xoutRgb = pipeline.create(dai.node.XLinkOut)
-        xoutNN = pipeline.create(dai.node.XLinkOut)
         xoutDepth = pipeline.create(dai.node.XLinkOut)
+        xoutNN = pipeline.create(dai.node.XLinkOut)
+        xoutNet = pipeline.create(dai.node.XLinkOut)
 
-        xoutRgb.setStreamName("rgb")
-        xoutNN.setStreamName("detections")
-        xoutDepth.setStreamName("depth")
-        nnNetworkOut.setStreamName("nnNetwork")
+        xoutRgb.setStreamName(f"{cfg.name}_rgb")
+        xoutDepth.setStreamName(f"{cfg.name}_depth")
+        xoutNN.setStreamName(f"{cfg.name}_detections")
+        xoutNet.setStreamName(f"{cfg.name}_nnNetwork")
 
-        # Properties
+        # Camera properties
         camRgb.setPreviewSize(W, H)
         camRgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
         camRgb.setInterleaved(False)
@@ -87,244 +159,173 @@ class ObjectsLocalizer(Node):
         monoRight.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
         monoRight.setCamera("right")
 
-        # setting node configs
+        # Depth aligned to RGB (CAM_A)
         stereo.setDefaultProfilePreset(dai.node.StereoDepth.PresetMode.HIGH_DENSITY)
-        # Align depth map to the perspective of RGB camera, on which inference is done
         stereo.setDepthAlign(dai.CameraBoardSocket.CAM_A)
-        stereo.setOutputSize(
-            monoLeft.getResolutionWidth(), monoLeft.getResolutionHeight()
-        )
+        stereo.setOutputSize(monoLeft.getResolutionWidth(), monoLeft.getResolutionHeight())
         stereo.setSubpixel(True)
 
-        # Network specific settings
-        spatialDetectionNetwork.setConfidenceThreshold(confidenceThreshold)
-        spatialDetectionNetwork.setNumClasses(classes)
-        spatialDetectionNetwork.setCoordinateSize(coordinates)
-        spatialDetectionNetwork.setAnchors(anchors)
-        spatialDetectionNetwork.setAnchorMasks(anchorMasks)
-        spatialDetectionNetwork.setIouThreshold(iouThreshold)
-        spatialDetectionNetwork.setBlobPath(nnBlobPath)
-        spatialDetectionNetwork.setNumInferenceThreads(2)
-        spatialDetectionNetwork.input.setBlocking(False)
+        # YOLO spatial (per-camera blob/config)
+        yolo.setConfidenceThreshold(confidenceThreshold)
+        yolo.setNumClasses(classes)
+        yolo.setCoordinateSize(coordinates)
+        yolo.setAnchors(anchors)
+        yolo.setAnchorMasks(anchorMasks)
+        yolo.setIouThreshold(iouThreshold)
+        yolo.setBlobPath(cfg.nn_blob)
+        yolo.setNumInferenceThreads(2)
+        yolo.input.setBlocking(False)
 
         # Linking
         monoLeft.out.link(stereo.left)
         monoRight.out.link(stereo.right)
+        camRgb.preview.link(yolo.input)
+        yolo.passthrough.link(xoutRgb.input)
+        yolo.out.link(xoutNN.input)
+        stereo.depth.link(yolo.inputDepth)
+        yolo.passthroughDepth.link(xoutDepth.input)
+        yolo.outNetwork.link(xoutNet.input)
 
-        camRgb.preview.link(spatialDetectionNetwork.input)
-        if syncNN:
-            spatialDetectionNetwork.passthrough.link(xoutRgb.input)
-        else:
-            camRgb.preview.link(xoutRgb.input)
+        # Open the specific device
+        try:
+            dinfo = dai.DeviceInfo(cfg.mx_id)
+            with dai.Device(pipeline, dinfo) as device:
+                calib = device.readCalibration()
+                K = np.array(calib.getCameraIntrinsics(dai.CameraBoardSocket.CAM_A, W, H))
+                Kinv = np.linalg.inv(K)
 
-        spatialDetectionNetwork.out.link(xoutNN.input)
+                # Queues
+                q_rgb = device.getOutputQueue(name=f"{cfg.name}_rgb", maxSize=4, blocking=False)
+                q_det = device.getOutputQueue(name=f"{cfg.name}_detections", maxSize=4, blocking=False)
+                q_depth = device.getOutputQueue(name=f"{cfg.name}_depth", maxSize=4, blocking=False)
+                q_net = device.getOutputQueue(name=f"{cfg.name}_nnNetwork", maxSize=4, blocking=False)
 
-        stereo.depth.link(spatialDetectionNetwork.inputDepth)
-        spatialDetectionNetwork.passthroughDepth.link(xoutDepth.input)
-        spatialDetectionNetwork.outNetwork.link(nnNetworkOut.input)
+                # self.get_logger().info(f"q_det is {q_det}")
 
-        # Log to indicate that the node has started
-        self.get_logger().info("Objects localizer is running")
+                printed_layers = False
+                while not self.stop_flag anπd rclpy.ok():
+                    in_rgb = q_rgb.tryGet()
+                    in_det = q_det.tryGet()
+                    in_depth = q_depth.tryGet()
+                    in_net = q_net.tryGet()
 
-        # Connect to device and start pipeline
-        with dai.Device(pipeline) as device:
-            calibData = device.readCalibration()
-            M_rgb = calibData.getCameraIntrinsics(dai.CameraBoardSocket.CAM_A, W, H)
-            M_rgb_inv = np.linalg.inv(M_rgb)
-
-            self.get_logger().info(str(M_rgb))
-
-            # Output queues will be used to get the rgb frames and nn data from the outputs defined above
-            previewQueue = device.getOutputQueue(name="rgb", maxSize=4, blocking=False)
-            detectionNNQueue = device.getOutputQueue(
-                name="detections", maxSize=4, blocking=False
-            )
-            depthQueue = device.getOutputQueue(name="depth", maxSize=4, blocking=False)
-            networkQueue = device.getOutputQueue(
-                name="nnNetwork", maxSize=4, blocking=False
-            )
-
-            startTime = time.monotonic()
-            counter = 0
-            fps = 0
-            color = (255, 255, 255)
-            printOutputLayersOnce = True
-
-            while True:
-                inPreview = previewQueue.get()
-                inDet = detectionNNQueue.get()
-                depth = depthQueue.get()
-                inNN = networkQueue.get()
-
-                if printOutputLayersOnce:
-                    toPrint = "Output layer names:"
-                    for ten in inNN.getAllLayerNames():
-                        toPrint = f"{toPrint} {ten},"
-                    print(toPrint)
-                    printOutputLayersOnce = False
-
-                frame = inPreview.getCvFrame()
-                depthFrame = depth.getFrame()  # depthFrame values are in millimeters
-
-                depth_downscaled = depthFrame[::4]
-                if np.all(depth_downscaled == 0):
-                    min_depth = 0  # Set a default minimum depth value when all elements are zero
-                else:
-                    min_depth = np.percentile(
-                        depth_downscaled[depth_downscaled != 0], 1
-                    )
-                max_depth = np.percentile(depth_downscaled, 99)
-                depthFrameColor = np.interp(
-                    depthFrame, (min_depth, max_depth), (0, 255)
-                ).astype(np.uint8)
-                depthFrameColor = cv2.applyColorMap(depthFrameColor, cv2.COLORMAP_HOT)
-
-                counter += 1
-                current_time = time.monotonic()
-                if (current_time - startTime) > 1:
-                    fps = counter / (current_time - startTime)
-                    counter = 0
-                    startTime = current_time
-
-                detections = inDet.detections
-
-                # If the frame is available, draw bounding boxes on it and show the frame
-                height = frame.shape[0]
-                width = frame.shape[1]
-
-                ros_detections = Detection3DArray()
-                for detection in detections:
-                    roiData = detection.boundingBoxMapping
-
-                    roi = roiData.roi
-                    roi = roi.denormalize(
-                        depthFrameColor.shape[1], depthFrameColor.shape[0]
-                    )
-                    topLeft = roi.topLeft()
-                    bottomRight = roi.bottomRight()
-                    xmin = int(topLeft.x)
-                    ymin = int(topLeft.y)
-                    xmax = int(bottomRight.x)
-                    ymax = int(bottomRight.y)
-
-                    spatialCoordinates = detection.spatialCoordinates
-
-                    label = labels[detection.label]
-
-                    if view_detections:
-                        cv2.rectangle(
-                            depthFrameColor, (xmin, ymin), (xmax, ymax), color, 1
+                    if in_rgb:
+                        frame = in_rgb.getCvFrame()
+                        self.get_logger().info(
+                            f"[{cfg.name}] Got RGB frame: shape={frame.shape}, dtype={frame.dtype}"
                         )
+                    else:
+                        # self.get_logger().warn(f"[{cfg.name}] No RGB frame in queue.")
+                        pass
 
-                        # Denormalize bounding box
-                        x1 = int(detection.xmin * width)
-                        x2 = int(detection.xmax * width)
-                        y1 = int(detection.ymin * height)
-                        y2 = int(detection.ymax * height)
 
-                        cv2.putText(
-                            frame,
-                            str(label),
-                            (x1 + 10, y1 + 20),
-                            cv2.FONT_HERSHEY_TRIPLEX,
-                            0.5,
-                            255,
-                        )
-                        cv2.putText(
-                            frame,
-                            "{:.2f}".format(detection.confidence * 100),
-                            (x1 + 10, y1 + 35),
-                            cv2.FONT_HERSHEY_TRIPLEX,
-                            0.5,
-                            255,
-                        )
-                        cv2.putText(
-                            frame,
-                            f"X: {int(spatialCoordinates.x)} mm",
-                            (x1 + 10, y1 + 50),
-                            cv2.FONT_HERSHEY_TRIPLEX,
-                            0.5,
-                            255,
-                        )
-                        cv2.putText(
-                            frame,
-                            f"Y: {int(spatialCoordinates.y)} mm",
-                            (x1 + 10, y1 + 65),
-                            cv2.FONT_HERSHEY_TRIPLEX,
-                            0.5,
-                            255,
-                        )
-                        cv2.putText(
-                            frame,
-                            f"Z: {int(spatialCoordinates.z)} mm",
-                            (x1 + 10, y1 + 80),
-                            cv2.FONT_HERSHEY_TRIPLEX,
-                            0.5,
-                            255,
-                        )
+                    if in_net and not printed_layers:
+                        names = " ".join(in_net.getAllLayerNames())
+                        self.get_logger().info(f"[{cfg.name}] NN Layers: {names}")
+                        printed_layers = True
 
-                        cv2.rectangle(
-                            frame, (x1, y1), (x2, y2), color, cv2.FONT_HERSHEY_SIMPLEX
-                        )
+                    if not (in_rgb and in_det and in_depth):
+                        time.sleep(0.001)
+                        continue
 
-                    # Bounding box corners in pixel coordinates
-                    top_left = np.array([xmin, ymin, 1])
-                    bottom_right = np.array([xmax, ymax, 1])
+                    frame = in_rgb.getCvFrame()
+                    depth = in_depth.getFrame()  # mm
+                    dets = in_det.detections
 
-                    # Depth of the detected object
-                    z = spatialCoordinates.z  # Depth in mm
+                    # Build ROS message
+                    msg = Detection3DArray()
+                    # Optional header:
+                    # msg.header.frame_id = f"{cfg.name}_optical_frame"
+                    # msg.header.stamp = self.get_clock().now().to_msg()
 
-                    # Transform corners to world coordinates
-                    world_top_left = z * M_rgb_inv @ top_left
-                    world_bottom_right = z * M_rgb_inv @ bottom_right
+                    h, w = frame.shape[:2]
 
-                    # Calculate world dimensions
-                    world_width = world_bottom_right[0] - world_top_left[0]
-                    world_height = world_bottom_right[1] - world_top_left[1]
+                    if cfg.view_detections:
+                        depth_ds = depth[::4]
+                        if np.all(depth_ds == 0):
+                            min_d = 0
+                        else:
+                            min_d = np.percentile(depth_ds[depth_ds != 0], 1)
+                        max_d = np.percentile(depth_ds, 99)
+                        depth_color = np.interp(depth, (min_d, max_d), (0, 255)).astype(np.uint8)
+                        depth_color = cv2.applyColorMap(depth_color, cv2.COLORMAP_HOT)
 
-                    ros_detection = Detection3D()
-                    ros_objhypo = ObjectHypothesisWithPose()
-                    ros_objhypo.hypothesis.class_id = label
-                    ros_objhypo.hypothesis.score = detection.confidence
-                    ros_detection.results.append(ros_objhypo)
+                    for d in dets:
+                        lbl = labels[d.label] if (0 <= d.label < len(labels)) else str(d.label)
+                        score = d.confidence
 
-                    ros_center = Pose()
-                    ros_center.position.x = spatialCoordinates.x / 1000.0  # in m
-                    ros_center.position.y = spatialCoordinates.y / 1000.0  # in m
-                    ros_center.position.z = spatialCoordinates.z / 1000.0  # in m
+                        roi = d.boundingBoxMapping.roi.denormalize(depth.shape[1], depth.shape[0])
+                        tl, br = roi.topLeft(), roi.bottomRight()
+                        xmin, ymin = int(tl.x), int(tl.y)
+                        xmax, ymax = int(br.x), int(br.y)
 
-                    ros_detection.bbox.center = ros_center
-                    ros_detection.bbox.size.x = world_width / 1000.0  # in m
-                    ros_detection.bbox.size.y = world_height / 1000.0  # in m
-                    ros_detection.bbox.size.z = 0.0
+                        sc = d.spatialCoordinates  # mm
 
-                    ros_detections.detections.append(ros_detection)
+                        det3d = Detection3D()
+                        ohp = ObjectHypothesisWithPose()
+                        ohp.hypothesis.class_id = lbl
+                        ohp.hypothesis.score = float(score)
+                        det3d.results.append(ohp)
 
-                self.pub.publish(ros_detections)
+                        center = Pose()
+                        center.position.x = sc.x / 1000.0
+                        center.position.y = sc.y / 1000.0
+                        center.position.z = sc.z / 1000.0
+                        det3d.bbox.center = center
 
-                if view_detections:
-                    cv2.putText(
-                        frame,
-                        "NN fps: {:.2f}".format(fps),
-                        (2, frame.shape[0] - 4),
-                        cv2.FONT_HERSHEY_TRIPLEX,
-                        0.4,
-                        color,
-                    )
-                    cv2.imshow("depth", depthFrameColor)
-                    cv2.imshow("rgb", frame)
+                        if sc.z > 0:
+                            x1 = int(d.xmin * w); x2 = int(d.xmax * w)
+                            y1 = int(d.ymin * h); y2 = int(d.ymax * h)
+                            tl_pix = np.array([x1, y1, 1.0])
+                            br_pix = np.array([x2, y2, 1.0])
+                            z_m = sc.z / 1000.0
+                            tl_cam = (z_m * (Kinv @ tl_pix))
+                            br_cam = (z_m * (Kinv @ br_pix))
+                            det3d.bbox.size.x = float(abs(br_cam[0] - tl_cam[0]))
+                            det3d.bbox.size.y = float(abs(br_cam[1] - tl_cam[1]))
+                            det3d.bbox.size.z = 0.0
+                        else:
+                            det3d.bbox.size.x = 0.0
+                            det3d.bbox.size.y = 0.0
+                            det3d.bbox.size.z = 0.0
 
-                    if cv2.waitKey(1) == ord("q"):
-                        break
+                        msg.detections.append(det3d)
+
+                        if cfg.view_detections:
+                            cv2.rectangle(depth_color, (xmin, ymin), (xmax, ymax), (255,255,255), 1)
+                            x1 = int(d.xmin * w); x2 = int(d.xmax * w)
+                            y1 = int(d.ymin * h); y2 = int(d.ymax * h)
+                            cv2.rectangle(frame, (x1,y1),(x2,y2),(0,255,0),1)
+                            cv2.putText(frame, f"{lbl} {score:.2f}", (x1+6,y1+18),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1)
+
+                    self.pubs[cfg.name].publish(msg)
+
+                    if cfg.view_detections:
+                        cv2.imshow(f"{cfg.name}_rgb", frame)
+                        cv2.imshow(f"{cfg.name}_depth", depth_color)
+                        cv2.waitKey(1)
+
+        except Exception as e:
+            self.get_logger().warn(f"[{cfg.name}] Could not open device {cfg.mx_id}: {e}")
+
+    def destroy_node(self):
+        self.stop_flag = True
+        time.sleep(0.05)
+        super().destroy_node()
 
 
 def main(args=None):
     rclpy.init(args=args)
-    node = ObjectsLocalizer()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
-    cv2.destroyAllWindows()
+    node = ObjectsLocalizerBoth()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+        cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":

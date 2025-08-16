@@ -1,0 +1,32 @@
+{
+    "model": {
+        "xml": "new_arvp_front.xml",
+        "bin": "new_arvp_front.bin"
+    },
+    "nn_config": {
+        "output_format": "detection",
+        "NN_family": "YOLO",
+        "input_size": "416x416",
+        "NN_specific_metadata": {
+            "classes": 8,
+            "coordinates": 4,
+            "anchors": [],
+            "anchor_masks": {},
+            "iou_threshold": 0.5,
+            "confidence_threshold": 0.5
+        }
+    },
+    "mappings": {
+        "labels": [
+            "gate_sawfish",
+            "gate_shark",
+            "gate_whole",
+            "post_red",
+            "post_white",
+            "torpedo_sawfish_hole",
+            "torpedo_shark_hole",
+            "torpedo_whole"
+        ]
+    },
+    "version": 1
+}

@@ -2,15 +2,22 @@
 FROM althack/ros2:jazzy-full-2024-12-01
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV XAUTHORITY=/home/ros/.Xauthority
+ENV QT_X11_NO_MITSHM=1
+
+# Refresh ROS GPG key (fix EXPKEYSIG error)
+RUN rm -f /etc/apt/sources.list.d/ros2.list && \
+    rm -f /usr/share/keyrings/ros-archive-keyring.gpg && \
+    curl -fsSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | gpg --dearmor -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list
+
 # Install gazebo
 RUN wget https://packages.osrfoundation.org/gazebo.gpg -O /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" > /etc/apt/sources.list.d/gazebo-stable.list \
     && apt-get update && apt-get install -q -y --no-install-recommends \
     ros-jazzy-ros-gz \
     && rm -rf /var/lib/apt/lists/*
-ENV DEBIAN_FRONTEND=
 
-ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get -y install --no-install-recommends python3.12-venv python3-gz-transport13 ros-jazzy-robot-localization ros-jazzy-depthai-ros ros-jazzy-tf-transformations ros-jazzy-nmea-msgs ros-jazzy-mavros-msgs \
     && apt-get autoremove -y \
@@ -19,19 +26,15 @@ RUN apt-get update \
 ENV DEBIAN_FRONTEND=dialog
 
 ENV USER ros
+RUN id -u ros >/dev/null 2>&1 || useradd -m -u 1000 -s /bin/bash ros
 
-# Refresh ROS GPG key (fix EXPKEYSIG error)
-RUN rm -f /etc/apt/sources.list.d/ros2.list && \
-    rm -f /usr/share/keyrings/ros-archive-keyring.gpg && \
-    curl -fsSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | gpg --dearmor -o /usr/share/keyrings/ros-archive-keyring.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list
 
 # Setup IMU Utils
 RUN apt-get update && apt-get install -y kmod \
     sharutils \
     file \
     libusb-1.0-0-dev \
-    udev \ 
+    udev \
     usbutils
 
 # Setup logging utils
@@ -44,7 +47,7 @@ RUN apt-get update && apt-get install -y nats-server
 RUN apt-get update && apt-get install -y xauth x11-apps
 
 # symbolic link .Xauthority
-RUN ln -sf /host_home/.Xauthority /home/ros/.Xauthority
+# RUN ln -sf /host_home/.Xauthority /home/ros/.Xauthority
 
 #ros-jazzy-mavros-msgs
 

@@ -11,7 +11,8 @@ fi
 OUTPUT_PATH="$1"
 
 # Get all topics under /forward_cam/ and /bottom_cam/
-TOPICS=$(ros2 topic list | grep -E '^/forward_cam/|^/bottom_cam/')
+# TOPICS=$(ros2 topic list | grep -E '/odometry/filtered')
+TOPICS=$(ros2 topic list | grep -E '/(forward_cam|bottom_cam)/rgb/image_raw/compressed|/odometry/filtered')
 
 if [ -z "$TOPICS" ]; then
   echo "No matching topics found under /forward_cam/ or /bottom_cam/"

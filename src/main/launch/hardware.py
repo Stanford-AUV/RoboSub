@@ -43,6 +43,12 @@ def generate_launch_description():
                 parameters=[global_params],
                 arguments=["--ros-args", "--log-level", "warn"],
             ),
+            # Node(
+            #     package="hardware",
+            #     executable="sensors",
+            #     parameters=[global_params],
+            #     # arguments=["--ros-args", "--log-level", "warn"],
+            # ),
             Node(
                 package="hardware",
                 executable="arduino",

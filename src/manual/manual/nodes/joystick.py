@@ -15,6 +15,8 @@ class JoystickNode(Node):
 
         self.wrench_publisher = self.create_publisher(WrenchStamped, "wrench", 10)
         self.light_publisher = self.create_publisher(Int16, "light", 10)
+        self.torpedo_publisher = self.create_publisher(Int16, "torpedo", 10)
+        self.dropper_publisher = self.create_publisher(Int16, "dropper", 10)
         self.get_logger().info("Joystick node initialized")
 
         # Flag to control the async server
@@ -116,6 +118,18 @@ class JoystickNode(Node):
         light_msg = Int16()
         light_msg.data = int(1100 + state.light_power * (1900 - 1100))
         self.light_publisher.publish(light_msg)
+
+        torpedo_msg = Int16()
+        # self.get_logger().info(f"sending {int(state.torpedo)}")
+        torpedo_msg.data =  int(state.torpedo)
+        self.torpedo_publisher.publish(torpedo_msg)
+        # self.get_logger().info(f"sending {torpedo_msg}")
+
+        dropper_msg = Int16()
+        # self.get_logger().info(f"sending {int(state.dropper)}")
+        dropper_msg.data =  int(state.dropper)
+        self.dropper_publisher.publish(dropper_msg)
+        # self.get_logger().info(f"sending {dropper_msg}")
 
     def publish_wrench(self, wrench_msg):
         self.wrench_publisher.publish(wrench_msg)

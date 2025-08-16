@@ -35,7 +35,7 @@ class CamLock(Node):
         super().__init__("cam_lock")
 
         # ---- Parameters ----
-        self.declare_parameter("subject", "target")        # class label to lock on
+        self.declare_parameter("subject", "shark")        # class label to lock on
         self.declare_parameter("stand_off", 0.5)           # meters from camera to target (desired z)
         self.declare_parameter("camera_yaw_in_base_deg", 0.0)  # camera yaw offset wrt robot base (deg)
         self.declare_parameter("publish_hold_time", 0.0)   # seconds
@@ -51,7 +51,7 @@ class CamLock(Node):
         self.add_on_set_parameters_callback(self._on_param_update)
 
         # ---- State ----
-        self._last_odom: Optional[Odometry] = None
+        self._last_odom: Optional[Odometry] = Odometry()#None CHANGE LATER PLSL!!
         self._last_pub_time = 0.0
 
         # ---- I/O ----
@@ -123,6 +123,7 @@ class CamLock(Node):
 
         candidates.sort()
         _, _, best = candidates[0]
+        self.get_logger().info(f"hey {candidates}")
 
         # Get detection center in CAMERA frame (meters)
         cx = best.bbox.center.position.x  # +x right

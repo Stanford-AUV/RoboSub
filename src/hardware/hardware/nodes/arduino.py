@@ -36,6 +36,14 @@ class Arduino(Node):
             Int16, "light", self.light_callback, history_depth
         )
 
+        self._torpedo_sub = self.create_subscription(
+            Int16, "torpedo", self.torpedo_callback, history_depth
+        )
+
+        self._torpedo_sub = self.create_subscription(
+            Int16, "dropper", self.dropper_callback, history_depth
+        )
+
         self._sensors_pub = self.create_publisher(
             SensorsStamped, "sensors", history_depth
         )
@@ -54,6 +62,12 @@ class Arduino(Node):
 
         self.timer = self.create_timer(0.01, self.update)
 
+        self.left_torpedo = False
+        self.right_torpedo = False
+
+        self.left_dropper = False
+        self.right_dropper = False
+
     def get_servo_command(self, index: int, pwm: int):
         if pwm == 0:
             pwm = self.zero_thrust
@@ -70,6 +84,51 @@ class Arduino(Node):
             self.light_changed = True
             self.light = light
 
+    def torpedo_callback(self, msg: Int16):
+        # light = msg.data
+        # if light != self.light:
+        #     self.light_changed = True
+        #     self.light = light
+        if msg.data >= 0.5 and not self.left_torpedo:
+            command = "nagasaki"
+            self.left_torpedo = True
+        elif msg.data <= -0.5 and not self.right_torpedo:
+            command = "hiroshima"
+            self.right_torpedo = True
+        else:
+            command = None
+
+        if command is not None:
+            self.get_logger().info("boom")
+            try:
+                self.portName.write((command + "\n").encode())
+            except serial.SerialException as e:
+                self.get_logger().error(f"Failed to write to serial port: {e}")
+            self.portName.readline().decode().strip()
+
+    def dropper_callback(self, msg: Int16):
+        # light = msg.data
+        # if light != self.light:
+        #     self.light_changed = True
+        #     self.light = light
+        if msg.data >= 0.5:# and not self.left_dropper:
+            command = "pearl-harbor"
+            self.left_dropper = True
+        elif msg.data <= -0.5:# and not self.right_dropper:
+            command = "iwo-jima"
+            self.right_dropper = True
+        else:
+            command = "dropperPosition 0"
+
+        if command is not None:
+            if msg.data >= 0.5 or msg.data <= -0.5:
+                self.get_logger().info("boom dropper")
+            try:
+                self.portName.write((command + "\n").encode())
+            except serial.SerialException as e:
+                self.get_logger().error(f"Failed to write to serial port: {e}")
+            self.portName.readline().decode().strip()
+
     def send_light(self):
         light = max(1100, min(self.light, 1900))  # 1100 to 1900
         command = f"light {light}"
@@ -80,28 +139,37 @@ class Arduino(Node):
         self.portName.readline().decode().strip()
 
     def send_pwms(self):
+        # self.get_logger().info("I am born!!!")
         commands = [
             self.get_servo_command(index=i, pwm=pwm) for i, pwm in enumerate(self.pwms)
         ]
+        # self.get_logger().info("I am servoed!!!")
         message = " ".join(commands)
         try:
             # self.get_logger().info(f":DdDDDDDDD YAY! {message}")
             # message = "1500 " * 8
             # message = message[:-1]
-            self.portName.write((message + "\n").encode())
+            temp = (message + "\n").encode()
+            # self.get_logger().info("Gonna write bruh")
+            self.portName.write(temp)
+            # self.get_logger().info("Got wrote bruh")
         except serial.SerialException as e:
             self.get_logger().error(f"Failed to write to serial port: {e}")
 
     def update(self):
+        # self.get_logger().error(f"Enter update loop!")
         if self.light_changed:
             self.send_light()
             self.light_changed = False
+        # self.get_logger().error(f"Checkpoint A!")
         self.send_pwms()
+        # self.get_logger().error(f"Checkpoint B!")
         response = self.portName.readline().decode().strip()
         parts = response.split(" ")
+        # self.get_logger().error(f"Unexpected response from Arduino: {response}")
         if parts[0] != ">":
             self.get_logger().error(f"Unexpected response from Arduino: {response}")
-            returncp
+            return
         sensors = {
             "pressure": None,
             "temperature": None,
@@ -120,6 +188,7 @@ class Arduino(Node):
         for name, value in sensors.items():
             if value is None:
                 self.get_logger().error(f"Missing sensor value: {name}")
+            # self.get_logger().error(f"Checkpoint C!")
         msg = SensorsStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.pressure = sensors["pressure"]
@@ -130,8 +199,10 @@ class Arduino(Node):
         # self.get_logger().info(f"Publishing sensors {msg}")
         self._sensors_pub.publish(msg)
         depth_msg = Float32Stamped()
-        depth_msg.data = sensors["depth"]
+        depth_msg.data = sensors["depth"] * -1
         self._depth_pub.publish(depth_msg)
+        # self.get_logger().error(f"Checkpoint D!")
+        # self.get_logger().info(f":DDD {sensors}")
 
     def kill_motors(self):
         self.pwms = [self.zero_thrust] * self.thruster_count
