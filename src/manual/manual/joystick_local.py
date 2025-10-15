@@ -12,19 +12,9 @@ SEND_INTERVAL_MS = 50  # Send every 50 ms
 pygame.init()
 pygame.joystick.init()
 
-if pygame.joystick.get_count() == 0:
-    raise RuntimeError("No joystick detected.")
-
-joystick = pygame.joystick.Joystick(0)
-joystick.init()
-print(f"✅ Using joystick: {joystick.get_name()}")
-
-# --- Helper ---
-def get_axis(index):
-    if index < joystick.get_numaxes():
-        val = joystick.get_axis(index)
-        return val if abs(val) > DEADZONE else 0.0
-    return 0.0
+##################################################################
+#              TODO: Connect to joystick                         #
+##################################################################
 
 async def main():
     # Connect to NATS
@@ -34,28 +24,11 @@ async def main():
     try:
         while True:
             pygame.event.pump()
+            state = JoystickState()
 
-            lx = get_axis(0)
-            ly = get_axis(5)
-            rx = get_axis(3)
-            ry = get_axis(4)
-            enabled = get_axis(1) > 0 and get_axis(7) > 0
-            light_state = get_axis(2)
-            if light_state < -0.5:
-                light_power = 0
-            elif light_state > 0.5:
-                light_power = 1
-            else:
-                light_power = 0.5
-
-            state = JoystickState(
-                lx=lx,
-                ly=ly,
-                rx=rx,
-                ry=ry,
-                light_power=light_power,
-                enabled=enabled,
-            )
+##################################################################
+#           TODO: Calculate, send joystick state                 #
+##################################################################
 
             try:
                 await nc.publish("joystick", state.to_json().encode("utf-8"))

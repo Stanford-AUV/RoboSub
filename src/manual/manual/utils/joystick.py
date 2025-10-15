@@ -4,11 +4,11 @@ from dataclasses_json import dataclass_json
 @dataclass_json
 @dataclass
 class JoystickState:
-    lx: float = 0.0  # Left joystick X
-    ly: float = 0.0  # Left joystick Y
-    rx: float = 0.0  # Right joystick X
-    ry: float = 0.0  # Right joystick Y
-    light_power: float = 0.0
-    torpedo: float = 0.0
-    dropper: float = 0.0
-    enabled: bool = False
+
+##################################################################
+#              TODO: Define variables                            #
+##################################################################
+
+    # example_variable: type = default_value
+    joy: float = 0.0
+    stick: str = "stick"
