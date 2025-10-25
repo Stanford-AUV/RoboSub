@@ -12,23 +12,26 @@ SEND_INTERVAL_MS = 50  # Send every 50 ms
 pygame.init()
 pygame.joystick.init()
 
+
 ##################################################################
 #              TODO: Connect to joystick                         #
 ##################################################################
 
+
 async def main():
     # Connect to NATS
-    nc = await nats.connect("nats://localhost:4222")
-    print("✅ Connected to NATS server")
+    # nc = await nats.connect("nats://localhost:4222")
+    # print("✅ Connected to NATS server")
 
     try:
         while True:
             pygame.event.pump()
             state = JoystickState()
+            print(pygame.joystick.get_count())
 
-##################################################################
-#           TODO: Calculate, send joystick state                 #
-##################################################################
+            ##################################################################
+            #           TODO: Calculate, send joystick state                 #
+            ##################################################################
 
             try:
                 await nc.publish("joystick", state.to_json().encode("utf-8"))
@@ -40,6 +43,7 @@ async def main():
     finally:
         print("Closing NATS connection.")
         await nc.close()
+
 
 if __name__ == "__main__":
     try:

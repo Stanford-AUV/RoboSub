@@ -20,7 +20,7 @@ def generate_launch_description():
             # ),
             Node(
                 package="manual",
-                executable="joystick",
+                executable="keyboardcontrol",
                 parameters=[global_params],
             ),
         ]

@@ -26,6 +26,7 @@ class JoystickNode(Node):
         # Start the async server in a separate thread
         self.async_thread = threading.Thread(target=self._run_async_server, daemon=True)
         self.async_thread.start()
+        self.running = True
 
     def _run_async_server(self):
         """Run the async server in a separate thread"""
@@ -43,7 +44,6 @@ class JoystickNode(Node):
         ############################################################
         #           TODO: Process joystick state                   #
         ############################################################
-
 
     async def run_server(self):
         self.nc = await nats.connect("nats://localhost:4222")
