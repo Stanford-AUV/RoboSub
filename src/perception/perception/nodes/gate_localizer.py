@@ -75,8 +75,10 @@ class GateLocalizer(Node):
         red_mask   = cv2.morphologyEx(red_mask,   cv2.MORPH_OPEN, k, iterations=1)
         white_mask = cv2.morphologyEx(white_mask, cv2.MORPH_OPEN, k, iterations=1)
         return {"red_tube": red_mask, "white_tube": white_mask}
+        # why are we using an ellipse??
 
     def _find_tube_bboxes(self, mask):
+        #we don't like the min area, seems like it will only work at a very close range. something more dynamic.
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         boxes = []
         for c in contours:
@@ -89,6 +91,8 @@ class GateLocalizer(Node):
             if ar1 < self.min_ar and ar2 < self.min_ar:
                 continue
             roi = mask[y:y+h, x:x+w]
+
+            # this is so sus. we should change this. maybe with a cnn
             fill = float(np.count_nonzero(roi)) / (w * h + 1e-6)
             boxes.append((x, y, w, h, float(np.clip(fill, 0.0, 1.0))))
         return boxes
@@ -126,8 +130,10 @@ class GateLocalizer(Node):
                     continue
                 z_m = float(np.median(z_vals))
 
+                # u v is camera coords, X Y is world
                 u = x + w / 2.0
                 v = y + h / 2.0
+                # we need the Rt part
                 X = (u - cx) / fx * z_m
                 Y = (v - cy) / fy * z_m
 

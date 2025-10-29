@@ -3,30 +3,43 @@
 import nats
 import asyncio
 from manual.utils.keyboard import KeyboardState
-import keyboard
+from pynput import keyboard
 
 SEND_INTERVAL_MS = 50  # Send every 50 ms
 
 
-def isKeyPressed(a):
-    return keyboard.is_pressed(a)
+
+def on_press(key, pressed_keys):
+    try:
+        pressed_keys.add(key.char)  # letter keys (e.g. 'a', 'd', etc.)
+    except AttributeError:
+        pass  # handle special keys if needed
+
+def on_release(key, pressed_keys):
+    try:
+        pressed_keys.discard(key.char)
+    except AttributeError:
+        pass
+
+def isKeyPressed(a: str, pressed_keys) -> bool:
+    return a in pressed_keys
 
 
 keysToState = {
-    "a": KeyboardState.moveLeft,
-    "d": KeyboardState.moveRight,
-    "w": KeyboardState.moveForward,
-    "s": KeyboardState.moveBackward,
-    "r": KeyboardState.moveUp,
-    "f": KeyboardState.moveDown,
-    "q": KeyboardState.turnCCW,
-    "e": KeyboardState.turnCW,
-    "t": KeyboardState.increaseVel,
-    "g": KeyboardState.decreaseVel,
-    "y": KeyboardState.increaseLinVel,
-    "h": KeyboardState.decreaseLinVel,
-    "u": KeyboardState.increaseAngVel,
-    "j": KeyboardState.decreaseAngVel,
+    "a": "moveLeft",
+    "d": "moveRight",
+    "w": "moveForward",
+    "s": "moveBackward",
+    "r": "moveUp",
+    "f": "moveDown",
+    "q": "turnCCW",
+    "e": "turnCW",
+    "t": "increaseVel",
+    "g": "decreaseVel",
+    "y": "increaseLinVel",
+    "h": "decreaseLinVel",
+    "u": "increaseAngVel",
+    "j": "decreaseAngVel",
 }
 
 
@@ -34,14 +47,22 @@ async def main():
     # Connect to NATS
     nc = await nats.connect("nats://localhost:4222")
     print("✅ Connected to NATS server")
+    # Track key state
+    pressed_keys = set()
+    # Start the listener in background
+    listener = keyboard.Listener(
+        on_press=lambda key: on_press(key, pressed_keys),
+        on_release=lambda key: on_release(key, pressed_keys)
+    )
+    listener.start()
 
     try:
         while True:
             state = KeyboardState()
             for key in keysToState:
-                state.keysToState[key] = 0
-                if isKeyPressed(key):
-                    state.keysToState[key] = 1
+                state.setState(keysToState[key], 0)
+                if isKeyPressed(key, pressed_keys):
+                    state.setState(keysToState[key], 1)
             try:
                 await nc.publish("keyboard", state.to_json().encode("utf-8"))
                 print(f"Sent:{state}")

@@ -31,6 +31,7 @@ class ObjectsLocalizerBoth(Node):
     def __init__(self):
         super().__init__("objects_localizer_both")
 
+        #hmm i dont like how we have oak1 oak2 in one file and then raw mxids hanging out in a py file, maybe constants abstractions
         # ---------- Device IDs ----------
         self.declare_parameter("forward.mx_id", "19443010B17E1C1300")
         self.declare_parameter("bottom.mx_id",  "1944301021531E1300")
@@ -132,6 +133,7 @@ class ObjectsLocalizerBoth(Node):
         # Build pipeline
         pipeline = dai.Pipeline()
 
+        #too much yap. can prob helper it out/ helper class it out
         camRgb = pipeline.create(dai.node.ColorCamera)
         monoLeft = pipeline.create(dai.node.MonoCamera)
         monoRight = pipeline.create(dai.node.MonoCamera)
@@ -203,7 +205,7 @@ class ObjectsLocalizerBoth(Node):
                 # self.get_logger().info(f"q_det is {q_det}")
 
                 printed_layers = False
-                while not self.stop_flag anπd rclpy.ok():
+                while not self.stop_flag and rclpy.ok():
                     in_rgb = q_rgb.tryGet()
                     in_det = q_det.tryGet()
                     in_depth = q_depth.tryGet()
