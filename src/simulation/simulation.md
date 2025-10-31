@@ -43,7 +43,22 @@ The Simulation Module is designed to simulate RoboSub in a Gazebo environment. I
 
 ---
 
-## Testing  
+## Testing
+1. Run the simulation script in Docker:
+   ```bash
+   ./sim_docker.sh
+   ```
+2. Run the simulation script in Terminal (local):
+   ```bash
+   ./sim_local.sh
+   ```
+Now the Gazebo sim should appear.
+3. To visualize the camera feed from the simulation, run in a separate Terminal shell:
+   ```bash
+   python3 src/simulation/gz_camera_stream.py
+   ```
+4. Navigate to [this link in a local browser](http://localhost:5001/cam)
+
 To test the `PathVisualizer` and other components, follow these steps in separate terminals:
 
 1. Run the simulation script:
@@ -63,6 +78,7 @@ To test the `PathVisualizer` and other components, follow these steps in separat
 
 These steps will set up the necessary environment to test the `PathVisualizer` functionality and other simulation components.
 
+To visualize the camera stream, 
 ---
 
 ## References  
