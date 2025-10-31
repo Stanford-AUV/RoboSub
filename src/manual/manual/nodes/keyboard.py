@@ -84,7 +84,7 @@ class KeyboardNode(Node):
         self.wrench_publisher.publish(wrench_stamped)
 
         lights = Int16()
-        # 1100 is OFF, 1900 is ON, 1500 is HALF
+        # 1100 is OFF, 1900 is ON, 1500 is HALF please fix this
         lights.data = 1100 + int(800 * state.moveForward)
 
         self.light_publisher.publish(lights)
