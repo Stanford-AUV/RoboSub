@@ -83,6 +83,12 @@ class KeyboardNode(Node):
 
         self.wrench_publisher.publish(wrench_stamped)
 
+        lights = Int16()
+        # 1100 is OFF, 1900 is ON, 1500 is HALF
+        lights.data = 1100 + int(800 * state.moveForward)
+
+        self.light_publisher.publish(lights)
+
     async def run_server(self):
         self.nc = await nats.connect("nats://localhost:4222")
         try:
