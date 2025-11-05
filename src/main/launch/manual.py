@@ -16,7 +16,7 @@ def generate_launch_description():
             # Node(
             #     package="control",
             #     executable="controller",
-            #     parameters=[global_params],
+            #     parameters=[global_params, {"velocity_only": True}],
             # ),
             Node(
                 package="manual",

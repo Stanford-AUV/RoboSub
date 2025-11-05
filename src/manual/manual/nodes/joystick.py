@@ -20,34 +20,9 @@ class JoystickNode(Node):
         # Flag to control the async server
         self.running = True
 
-        self.depth = 0.0
-        self.last_depth = None
-        self.depth_rate = 0.0
-        self.last_depth_time = None
-        self.desired_depth = None
-        self.kp = 3  # Proportional gain
-        self.kd = 1  # Derivative gain
-
-        self.depth_subscription = self.create_subscription(
-            Float32Stamped, "depth", self.depth_callback, 10
-        )
-
         # Start the async server in a separate thread
         self.async_thread = threading.Thread(target=self._run_async_server, daemon=True)
         self.async_thread.start()
-
-    def depth_callback(self, msg: Float32Stamped):
-        current_depth = -msg.data
-        now = self.get_clock().now()
-
-        if self.last_depth is not None and self.last_depth_time is not None:
-            delta_t = (now.nanoseconds - self.last_depth_time.nanoseconds) * 1e-9
-            if delta_t > 0:
-                self.depth_rate = (current_depth - self.last_depth) / delta_t
-
-        self.last_depth_time = now
-        self.last_depth = current_depth
-        self.depth = current_depth
 
     def _run_async_server(self):
         """Run the async server in a separate thread"""
@@ -66,30 +41,13 @@ class JoystickNode(Node):
         wrench_msg.header.frame_id = "base_link"
 
         if state.enabled:
-            wrench_msg.wrench.force.x = state.ly * 0.5
-            wrench_msg.wrench.force.y = -state.lx * 0.5
-
-            # Handle depth control
-            z_input = state.ry
-            if abs(z_input) > 0.05:  # User wants to move up/down
-                self.desired_depth = self.depth + z_input  # Move in increments
-            elif self.desired_depth is None:
-                self.desired_depth = self.depth
-
-            # PD Controller
-            error = self.desired_depth - self.depth
-            d_error = -self.depth_rate
-            force_z = self.kp * error + self.kd * d_error
-
-            self.get_logger().info(
-                f"Desired depth: {self.desired_depth}, Current depth: {self.depth}, {force_z}"
-            )
-
-            wrench_msg.wrench.force.z = force_z
+            wrench_msg.wrench.force.x = state.ly * 0.3
+            wrench_msg.wrench.force.y = -state.lx * 0.3
+            wrench_msg.wrench.force.z = state.ry * 0.1
 
             wrench_msg.wrench.torque.x = 0.0
             wrench_msg.wrench.torque.y = 0.0
-            wrench_msg.wrench.torque.z = -state.rx * 0.1
+            wrench_msg.wrench.torque.z = 0.0 #-state.rx * 0.01
         else:
             wrench_msg.wrench.force.x = 0.0
             wrench_msg.wrench.force.y = 0.0
