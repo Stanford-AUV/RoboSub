@@ -167,6 +167,26 @@ In a second Terminal, run:
 ros2 run manual keyboard
 ```
 
+## Launch Telemtry
+In first terminal run:
+```bash
+ros2 launch foxglove_bridge foxglove_bridge_launch.xml
+```
+
+In the same terminal make sure you forward the port 8765.
+
+Download and launch Foxglove app on your computer.
+
+In the Foxglove app connect to ws://localhost:8765.
+
+In a different vscode terminal launch whatever other nodes you want, for example"
+
+```bash
+ros2 launch perception camera.py
+```
+
+and drag the topic into a Foxglove tab to visualize it.
+
 ## FAQ
 
 ## Display Issue
