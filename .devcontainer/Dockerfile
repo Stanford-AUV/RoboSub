@@ -76,3 +76,6 @@ RUN echo "if [ -f ${WORKSPACE}/requirements.txt ]; then source /home/ros/env/bin
 RUN echo "if [ -f ${WORKSPACE}/install/setup.bash ]; then source ${WORKSPACE}/install/setup.bash; fi" >> /home/ros/.bashrc
 RUN echo "if [ -f /workspaces/RoboSub/ports.sh ]; then sudo bash /workspaces/RoboSub/ports.sh; fi" >> /home/ros/.bashrc
 RUN echo "export GZ_PARTITION=127.0.0.1:ros" >> /home/ros/.bashrc
+
+#Install Foxglove Bridge
+RUN apt install ros-$ROS_DISTRO-foxglove-bridge
