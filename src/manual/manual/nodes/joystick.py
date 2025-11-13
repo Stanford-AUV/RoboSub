@@ -41,13 +41,13 @@ class JoystickNode(Node):
         wrench_msg.header.frame_id = "base_link"
 
         if state.enabled:
-            wrench_msg.wrench.force.x = state.ly * 0.3
-            wrench_msg.wrench.force.y = -state.lx * 0.3
+            wrench_msg.wrench.force.x = state.ly * 0.1
+            wrench_msg.wrench.force.y = -state.lx * 0.1
             wrench_msg.wrench.force.z = state.ry * 0.1
 
             wrench_msg.wrench.torque.x = 0.0
             wrench_msg.wrench.torque.y = 0.0
-            wrench_msg.wrench.torque.z = 0.0 #-state.rx * 0.01
+            wrench_msg.wrench.torque.z = 0.05
         else:
             wrench_msg.wrench.force.x = 0.0
             wrench_msg.wrench.force.y = 0.0

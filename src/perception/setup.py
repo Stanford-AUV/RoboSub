@@ -24,12 +24,12 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "perception_node = perception.nodes.perception_node:main",
             "test.video = perception.nodes.test.video:main",
             "test.view_video = perception.nodes.test.view_video:main",
             "test.view_detections_3d = perception.nodes.test.view_detections_3d:main",
             "objects_localizer = perception.nodes.objects_localizer:main",
             "camera_viewer = perception.nodes.camera_viewer:main",
+            "detection_node = perception.nodes.detection:main",
         ],
     },
 )

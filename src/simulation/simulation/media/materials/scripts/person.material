@@ -1,0 +1,14 @@
+material PersonTexture
+{
+  technique
+  {
+    pass
+    {
+      texture_unit
+      {
+        texture person.jpeg
+        scale 1 1
+      }
+    }
+  }
+}

@@ -148,12 +148,12 @@ class PID:
             else:
                 # Normalize axis for numerical stability
                 axis = axis / np.linalg.norm(axis)
-                error_q_W = axis * angle
-                
+
                 # Check for angle wrapping (ensure shortest path rotation)
-                if np.linalg.norm(error_q_W) > np.pi:
+                if angle > np.pi:
                     # Adjust angle to take shortest path
-                    error_q_W = -error_q_W * (2*np.pi - angle) / angle
+                    angle -= 2*np.pi
+                error_q_W = axis * angle
         
         # Calculate force in the world frame
         if velocity_only:

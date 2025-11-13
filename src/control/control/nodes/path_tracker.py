@@ -58,13 +58,16 @@ class PathTracker(Node):
         robot_odom = State.from_odometry_msg(robot)
         error = self.last_waypoint - robot_odom
         error_magnitude = error.magnitude()
+        self.get_logger().info(f"Error: {error_magnitude}")
         if error_magnitude < ERROR_THRESHOLD:
             self.path_index += 1
             if self.path_index >= len(self.path.poses):
                 self.get_logger().info("Reached end of path")
+                self.path_index -= 1
             else:
                 self.get_logger().info("Next waypoint")
-                self.publish_waypoint()
+            self.publish_waypoint()
+
 
     def publish_waypoint(self):
         assert self.path is not None, "Path is not set"

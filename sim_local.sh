@@ -49,5 +49,8 @@ PIDS+=("$!")
 ./.local_venv/bin/python3 src/simulation/simulation/bridge_local.py &
 PIDS+=("$!")
 
+./.local_venv/bin/python3 src/simulation/simulation/gz_camera_stream.py &
+PIDS+=("$!")
+
 echo "[main] Running... Press Ctrl+C to stop."
 wait

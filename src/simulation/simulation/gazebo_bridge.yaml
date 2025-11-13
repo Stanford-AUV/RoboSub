@@ -65,3 +65,9 @@
   ros_type_name: "sensor_msgs/msg/Image"
   gz_type_name: "gz.msgs.Image"
   direction: GZ_TO_ROS
+
+- ros_topic_name: "gz/detection_image"
+  gz_topic_name: "/detection/image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: ROS_TO_GZ

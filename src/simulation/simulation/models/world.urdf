@@ -7,6 +7,18 @@
       <sky></sky>
     </scene>
 
+    <model name="person_image_model">
+      <static>true</static>
+      <pose>2 0 0.9 0 0 0</pose>
+      <link name="person_image_link">
+        <visual name="person_visual">
+          <geometry>
+            <box/>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+
     <physics name="1ms" type="ode">
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1.0</real_time_factor>
@@ -196,7 +208,6 @@
       <!-- Values from https://chatgpt.com/share/6811b130-d150-8002-b355-65a1e5cf9dce -->
       <plugin filename="gz-sim-hydrodynamics-system" name="gz::sim::systems::Hydrodynamics">
         <link_name>base_link</link_name>
-        <link_name>box_link</link_name>
 
         <xU>-0.17</xU>        <!-- surge -->
         <yV>-0.33</yV>        <!-- sway  -->
