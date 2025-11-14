@@ -9,10 +9,10 @@ class DetectionNode(Node):
     def __init__(self):
         super().__init__("detection_node")
 
-        self.create_subscription(Image, 'gz/camera', self.image_callback, 10)
+        self.camera_sub =self.create_subscription(Image, 'gz/camera', self.image_callback, 10)
 
         self.image_pub = self.create_publisher(Image, 'gz/detection_image', 10)
-        self.data_pub = self.create_publisher(Detection2DArray, 'gz/detection_data', 10)
+        self.data_pub = self.create_publisher(Detection2DArray, 'detection_data', 10)
         self.model = YOLO("yolo11n.pt")
         self.bridge = CvBridge()
         self.names = self.model.names
