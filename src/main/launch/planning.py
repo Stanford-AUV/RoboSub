@@ -7,5 +7,11 @@ global_params = os.path.join(os.path.dirname(__file__), "params", "global.yaml")
 
 def generate_launch_description():
     return LaunchDescription(
-        []
+        [
+            Node(
+                package="planning",
+                executable="centroid_tracker",
+                parameters=[],
+            ),
+        ]
     )

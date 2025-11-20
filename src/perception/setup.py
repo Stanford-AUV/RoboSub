@@ -29,7 +29,8 @@ setup(
             "test.view_detections_3d = perception.nodes.test.view_detections_3d:main",
             "objects_localizer = perception.nodes.objects_localizer:main",
             "camera_viewer = perception.nodes.camera_viewer:main",
-            "detection_node = perception.nodes.detection:main",
+            "detection_node_3d = perception.nodes.detection:main",
+            "detection_transformer = perception.nodes.transform_to_world:main",
         ],
     },
 )

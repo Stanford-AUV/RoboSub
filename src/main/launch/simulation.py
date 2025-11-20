@@ -26,5 +26,11 @@ def generate_launch_description():
                 parameters=[global_params],
                 arguments=["--ros-args", "--log-level", "info"],
             ),
+            Node(
+                package="robot_localization",
+                executable="ekf_node",
+                name="ekf_filter_node",
+                parameters=[global_params],
+            ),
         ]
     )

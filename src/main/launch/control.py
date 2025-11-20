@@ -28,16 +28,16 @@ def generate_launch_description():
             # END A
             # START B
             # Path generator currently disabled, but would need to be inserted here
-            Node(
-                package="control",
-                executable="test_waypoints",
-                parameters=[global_params],
-            ),
-            Node(
-                package="control",
-                executable="path_tracker",
-                parameters=[global_params],
-            ),
+            # Node(
+            #     package="control",
+            #     executable="test_waypoints",
+            #     parameters=[global_params],
+            # ),
+            # Node(
+            #     package="control",
+            #     executable="path_tracker",
+            #     parameters=[global_params],
+            # ),
             # END B
             Node(
                 package="control",

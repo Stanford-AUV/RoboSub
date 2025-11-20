@@ -26,6 +26,8 @@ class Sensors(Node):
 
     def pose_callback(self, msg: PoseStamped):
         odometry = Odometry()
+        odometry.header.frame_id = "odom"
+        odometry.child_frame_id = "base_link"
         odometry.header.stamp = msg.header.stamp
         odometry.pose.pose = msg.pose
 

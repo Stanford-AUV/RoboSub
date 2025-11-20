@@ -84,6 +84,7 @@ class Controller(Node):
         self.lock = threading.Lock()
 
         self.time = self.get_clock().now()
+        self.prev_sim_time = None
 
         self.policy = policy
 
@@ -91,7 +92,19 @@ class Controller(Node):
 
     def reset(self):
         """Reset the controller."""
-        self.get_logger.info("Resetting controller...")
+        self.get_logger().info("Resetting controller...")
+        self.ref_state = None
+        msg = WrenchStamped()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.wrench.force.x = 0.0
+        msg.wrench.force.y = 0.0
+        msg.wrench.force.z = 0.0
+        msg.wrench.torque.x = 0.0
+        msg.wrench.torque.y = 0.0
+        msg.wrench.torque.z = 0.0
+        
+        self.control_publisher.publish(msg)
+
         with self.lock:
             self.policy.reset()
 
@@ -104,6 +117,13 @@ class Controller(Node):
         msg : Odometry
             The message containing the state of the system.
         """
+        cur_time = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+        if self.prev_sim_time is not None and cur_time < self.prev_sim_time:
+            # simulation reset detected
+            self.get_logger().info("Simulation reset detected from odometry time jump")
+            self.reset()
+        self.prev_sim_time = cur_time
+
         cur_state = State.from_odometry_msg(msg)
         with self.lock:
             ref_state = self.ref_state

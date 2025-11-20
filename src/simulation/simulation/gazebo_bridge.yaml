@@ -60,12 +60,28 @@
   gz_type_name: "gz.msgs.Pose"
   direction: GZ_TO_ROS
 
-- ros_topic_name: "gz/camera"
-  gz_topic_name: "/camera/image"
+- ros_topic_name: "gz/pose"
+  gz_topic_name: "world/buoyant_auv/model/auv/pose"
+  ros_type_name: "geometry_msgs/msg/PoseStamped"
+  gz_type_name: "gz.msgs.Pose"
+  direction: GZ_TO_ROS
+
+
+# RGB image
+- ros_topic_name: "camera/color/image_raw"
+  gz_topic_name: "/camera/color/image_raw"
   ros_type_name: "sensor_msgs/msg/Image"
   gz_type_name: "gz.msgs.Image"
   direction: GZ_TO_ROS
 
+# Depth image
+- ros_topic_name: "camera/depth/image_raw"
+  gz_topic_name: "/camera/depth/image_raw"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+# Detection image
 - ros_topic_name: "gz/detection_image"
   gz_topic_name: "/detection/image"
   ros_type_name: "sensor_msgs/msg/Image"

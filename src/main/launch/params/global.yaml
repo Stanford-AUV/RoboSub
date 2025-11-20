@@ -44,6 +44,15 @@
     frequency: 10.0
     sensor_timeout: 0.2
 
+    odom0: "/odometry/filtered"
+    odom0_config: [true, true, true,    # x_pos   , y_pos    , z_pos,
+                   true, true, true,    # roll    , pitch    , yaw,
+                   true, true, true,    # x_vel   , y_vel    , z_vel,
+                   true, true, true,    # roll_vel, pitch_vel, yaw_vel,
+                   false, false, false] # x_accel , y_accel  , z_accel
+    odom0_differential: false
+    odom0_relative: false
+
     imu0:
       "/imu/data_sync" # Separating twists + accel. here versus velocity on pose_sync as
       # as suggested by the localization package

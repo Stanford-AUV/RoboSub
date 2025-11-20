@@ -21,6 +21,8 @@ setup(
         "test": ["pytest"],
     },
     entry_points={
-        'console_scripts': [],
+        'console_scripts': [
+            "centroid_tracker = planning.nodes.track_centroid:main",
+        ],
     },
 )

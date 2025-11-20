@@ -7,7 +7,12 @@ def generate_launch_description():
         [
             Node(
                 package="perception",
-                executable="detection_node",
+                executable="detection_node_3d",
+                parameters=[],
+            ),
+            Node(
+                package="perception",
+                executable="detection_transformer",
                 parameters=[],
             ),
         ]
