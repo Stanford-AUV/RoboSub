@@ -40,7 +40,7 @@ class DetectionNode3D(Node):
         self.depth_sub = self.create_subscription(Image, depth_topic, self.depth_callback, 10)
 
         self.fx, self.fy, self.cx, self.cy = compute_gazebo_intrinsics(
-            horizontal_fov=1.047, width=416, height=416
+            horizontal_fov=1.52, width=416, height=416
         )
         # Publishers
         self.image_pub = self.create_publisher(Image, 'gz/detection_image', 10)
@@ -101,8 +101,8 @@ class DetectionNode3D(Node):
             hyp.pose.pose.position.z = z
             hyp.pose.covariance = [0.0]*36
 
-            if hyp.hypothesis.class_id != "tv":
-                continue
+            # if hyp.hypothesis.class_id != "tv":
+            #     continue
             det.results.append(hyp)
             det_array_3d.detections.append(det)
 

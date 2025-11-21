@@ -34,6 +34,7 @@ from geometry_msgs.msg import WrenchStamped
 from spatialmath.quaternion import UnitQuaternion
 
 from nav_msgs.msg import Odometry
+from rosgraph_msgs.msg import Clock
 
 import numpy as np
 
@@ -84,8 +85,8 @@ class Controller(Node):
         self.lock = threading.Lock()
 
         self.time = self.get_clock().now()
+        self.create_subscription(Clock, '/clock', self.clock_callback, 10)
         self.prev_sim_time = None
-
         self.policy = policy
 
         self.ref_state = None
@@ -108,6 +109,14 @@ class Controller(Node):
         with self.lock:
             self.policy.reset()
 
+
+    def clock_callback(self, msg):
+        cur_time = msg.clock.sec + msg.clock.nanosec * 1e-9
+        if self.prev_sim_time is not None and cur_time < self.prev_sim_time:
+            self.get_logger().info("Simulation reset detected via /clock")
+            self.reset()
+        self.prev_sim_time = cur_time
+        
     def state_callback(self, msg: Odometry):
         """
         Update the current state and update the control signal.
@@ -117,13 +126,6 @@ class Controller(Node):
         msg : Odometry
             The message containing the state of the system.
         """
-        cur_time = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
-        if self.prev_sim_time is not None and cur_time < self.prev_sim_time:
-            # simulation reset detected
-            self.get_logger().info("Simulation reset detected from odometry time jump")
-            self.reset()
-        self.prev_sim_time = cur_time
-
         cur_state = State.from_odometry_msg(msg)
         with self.lock:
             ref_state = self.ref_state

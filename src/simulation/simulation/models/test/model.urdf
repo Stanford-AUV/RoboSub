@@ -1,0 +1,61 @@
+<sdf version="1.9">
+  <model name="suzanne" canonical_link="new_link">
+    <static>false</static>
+
+    <link name="new_link">
+      <!-- Inertial from your generated SDF -->
+      <inertial>
+        <inertia>
+          <ixx>0.00067</ixx>
+          <ixy>0.00000</ixy>
+          <ixz>0.00000</ixz>
+          <iyy>0.00067</iyy>
+          <iyz>0.00000</iyz>
+          <izz>0.00067</izz>
+        </inertia>
+        <mass>0.00100</mass>
+        <pose>0 0 0 0 0 0</pose>
+      </inertial>
+
+      <!-- Visual using the STL mesh -->
+      <visual name="suzanne_visual">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>./test.glb</uri>
+            <!-- optional scale, matching your URDF -->
+            <scale>1.61804 1.61804 1.61804</scale>
+          </mesh>
+        </geometry>
+
+        <!-- <material>
+          <pbr>
+            <metal>
+              <albedo_map>obama.jpg</albedo_map>
+              <roughness>0.4</roughness>
+              <metalness>0.0</metalness>
+            </metal>
+          </pbr>
+        </material> -->
+        <!-- <material>
+          <ambient>0.2 0.2 0.2 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>0.1 0.1 0.1 1</specular>
+        </material> -->
+
+
+      </visual>
+
+      <!-- Collision: you can reuse the mesh or simplify later -->
+      <collision name="suzanne_collision">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>./test.glb</uri>
+            <scale>1.61804 1.61804 1.61804</scale>
+          </mesh>
+        </geometry>
+      </collision>
+    </link>
+  </model>
+</sdf>

@@ -34,7 +34,7 @@
             <sensor name="camera_depth" type="depth">
                 <pose>0 0 0 0 0 0</pose>
                 <camera>
-                    <horizontal_fov>1.047</horizontal_fov>
+                    <horizontal_fov>1.52</horizontal_fov>
                     <image>
                         <width>416</width>
                         <height>416</height>
@@ -54,7 +54,7 @@
             <sensor name="camera_rgb" type="camera">
                 <pose>0 0 0 0 0 0</pose>
                 <camera>
-                    <horizontal_fov>1.047</horizontal_fov>
+                    <horizontal_fov>1.52</horizontal_fov>
                     <image>
                         <width>416</width>
                         <height>416</height>

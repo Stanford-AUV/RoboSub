@@ -6,8 +6,10 @@ import numpy as np
 import tf_transformations as tf
 
 class DetectionTransformer(Node):
-    def __init__(self):
+    def __init__(self, stop_distance=2.0):
         super().__init__('detection_transformer')
+
+        self.stop_distance = stop_distance
 
         # Camera-to-robot transform
         t = [0.0, 0.0, 0.0]  # translation (modify if needed)
@@ -45,6 +47,9 @@ class DetectionTransformer(Node):
         T[:3, 3] = pos
         self.T_robot_world = T
 
+        _, _, yaw = tf.euler_from_quaternion(quat)
+        self.robot_yaw = yaw
+
     def detections_callback(self, msg: Detection3DArray):
         transformed_msg = Detection3DArray()
         transformed_msg.header = msg.header
@@ -70,9 +75,11 @@ class DetectionTransformer(Node):
             if not np.all(np.isfinite(p_world[:3])):
                 self.get_logger().warn("Skipping detection with invalid coordinates")
                 continue
+            dx = -self.stop_distance * np.cos(self.robot_yaw)
+            dy = -self.stop_distance * np.sin(self.robot_yaw)
 
-            obj_world.pose.pose.position.x = p_world[0]
-            obj_world.pose.pose.position.y = p_world[1]
+            obj_world.pose.pose.position.x = p_world[0] + dx
+            obj_world.pose.pose.position.y = p_world[1] + dy
             obj_world.pose.pose.position.z = p_world[2]
 
             # Transform orientation if you want (optional, here we keep original)
