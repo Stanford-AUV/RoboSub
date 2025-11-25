@@ -28,23 +28,24 @@ ENV DEBIAN_FRONTEND=dialog
 
 ENV USER ros
 
-# Setup IMU Utils
-RUN apt-get update && apt-get install -y kmod \
+# One update, one install, one cleanup
+RUN apt-get update && apt-get install -y \
+    kmod \
     sharutils \
     file \
     libusb-1.0-0-dev \
-    udev \ 
-    usbutils
-
-# Setup logging utils
-RUN apt-get update && apt-get install -y less fzf
-
-# Install nats-server
-RUN apt-get update && apt-get install -y nats-server
-
-# Install xquartz testing stuff
-RUN apt-get update && apt-get install -y xauth x11-apps
-
+    udev \
+    usbutils \
+    less \
+    fzf \
+    nats-server \
+    xauth \
+    x11-apps \
+    ros-$ROS_DISTRO-librealsense2* \
+    ros-$ROS_DISTRO-realsense2-* \
+    ros-$ROS_DISTRO-foxglove-bridge \
+ && rm -rf /var/lib/apt/lists/*
+    
 # symbolic link .Xauthority
 RUN ln -sf /host_home/.Xauthority /home/ros/.Xauthority
 
@@ -62,7 +63,7 @@ RUN python3 -m venv /home/ros/env --system-site-packages --symlinks
 
 # Set up auto-source of workspace for ros user
 ARG WORKSPACE
-ENV WORKSPACE="/workspaces/Robosub"
+ENV WORKSPACE="/workspaces/RoboSub"
 RUN echo "if [ -f ${WORKSPACE}/requirements.txt ]; then source /home/ros/env/bin/activate; fi" >> /home/ros/.bashrc
 RUN echo "if [ -f ${WORKSPACE}/install/setup.bash ]; then source ${WORKSPACE}/install/setup.bash; fi" >> /home/ros/.bashrc
 RUN echo "if [ -f /workspaces/RoboSub/ports.sh ]; then sudo bash /workspaces/RoboSub/ports.sh; fi" >> /home/ros/.bashrc

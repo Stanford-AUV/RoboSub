@@ -64,5 +64,5 @@
       ]
     }
   },
-  "postCreateCommand": "/home/ros/env/bin/python3 -m pip install --no-cache-dir -r /workspaces/Robosub/requirements.txt"
+  "postCreateCommand": "/home/ros/env/bin/python3 -m pip install --no-cache-dir -r /workspaces/RoboSub/requirements.txt"
 }

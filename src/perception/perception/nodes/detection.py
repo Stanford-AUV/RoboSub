@@ -29,8 +29,8 @@ class DetectionNode3D(Node):
         super().__init__("detection_node_3d")
 
         # Topics as parameters
-        self.declare_parameter("rgb_topic", "/camera/color/image_raw")
-        self.declare_parameter("depth_topic", "/camera/depth/image_raw")
+        self.declare_parameter("rgb_topic", "/camera/camera/color/image_raw")
+        self.declare_parameter("depth_topic", "/camera/camera/aligned_depth_to_color/image_raw")
 
         rgb_topic = self.get_parameter("rgb_topic").get_parameter_value().string_value
         depth_topic = self.get_parameter("depth_topic").get_parameter_value().string_value
@@ -63,7 +63,7 @@ class DetectionNode3D(Node):
             return
         
         cv_rgb = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-        results = self.model(cv_rgb, conf=0.4)[0]
+        results = self.model(cv_rgb, conf=0.8)[0]
 
         # Convert YOLO 2D detections -> 3D
         det_array_3d = Detection3DArray()
@@ -116,6 +116,8 @@ class DetectionNode3D(Node):
 
         # Publish annotated RGB image
         annotated_msg = self.bridge.cv2_to_imgmsg(cv_rgb, encoding='bgr8')
+        annotated_msg.header.stamp = msg.header.stamp
+        annotated_msg.header.frame_id = msg.header.frame_id
         self.image_pub.publish(annotated_msg)
         # self.get_logger().info("Published 3D detection image and data")
 

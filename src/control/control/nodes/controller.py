@@ -30,9 +30,7 @@ import threading
 from control.utils.pid import PID
 from control.utils.state import State
 
-from geometry_msgs.msg import WrenchStamped
-from spatialmath.quaternion import UnitQuaternion
-
+from geometry_msgs.msg import WrenchStamped, PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry
 from rosgraph_msgs.msg import Clock
 
@@ -86,6 +84,7 @@ class Controller(Node):
 
         self.time = self.get_clock().now()
         self.create_subscription(Clock, '/clock', self.clock_callback, 10)
+        self.reset_pub = self.create_publisher(PoseWithCovarianceStamped, "/set_pose", 10)
         self.prev_sim_time = None
         self.policy = policy
 
@@ -105,6 +104,12 @@ class Controller(Node):
         msg.wrench.torque.z = 0.0
         
         self.control_publisher.publish(msg)
+
+        msg = PoseWithCovarianceStamped()
+        msg.header.frame_id = "map"
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.pose.pose.orientation.w = 1.0
+        self.reset_pub.publish(msg)
 
         with self.lock:
             self.policy.reset()
