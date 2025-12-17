@@ -8,6 +8,8 @@ import cv2
 import numpy as np
 import yaml
 import os
+from rclpy.time import Time
+import GenericCameraNode
 
 resolution_map = {
     "400P": dai.MonoCameraProperties.SensorResolution.THE_400_P,
@@ -21,25 +23,6 @@ preset_map = {
     "FAST_ACCURACY": dai.node.StereoDepth.PresetMode.FAST_ACCURACY,
     "FAST_DENSITY": dai.node.StereoDepth.PresetMode.FAST_DENSITY,
 }
-
-
-def load_cameras_yaml(path):
-    if not os.path.exists(path):
-        raise FileNotFoundError("Noooooo! No yaml path exists :(")
-
-    with open(path, "r") as f:
-        data = yaml.safe_load(f)
-
-    return data
-
-
-def get_oak_cam_data(data):
-    oak_data = {}
-    for key, value in data.items():
-        if "oak" in key:
-            oak_data[key] = value
-    return oak_data
-
 
 def config_rgb_image(pipeline, key, cam_cfg):
     rgb_cfg = cam_cfg.get("rgb")
@@ -84,19 +67,14 @@ def config_stereo_image(pipeline, key, cam_cfg):
     return depth_queue
 
 
-class OakNode(Node):
-    def __init__(self, _camera_info):
-        super().__init__("oak_node")
+class OakNode(GenericCameraNode):
+    def __init__(self, path):
+        super().__init__("oak_node", path)
 
-        self.bridge = CvBridge()
-        self.rgb_pubs = {}
-        self.depth_pubs = {}
-        self.rgbd_pubs = {}
+        self.path = path
+        self._camera_info = self.get_cam_data(self.load_cameras_yaml(), "oak")
 
-        self.devices = {}  # holds dai.Device objects
-        self.queues = {}  # holds output queues
-
-        for key, cam_cfg in _camera_info.items():
+        for key, cam_cfg in self._camera_info.items():
             cam_cfg = cam_cfg.get("ros__parameters")
 
             self.get_logger().info(
@@ -108,10 +86,6 @@ class OakNode(Node):
 
             depth_pub = self.create_publisher(Image, f"/camera/{key}/depth", 10)
             self.depth_pubs[key] = depth_pub
-
-            rgbd_pub = self.create_publisher(Image, f"/camera/{key}/rgbd", 10)
-
-            self.rgbd_pubs[key] = rgbd_pub
 
             device = dai.Device(cam_cfg["camera"]["i_mx_id"])
             pipeline = dai.Pipeline(device)
@@ -127,42 +101,25 @@ class OakNode(Node):
 
             pipeline.start()
 
-        self.create_timer(0.06, self.publish_frames)  # ~30 FPS
+        self.create_timer(1.0 / 30.0, self.publish_frames)  # 30 FPS
 
     def publish_frames(self):
         for key in self.devices.keys():
             rgb_frame = self.queues[key]["rgb"].tryGet()
             depth_frame = self.queues[key]["depth"].tryGet()
+            timestamp = self.get_clock().now().to_msg()
 
             if rgb_frame is not None:
                 rgb = rgb_frame.getCvFrame()
                 msg = self.bridge.cv2_to_imgmsg(rgb, "bgr8")
+                msg.header.stamp = timestamp
                 self.rgb_pubs[key].publish(msg)
 
             if depth_frame is not None:
                 depth = depth_frame.getFrame()
-                msg = self.bridge.cv2_to_imgmsg(depth, "mono16")
+                msg = self.bridge.cv2_to_imgmsg(depth, "16UC1")
+                msg.header.stamp = timestamp    
                 self.depth_pubs[key].publish(msg)
-
-            # ---- fuse RGB + depth ---- #
-            if rgb_frame is not None and depth_frame is not None:
-                rgb = rgb_frame.getCvFrame()
-                depth = depth_frame.getFrame()  # uint16
-
-                # Normalize and colorize depth
-                depth_norm = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX)
-                depth_norm = depth_norm.astype(np.uint8)
-                depth_color = cv2.applyColorMap(depth_norm, cv2.COLORMAP_JET)
-
-                # Resize depth to match RGB
-                depth_color = cv2.resize(depth_color, (rgb.shape[1], rgb.shape[0]))
-
-                # Fuse RGB + depth
-                rgbd = cv2.addWeighted(rgb, 0.7, depth_color, 0.3, 0)
-
-                # Publish
-                msg = self.bridge.cv2_to_imgmsg(rgbd, "bgr8")
-                self.rgbd_pubs[key].publish(msg)
 
 
 def main(args=None):
@@ -172,10 +129,7 @@ def main(args=None):
     yaml_path = os.path.join(SCRIPT_DIR, "..", "cameras.yaml")
     yaml_path = os.path.abspath(yaml_path)
 
-    camera_info = load_cameras_yaml(yaml_path)
-    oak_info = get_oak_cam_data(camera_info)
-
-    node = OakNode(oak_info)
+    node = OakNode(yaml_path)
 
     rclpy.spin(node)
     node.destroy_node()
