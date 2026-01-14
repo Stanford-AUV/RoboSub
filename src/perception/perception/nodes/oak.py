@@ -1,15 +1,9 @@
 #!/usr/bin/env python3
 import depthai as dai
 import rclpy
-from rclpy.node import Node
 from sensor_msgs.msg import Image
-from cv_bridge import CvBridge
-import cv2
-import numpy as np
-import yaml
 import os
-from rclpy.time import Time
-import GenericCameraNode
+from generic_camera import GenericCameraNode
 
 resolution_map = {
     "400P": dai.MonoCameraProperties.SensorResolution.THE_400_P,
@@ -23,6 +17,7 @@ preset_map = {
     "FAST_ACCURACY": dai.node.StereoDepth.PresetMode.FAST_ACCURACY,
     "FAST_DENSITY": dai.node.StereoDepth.PresetMode.FAST_DENSITY,
 }
+
 
 def config_rgb_image(pipeline, key, cam_cfg):
     rgb_cfg = cam_cfg.get("rgb")
@@ -118,7 +113,7 @@ class OakNode(GenericCameraNode):
             if depth_frame is not None:
                 depth = depth_frame.getFrame()
                 msg = self.bridge.cv2_to_imgmsg(depth, "16UC1")
-                msg.header.stamp = timestamp    
+                msg.header.stamp = timestamp
                 self.depth_pubs[key].publish(msg)
 
 
