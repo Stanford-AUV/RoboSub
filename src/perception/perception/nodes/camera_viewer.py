@@ -22,38 +22,35 @@ class Camera:
 
 
 class CameraViewerNode(Node):
-    def __init__(self):
+    def __init__(self, camera_id):
         super().__init__("camera_viewer_node")
         self.bridge = CvBridge()
 
         # Initialize image holders for both cameras
-        self.oak1_rgb = None
-        self.oak1_depth = None
-        self.oak2_rgb = None
-        self.oak2_depth = None
+        self.rgb = None
+        self.depth = None
 
-        self.cameras = [Camera(name="forward_cam"), Camera(name="bottom_cam")]
+        self.camera = Camera(name=camera_id)
 
         # Subscribe to topics
-        rgb_topic_suffix = "rgb/image_rect/compressed"
-        depth_topic_suffix = "stereo/image_raw"
-        for camera in self.cameras:
-            rgb_topic = f"/{camera.name}/{rgb_topic_suffix}"
-            depth_topic = f"/{camera.name}/{depth_topic_suffix}"
-            camera.subscribers.append(
-                self.create_subscription(
-                    CompressedImage, rgb_topic, self.image_callback(camera, "rgb"), 10
-                )
+        rgb_topic = f"/camera/{self.camera.name}/rgb"
+        depth_topic = f"/camera/{self.camera.name}/depth"
+
+        self.camera.subscribers.append(
+            self.create_subscription(
+                Image, rgb_topic, self.image_callback(self.camera, "rgb"), 10
             )
-            camera.subscribers.append(
-                self.create_subscription(
-                    Image, depth_topic, self.image_callback(camera, "depth"), 10
-                )
+        )
+
+        self.camera.subscribers.append(
+            self.create_subscription(
+                Image, depth_topic, self.image_callback(self.camera, "depth"), 10
             )
-            self.get_logger().info(f"Subscribed to {rgb_topic} and {depth_topic}")
+        )
+        self.get_logger().info(f"Subscribed to {rgb_topic} and {depth_topic}")
 
         # Window name
-        self.window_name = "Dual Camera View"
+        self.window_name = f"Camera {self.camera.name} View"
 
         # Create a timer for displaying the view
         FPS = 10
@@ -65,12 +62,18 @@ class CameraViewerNode(Node):
         def callback(msg):
             try:
                 if image_type == "rgb":
-                    img = self.bridge.compressed_imgmsg_to_cv2(msg, "bgr8")
+                    img = self.bridge.imgmsg_to_cv2(msg, "bgr8")
                 else:
                     img = self.bridge.imgmsg_to_cv2(msg, "passthrough")
-                
+
                 DOWNSAMPLE_FACTOR = 4
-                img = cv2.resize(img, dsize=(img.shape[1]//DOWNSAMPLE_FACTOR, img.shape[0]//DOWNSAMPLE_FACTOR))
+                img = cv2.resize(
+                    img,
+                    dsize=(
+                        img.shape[1] // DOWNSAMPLE_FACTOR,
+                        img.shape[0] // DOWNSAMPLE_FACTOR,
+                    ),
+                )
 
                 if image_type == "rgb":
                     camera.rgb = img
@@ -80,7 +83,7 @@ class CameraViewerNode(Node):
                 self.get_logger().error(
                     f"Failed to process {image_type} image from {camera.name}: {e}"
                 )
-            self.get_logger().info(f"Processed {image_type} image from {camera.name}")
+            self.get_logger().debug(f"Processed {image_type} image from {camera.name}")
 
         return callback
 
@@ -131,13 +134,11 @@ class CameraViewerNode(Node):
         """Display both cameras' views stacked vertically."""
         # Stack vertically all views
         display_img = None
-        for camera in self.cameras:
-            view = self.process_camera_view(camera.rgb, camera.depth, camera.name)
-            if view is not None:
-                if display_img is not None:
-                    display_img = cv2.vconcat([display_img, view])
-                else:
-                    display_img = view
+        view = self.process_camera_view(
+            self.camera.rgb, self.camera.depth, self.camera.name
+        )
+        if view is not None:
+            display_img = view
 
         if display_img is not None:
             cv2.imshow(self.window_name, display_img)
@@ -146,7 +147,7 @@ class CameraViewerNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = CameraViewerNode()
+    node = CameraViewerNode("oak_0")
 
     try:
         rclpy.spin(node)
