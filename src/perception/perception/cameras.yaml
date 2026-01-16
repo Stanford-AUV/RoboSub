@@ -45,8 +45,8 @@ oak_0:
 realsense_0:
   ros__parameters:
     camera:
-      i_serial_number: 
-      i_product_line:
+      i_serial_number: 250122070054
+      i_product_line: D400
       i_pipeline_type: RGBD
     stereo:
       i_depth_preset: HIGH_ACCURACY

@@ -3,7 +3,7 @@ import depthai as dai
 import rclpy
 from sensor_msgs.msg import Image
 import os
-from generic_camera import GenericCameraNode
+from .generic_camera import GenericCameraNode
 
 resolution_map = {
     "400P": dai.MonoCameraProperties.SensorResolution.THE_400_P,

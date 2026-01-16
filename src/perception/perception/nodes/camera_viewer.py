@@ -147,7 +147,7 @@ class CameraViewerNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = CameraViewerNode("oak_0")
+    node = CameraViewerNode("realsense_0")
 
     try:
         rclpy.spin(node)

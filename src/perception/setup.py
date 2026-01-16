@@ -24,7 +24,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "perception_node = perception.nodes.perception_node:main",
+            "realsense_node = perception.nodes.realsense:main",
             "test.video = perception.nodes.test.video:main",
             "test.view_video = perception.nodes.test.view_video:main",
             "test.view_detections_3d = perception.nodes.test.view_detections_3d:main",

@@ -6,7 +6,7 @@ from rclpy.time import Time
 import numpy as np
 import os
 import pyrealsense2 as rs
-from generic_camera import GenericCameraNode
+from .generic_camera import GenericCameraNode
 
 
 class Device:
@@ -45,7 +45,7 @@ class RealsenseNode(GenericCameraNode):
             c.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, 6)
             c.enable_stream(rs.stream.color, 1280, 720, rs.format.rgb8, 6)
 
-            c.enable_device(device_serial)
+            c.enable_device(str(device_serial))
             pipeline_profile = pipeline.start(c)
             self.devices[key] = Device(pipeline, pipeline_profile, product_line)
 
