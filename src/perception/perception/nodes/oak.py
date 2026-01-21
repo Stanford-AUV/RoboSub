@@ -3,6 +3,7 @@ import depthai as dai
 import rclpy
 from sensor_msgs.msg import Image
 import os
+import time
 from .generic_camera import GenericCameraNode
 
 resolution_map = {
@@ -82,7 +83,7 @@ class OakNode(GenericCameraNode):
             depth_pub = self.create_publisher(Image, f"/camera/{key}/depth", 10)
             self.depth_pubs[key] = depth_pub
 
-            device = dai.Device(cam_cfg["camera"]["i_mx_id"])
+            device = self._open_device_with_retry(cam_cfg["camera"]["i_mx_id"])
             pipeline = dai.Pipeline(device)
 
             rgb = config_rgb_image(pipeline, key, cam_cfg)
@@ -97,6 +98,47 @@ class OakNode(GenericCameraNode):
             pipeline.start()
 
         self.create_timer(1.0 / 30.0, self.publish_frames)  # 30 FPS
+
+    def _open_device_with_retry(self, mxid, max_attempts=5, delay_s=1.0):
+        last_exc = None
+        for attempt in range(1, max_attempts + 1):
+            try:
+                self.get_logger().info(
+                    f"Connecting to OAK device (mxid={mxid}), attempt {attempt}/{max_attempts}"
+                )
+                device_info = self._wait_for_device_info(mxid, delay_s)
+                return dai.Device(device_info)
+            except RuntimeError as exc:
+                last_exc = exc
+                available = self._get_available_mxids()
+                available_str = ", ".join(available) if available else "none"
+                self.get_logger().warning(
+                    "Failed to open OAK device (mxid=%s) on attempt %s/%s. "
+                    "Available devices: %s. Error: %s",
+                    mxid,
+                    attempt,
+                    max_attempts,
+                    available_str,
+                    exc,
+                )
+                if attempt < max_attempts:
+                    time.sleep(delay_s)
+        raise last_exc
+
+    def _wait_for_device_info(self, mxid, delay_s):
+        devices = dai.Device.getAllAvailableDevices()
+        for device in devices:
+            if device.getMxId() == mxid:
+                return device
+        time.sleep(delay_s)
+        return dai.DeviceInfo(mxid)
+
+    @staticmethod
+    def _get_available_mxids():
+        try:
+            return [device.getMxId() for device in dai.Device.getAllAvailableDevices()]
+        except Exception:
+            return []
 
     def publish_frames(self):
         for key in self.devices.keys():
