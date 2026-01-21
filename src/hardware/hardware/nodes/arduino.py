@@ -107,11 +107,18 @@ class Arduino(Node):
             "voltage": None,
         }
         for part in parts[1:]:
-            name, value = part.split(":")
+            self.get_logger().error(f"{part} idhfo9eiurfioe")
+            try:
+                name, value = part.split(":")
+            except:
+                continue
             if name == "servo":
                 continue
             if name not in sensors:
                 self.get_logger().error(f"Unknown sensor name: {name}")
+            if len(value) < 1:
+                continue
+            self.get_logger().error(f"{name} {value} yagadooga")
             value = float(value)
             sensors[name] = value
         for name, value in sensors.items():

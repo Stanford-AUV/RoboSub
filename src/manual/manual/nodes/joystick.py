@@ -99,6 +99,7 @@ class JoystickNode(Node):
             wrench_msg.wrench.torque.z = 0.0
 
         # self.get_logger().info(f"Publishing wrench: {wrench_msg.wrench}")
+        self.get_logger().info(f"{wrench_msg}")
 
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, self.publish_wrench, wrench_msg)

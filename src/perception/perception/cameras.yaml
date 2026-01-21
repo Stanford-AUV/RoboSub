@@ -1,7 +1,7 @@
 oak_0:
   ros__parameters:
     camera:
-      i_mx_id: 19443010B17E1C1300
+      i_mx_id: 1944301021531E1300
       i_pipeline_type: RGBD
     rgb:
       rgb_width: 640

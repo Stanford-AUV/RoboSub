@@ -128,7 +128,7 @@ class OakNode(GenericCameraNode):
     def _wait_for_device_info(self, mxid, delay_s):
         devices = dai.Device.getAllAvailableDevices()
         for device in devices:
-            if device.getMxId() == mxid:
+            if device.getDeviceId() == mxid:
                 return device
         time.sleep(delay_s)
         return dai.DeviceInfo(mxid)
