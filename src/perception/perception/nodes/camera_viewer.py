@@ -3,11 +3,14 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.subscription import Subscription
+from rclpy.utilities import remove_ros_args
 
 from sensor_msgs.msg import Image, CompressedImage
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
+import os
+import yaml
 
 from typing import Optional, List
 from dataclasses import dataclass, field
@@ -23,7 +26,7 @@ class Camera:
 
 class CameraViewerNode(Node):
     def __init__(self, camera_id):
-        super().__init__("camera_viewer_node")
+        super().__init__(f"camera_viewer_{camera_id}")
         self.bridge = CvBridge()
 
         # Initialize image holders for both cameras
@@ -145,18 +148,34 @@ class CameraViewerNode(Node):
             cv2.waitKey(1)
 
 
+def load_cameras_yaml(path):
+        if not os.path.exists(path):
+            raise FileNotFoundError("Noooooo! No yaml path exists :(")
+
+        with open(path, "r") as f:
+            data = yaml.safe_load(f)
+
+        return data
+
 def main(args=None):
     rclpy.init(args=args)
-    node = CameraViewerNode("realsense_0")
 
+    argv = remove_ros_args(args if args is not None else None)
+    camera_name = argv[1] if len(argv) > 1 else None
+    if not camera_name:
+        print("Usage: ros2 run perception camera_viewer <camera_name>")
+        rclpy.shutdown()
+        return
+
+    node = CameraViewerNode(camera_name)
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
-
-    node.destroy_node()
-    rclpy.shutdown()
-    cv2.destroyAllWindows()
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+        cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
