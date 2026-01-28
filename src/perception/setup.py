@@ -31,6 +31,7 @@ setup(
             "objects_localizer = perception.nodes.objects_localizer:main",
             "camera_viewer = perception.nodes.camera_viewer:main",
             "oak_node = perception.nodes.oak:main",
+            "object_detection = perception.nodes.object_detections:main",
         ],
     },
 )
