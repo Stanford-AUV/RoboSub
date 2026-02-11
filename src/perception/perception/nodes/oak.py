@@ -113,13 +113,7 @@ class OakNode(GenericCameraNode):
                 available = self._get_available_mxids()
                 available_str = ", ".join(available) if available else "none"
                 self.get_logger().warning(
-                    "Failed to open OAK device (mxid=%s) on attempt %s/%s. "
-                    "Available devices: %s. Error: %s",
-                    mxid,
-                    attempt,
-                    max_attempts,
-                    available_str,
-                    exc,
+                    f"Failed to open OAK device (mxid={mxid}) on attempt {attempt}/{max_attempts}.\n Available devices: {available_str}. Error: {exc}",
                 )
                 if attempt < max_attempts:
                     time.sleep(delay_s)

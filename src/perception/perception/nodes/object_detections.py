@@ -2,7 +2,8 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesis
+from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose
+
 from std_msgs.msg import Header
 from ultralytics import YOLO
 
@@ -31,11 +32,25 @@ class ObjectDetections(Node):
     def image_callback(self, msg):
         try:
             img = self.bridge.imgmsg_to_cv2(msg, "bgr8")
-            results = self.model(img, stream=True)
-            self.bounding_boxes.publish(self.yolo_to_detection2darray(results=results))
-
         except Exception as e:
             self.get_logger().error(f"Error decoding rgb image from {self.camera_key}")
+            return
+        try:
+            results = self.model(img, stream=True)
+        except Exception as e:
+            self.get_logger().error(
+                f"Error getting model results from {self.camera_key}, Exception:{e}"
+            )
+            return
+        try:
+            array = self.yolo_to_detection2darray(results=results)
+            if array != -1:
+                self.bounding_boxes.publish(array)
+        except Exception as e:
+            self.get_logger().error(
+                f"Error converting results from {self.camera_key}, Exception:{e}"
+            )
+            return
 
     def yolo_to_detection2darray(self, results, frame_id="camera_frame"):
         """
@@ -43,7 +58,7 @@ class ObjectDetections(Node):
         """
         detection_array = Detection2DArray()
         detection_array.header = Header()
-        detection_array.header.stamp = self.get_clock().now()
+        detection_array.header.stamp = self.get_clock().now().to_msg()
         detection_array.header.frame_id = frame_id
 
         for res in results:  # if using stream=True, this iterates over frames
@@ -61,21 +76,25 @@ class ObjectDetections(Node):
 
                 detection = Detection2D()
                 detection.header = detection_array.header
-                detection.bbox.center.x = cx
-                detection.bbox.center.y = cy
-                detection.bbox.size_x = width
-                detection.bbox.size_y = height
+                detection.bbox.center.position.x = float(cx)
+                detection.bbox.center.position.y = float(cy)
+                detection.bbox.size_x = float(width)
+                detection.bbox.size_y = float(height)
 
                 # ObjectHypothesis contains the class id and score
-                hypothesis = ObjectHypothesis()
-                hypothesis.id = int(cls)
-                hypothesis.score = float(score)
+                hypothesis = ObjectHypothesisWithPose()
+                class_name = self.model.names[int(cls)]
+                hypothesis.hypothesis.class_id = class_name
+                hypothesis.hypothesis.score = float(score)
+                hypothesis.pose.pose.orientation.w = 1.0
+
                 detection.results.append(hypothesis)
 
-                name = self.model.names[hypothesis.id]
-                if name == self.object_id:
+                if class_name == self.object_id:
                     detection_array.detections.append(detection)
 
+        if len(detection_array.detections) == 0:
+            return -1
         return detection_array
 
 
