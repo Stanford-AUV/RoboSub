@@ -1,0 +1,25 @@
+
+# Thruster positions in body frame
+thruster_positions:
+  thruster_0: [+0.2025, +0.1825, +0.0925]
+  thruster_1: [+0.2025, -0.1825, +0.0925]
+  thruster_2: [-0.2025, +0.1825, +0.0925]
+  thruster_3: [-0.2025, -0.1825, +0.0925]
+  thruster_4: [+0.115, +0.165, -0.0925]
+  thruster_5: [+0.115, -0.165, -0.0925]
+  thruster_6: [-0.115, +0.165, -0.0925]
+  thruster_7: [-0.115, -0.165, -0.0925]
+# Thruster orientations (pointing in the direction of positive thrust; z axis can be changed accordingly)
+# Blue is CCW, red is CW in sim
+thruster_orientations:
+  thruster_0: [-1, +1, 0] # Top front left (CCW from back)
+  thruster_1: [-1, -1, 0] # Top front right (CCW from back)
+  thruster_2: [+1, +1, 0] # Top back left (CW viewed from back)
+  thruster_3: [+1, -1, 0] # Top back right (CW back)
+  thruster_4: [0, 0, +1] # Bottom front left (CCW from top)
+  thruster_5: [0, 0, +1] # Bottom front right (CCW from top)
+  thruster_6: [0, 0, -1] # Bottom back left (CW from top)
+  thruster_7: [0, 0, +1] # Bottom back right (CCW from top)
+
+
+#### or however you want to organize this data, delete this comment when done #########
