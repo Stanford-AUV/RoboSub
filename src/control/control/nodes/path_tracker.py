@@ -4,6 +4,7 @@ from msgs.srv import GetWaypoints
 import time
 
 import numpy as np
+""""""""""""""""""""""''DEPRECATED"""""""""""""""
 
 from control.utils.state import State, Magnitude
 import rclpy

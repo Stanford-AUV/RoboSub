@@ -10,6 +10,7 @@ NO_IMU_ROTATION = False
 
 NUM_CALIBRATION_QUATERNIONS = 200
 
+################## change this to inherit the base class GenericSensor #######
 
 class IMU(Node):
     def __init__(self):

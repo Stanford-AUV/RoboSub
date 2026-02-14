@@ -11,7 +11,7 @@ import glob
 import serial
 
 DEBUG_MODE = False
-
+########################## change this one to implement the base class GenericSensor #########
 class DVL(Node):
     def __init__(self, baudrate=115200):
         super().__init__("dvl_ros_bridge")

@@ -24,7 +24,7 @@ Authors:
 Version:
     1.1.0
 """
-
+""""""""""""""""""""""''DEPRECATED"""""""""""""""
 import threading
 
 from control.utils.pid import PID
