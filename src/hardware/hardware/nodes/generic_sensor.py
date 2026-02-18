@@ -69,8 +69,8 @@ class GenericSensor(Node):
         self.robot_rot = sensor_data.get("robot_rot")
 
         for data_type in DATA_TYPES:
-            raw = sensor_data.get(data_type, 0)
-            axes = self._parse_axes(raw)
+            raw_axes = sensor_data.get(data_type, 0)
+            axes = self._parse_axes(raw_axes)
             if axes:
                 self.active_axes[data_type] = axes
 
