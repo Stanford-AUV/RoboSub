@@ -2,33 +2,97 @@ from rclpy.node import Node
 import os
 import yaml
 
+METADATA_FIELDS = {"covariance", "robot_pos", "robot_rot"}
+DATA_TYPES = {"pos", "rot", "vel", "ang_vel", "accel"}
+
+
 class GenericSensor(Node):
-    def __init__(self, name, path):
-        self.name = name
-        self.path = path
-        self.publishers = {}
-        self.build_publishers()
+    """Base class for all sensor nodes.
 
-    def load_sensors_yaml(self):
-        if not os.path.exists(self.path):
-            raise FileNotFoundError("Noooooo! No yaml path exists :(. Get a new sensor.")
+    Reads sensors.yaml to determine which data types (pos, rot, vel, ang_vel, accel)
+    are active and which axes each provides. Metadata fields (covariance, robot_pos,
+    robot_rot) are stored as instance variables for subclass use.
 
-        with open(self.path, "r") as f:
-            data = yaml.safe_load(f)
+    Subclasses are responsible for:
+      - Creating publishers with the appropriate message types for their
+        downstream consumers (e.g. sensor_msgs/Imu for robot_localization).
+      - Implementing publish_sensor_data() to read hardware and publish.
+      - Setting the correct frame_id (use a sensor-specific frame for raw data,
+        or 'base_link' only after transforming to the body frame).
+    """
 
-        return data
+    def __init__(self, node_name, sensor_name, yaml_path=None):
+        super().__init__(node_name)
 
-    def build_publishers(self):
-        data = self.load_sensors_yaml()
-        if not (data.get(self.name)):
+        if yaml_path is None:
+            yaml_path = os.path.join(os.path.dirname(__file__), "..", "sensors.yaml")
+        self.yaml_path = os.path.normpath(yaml_path)
+
+        self.sensor_name = sensor_name
+        self.active_axes = {}
+
+        self.covariance = None
+        self.robot_pos = None
+        self.robot_rot = None
+
+        self._load_config()
+
+    def _load_sensors_yaml(self):
+        if not os.path.exists(self.yaml_path):
+            raise FileNotFoundError(f"Sensor config not found at {self.yaml_path}")
+        with open(self.yaml_path, "r") as f:
+            return yaml.safe_load(f)
+
+    @staticmethod
+    def _parse_axes(value):
+        """Decode axis availability from the yaml value.
+
+        0   -> []          (data type not available)
+        3   -> [3]         (z only)
+        123 -> [1, 2, 3]   (x, y, z)
+        """
+        if value is None or int(value) == 0:
+            return []
+        return [int(d) for d in str(int(value))]
+
+    def _load_config(self):
+        data = self._load_sensors_yaml()
+        sensor_data = data.get(self.sensor_name)
+        if sensor_data is None:
+            self.get_logger().warning(
+                f"No config for '{self.sensor_name}' in {self.yaml_path}"
+            )
             return
-        sensor_data = data[self.name]
-        
-        for key, val in sensor_data:
-            val = int(val)
-            if val != 0:
-                self.publishers[key] = self.create_publisher(float[3], f"/{self.name}/{self.key}", 10)
+
+        self.covariance = sensor_data.get("covariance")
+        self.robot_pos = sensor_data.get("robot_pos")
+        self.robot_rot = sensor_data.get("robot_rot")
+
+        for data_type in DATA_TYPES:
+            raw = sensor_data.get(data_type, 0)
+            axes = self._parse_axes(raw)
+            if axes:
+                self.active_axes[data_type] = axes
+
+        self.get_logger().info(
+            f"Sensor '{self.sensor_name}': "
+            f"active data types = {list(self.active_axes.keys())}"
+        )
+
+    def is_active(self, data_type):
+        """Return True if this sensor provides the given data type."""
+        return data_type in self.active_axes
+
+    def get_axes(self, data_type):
+        """Return the list of active axis indices for a data type, e.g. [1, 2, 3]."""
+        return self.active_axes.get(data_type, [])
 
     def publish_sensor_data(self):
-        raise NotImplementedError("Implement this (publish_sensor_data)!")
-    
+        """Read from hardware and publish sensor data.
+
+        Subclasses must override this. Typically invoked by a timer callback
+        or in response to incoming hardware data.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} must implement publish_sensor_data()"
+        )
