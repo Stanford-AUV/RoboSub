@@ -32,7 +32,7 @@ class Thrusters(Node):
             self.get_parameter("history_depth").get_parameter_value().integer_value
         )
         self._thrusts_sub = self.create_subscription(
-            ThrustsStamped, "thrusts", self.thrusts_callback, history_depth
+            ThrustsStamped, "/thrusts", self.thrusts_callback, history_depth
         )
         self._pwms_pub = self.create_publisher(PWMsStamped, "pwms", history_depth)
         self._sensors_sub = self.create_subscription(
