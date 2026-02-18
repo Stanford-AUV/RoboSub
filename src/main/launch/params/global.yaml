@@ -24,8 +24,9 @@
       thruster_3: [+1, -1, 0] # Top back right (CW back)
       thruster_4: [0, 0, +1] # Bottom front left (CCW from top)
       thruster_5: [0, 0, +1] # Bottom front right (CCW from top)
-      thruster_6: [0, 0, -1] # Bottom back left (CW from top)
+      thruster_6: [0, 0, +1] # Bottom back left (CW from top)
       thruster_7: [0, 0, +1] # Bottom back right (CCW from top)
+  
 /ekf_filter_node:
   ros__parameters:
     print_diagnostics: true
@@ -92,6 +93,8 @@
     mag0_differential: false
     mag0_relative: false
     mag0_queue_size: 10
+
+
 /forward_cam:
   ros__parameters:
     camera:
