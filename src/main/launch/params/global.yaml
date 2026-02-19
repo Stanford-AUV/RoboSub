@@ -26,7 +26,10 @@
       thruster_5: [0, 0, +1] # Bottom front right (CCW from top)
       thruster_6: [0, 0, +1] # Bottom back left (CW from top)
       thruster_7: [0, 0, +1] # Bottom back right (CCW from top)
-  
+
+
+
+
 /ekf_filter_node:
   ros__parameters:
     print_diagnostics: true

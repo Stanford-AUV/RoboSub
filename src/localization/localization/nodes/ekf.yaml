@@ -1,0 +1,61 @@
+#EKF parameters for robot_localization:
+ekf_filter_node:
+  ros__parameters:
+    
+    publish_tf: true
+    publish_acceleration: true  # Add this line
+    world_frame: "odom"
+    odom_frame: "odom"
+    base_link_frame: "base_link"
+
+    frequency: 10.0
+    sensor_timeout: 0.2
+    
+    imu0:
+      "/imu/data_sync" # Separating twists + accel. here versus velocity on pose_sync as
+      # as suggested by the localization package
+    imu0_config: [false, false, false, # x_pos   , y_pos    , z_pos,
+                  false, false, false, # roll    , pitch    , yaw,
+                  false, false, false, # x_vel   , y_vel    , z_vel,
+                  true, true, true,    # roll_vel, pitch_vel, yaw_vel,
+                  true, true, true]    # x_accel , y_accel  , z_accel
+    # Should be false for since measurements are not incrementing
+    imu0_differential: false
+    # Should measurements start at 0?
+    imu0_relative: false
+    imu0_queue_size: 100
+    # Yes because underwater
+    imu0_remove_gravitational_acceleration: true
+
+    twist0: "/dvl/twist_sync"
+    twist0_config: [false, false, false, # x_pos   , y_pos    , z_pos,
+                    false, false, false, # roll    , pitch    , yaw,
+                    true, true, true,    # x_vel   , y_vel    , z_vel,
+                    false, false, false, # roll_vel, pitch_vel, yaw_vel,
+                    false, false, false] # x_accel , y_accel  , z_accel
+    twist0_differential: false
+    twist0_relative: false
+
+    pose0: "/depth/pose_sync"
+    pose0_config: [false, false, true,  # x_pos   , y_pos    , z_pos,
+                   false, false, false, # roll    , pitch    , yaw,
+                   false, false, false, # x_vel   , y_vel    , z_vel,
+                   false, false, false, # roll_vel, pitch_vel, yaw_vel,
+                   false, false, false] # x_accel , y_accel  , z_accel
+    pose0_relative: false
+    pose0_differential: false
+
+    pose1: "/imu/pose_sync"
+    pose1_config: [false, false, false, # x_pos   , y_pos    , z_pos,
+                   true, true, true,    # roll    , pitch    , yaw,
+                   false, false, false, # x_vel   , y_vel    , z_vel,
+                   false, false, false, # roll_vel, pitch_vel, yaw_vel,
+                   false, false, false] # x_accel , y_accel  , z_accel
+    pose1_relative: true
+    pose1_differential: false
+
+    mag0: "/imu/mag"
+    mag0_config: [false, false, true]
+    mag0_differential: false
+    mag0_relative: false
+    mag0_queue_size: 10
