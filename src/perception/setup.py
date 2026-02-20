@@ -14,7 +14,11 @@ setup(
         (os.path.join("share", package_name, "launch"), glob("launch/*.py")),
         (os.path.join("share", package_name), glob("perception/cameras.yaml")),
     ],
-    install_requires=["setuptools"],
+    install_requires=[
+        "setuptools",
+        "torch",
+        "ultralytics",
+    ],
     zip_safe=True,
     maintainer="Stanford Robosub",
     maintainer_email="scotthickmann21@gmail.com",
