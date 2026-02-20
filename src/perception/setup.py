@@ -16,8 +16,10 @@ setup(
     ],
     install_requires=[
         "setuptools",
-        "torch",
-        "ultralytics",
+        # torch and ultralytics are installed system-wide with GPU support in Dockerfile
+        # Do not install here to avoid pulling CPU-only versions from PyPI
+        # "torch",
+        # "ultralytics",
     ],
     zip_safe=True,
     maintainer="Stanford Robosub",
