@@ -95,40 +95,40 @@ class Arduino(Node):
             self.light_changed = False
         self.send_pwms()
         response = self.portName.readline().decode().strip()
-        parts = response.split(" ")
-        if parts[0] != ">":
-            self.get_logger().error(f"Unexpected response from Arduino: {response}")
-            return
-        sensors = {
-            "pressure": None,
-            "temperature": None,
-            "depth": None,
-            "current": None,
-            "voltage": None,
-        }
-        for part in parts[1:]:
-            name, value = part.split(":")
-            if name == "servo":
-                continue
-            if name not in sensors:
-                self.get_logger().error(f"Unknown sensor name: {name}")
-            value = float(value)
-            sensors[name] = value
-        for name, value in sensors.items():
-            if value is None:
-                self.get_logger().error(f"Missing sensor value: {name}")
-        msg = SensorsStamped()
-        msg.header.stamp = self.get_clock().now().to_msg()
-        msg.pressure = sensors["pressure"]
-        msg.temperature = sensors["temperature"]
-        msg.depth = sensors["depth"]
-        msg.current = sensors["current"]
-        msg.voltage = sensors["voltage"]
-        # self.get_logger().info(f"Publishing sensors {msg}")
-        self._sensors_pub.publish(msg)
-        depth_msg = Float32Stamped()
-        depth_msg.data = sensors["depth"]
-        self._depth_pub.publish(depth_msg)
+        # parts = response.split(" ")
+        # if parts[0] != ">":
+        #     self.get_logger().error(f"Unexpected response from Arduino: {response}")
+        #     return
+        # sensors = {
+        #     "pressure": None,
+        #     "temperature": None,
+        #     "depth": None,
+        #     "current": None,
+        #     "voltage": None,
+        # }
+        # for part in parts[1:]:
+        #     name, value = part.split(":")
+        #     if name == "servo":
+        #         continue
+        #     if name not in sensors:
+        #         self.get_logger().error(f"Unknown sensor name: {name}")
+        #     value = float(value)
+        #     sensors[name] = value
+        # for name, value in sensors.items():
+        #     if value is None:
+        #         self.get_logger().error(f"Missing sensor value: {name}")
+        # msg = SensorsStamped()
+        # msg.header.stamp = self.get_clock().now().to_msg()
+        # msg.pressure = sensors["pressure"]
+        # msg.temperature = sensors["temperature"]
+        # msg.depth = sensors["depth"]
+        # msg.current = sensors["current"]
+        # msg.voltage = sensors["voltage"]
+        # # self.get_logger().info(f"Publishing sensors {msg}")
+        # self._sensors_pub.publish(msg)
+        # depth_msg = Float32Stamped()
+        # depth_msg.data = sensors["depth"]
+        # self._depth_pub.publish(depth_msg)
 
     def kill_motors(self):
         self.pwms = [self.zero_thrust] * self.thruster_count

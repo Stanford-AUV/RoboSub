@@ -8,8 +8,8 @@ from geometry_msgs.msg import TwistWithCovarianceStamped, PoseWithCovarianceStam
 from sensor_msgs.msg import Imu
 from message_filters import Subscriber, ApproximateTimeSynchronizer
 from msgs.msg import DVLData, DVLBeam, DVLTarget, DVLVelocity, Float32Stamped
+import numpy as np
 import random
-
 
 class Sensors(Node):
 
@@ -44,46 +44,66 @@ class Sensors(Node):
         self.get_logger().info(f"Listening to DVL and IMU")
 
     def sync_callback_imu_only(self, imu_msg: Imu):
-        imu_msg.header.frame_id = "base_link"
+        imu_msg.header.frame_id = "imu_frame"
+        imu_msg.header.stamp = self.get_clock().now().to_msg()
 
-        # fmt: off
         imu_msg.angular_velocity_covariance = [
+            1.0, 0.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 0.0, 1.0
+        ]
+        imu_msg.linear_acceleration_covariance = [
             0.2, 0.0, 0.0,
             0.0, 0.2, 0.0,
             0.0, 0.0, 0.2
         ]
-        # fmt: off
-        imu_msg.linear_acceleration_covariance = [
-            5.0, 0.0, 0.0,
-            0.0, 5.0, 0.0,
-            0.0, 0.0, 5.0
-        ]
 
+        # Always publish imu0 (gyro+accel)
+        self.sync_imu_publisher_.publish(imu_msg)
+
+        # Build pose message for pose1 (orientation)
         imu_pose_msg = PoseWithCovarianceStamped()
         imu_pose_msg.header.stamp = imu_msg.header.stamp
-        imu_pose_msg.header.frame_id = "base_link"
-        imu_pose_msg.pose.pose.orientation.x = imu_msg.orientation.x
-        imu_pose_msg.pose.pose.orientation.y = imu_msg.orientation.y
-        imu_pose_msg.pose.pose.orientation.z = imu_msg.orientation.z
-        imu_pose_msg.pose.pose.orientation.w = imu_msg.orientation.w
-        # fmt: off
+        imu_pose_msg.header.frame_id = "imu_frame"
+
+        # Pose covariance: ONLY orientation entries nonzero
         imu_pose_msg.pose.covariance = [
-            0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-            0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-            0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-            0.0,  0.0,  0.0,  0.05,  0.0,  0.0,
-            0.0,  0.0,  0.0,  0.0,  0.05,  0.0,
-            0.0,  0.0,  0.0,  0.0,  0.0,  0.05
+            1.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+            0.0,  1.0,  0.0,  0.0,  0.0,  0.0,
+            0.0,  0.0,  1.0,  0.0,  0.0,  0.0,
+            0.0,  0.0,  0.0,  1,  0.0,  0.0,
+            0.0,  0.0,  0.0,  0.0,  1,  0.0,
+            0.0,  0.0,  0.0,  0.0,  0.0,  1
         ]
 
-        self.sync_imu_publisher_.publish(imu_msg)
+        # Validate + normalize quaternion
+        q = np.array([
+            imu_msg.orientation.x,
+            imu_msg.orientation.y,
+            imu_msg.orientation.z,
+            imu_msg.orientation.w
+        ], dtype=float)
+
+        n = np.linalg.norm(q)
+        if (not np.isfinite(q).all()) or n < 1e-6:
+            self.get_logger().warn("Invalid IMU quaternion; NOT publishing /imu/pose_sync this cycle")
+            return
+
+        q /= n
+        imu_pose_msg.pose.pose.orientation.x = float(q[0])
+        imu_pose_msg.pose.pose.orientation.y = float(q[1])
+        imu_pose_msg.pose.pose.orientation.z = float(q[2])
+        imu_pose_msg.pose.pose.orientation.w = float(q[3])
+
+        # Publish pose1 ONLY if valid
         self.sync_imu_pose_publisher_.publish(imu_pose_msg)
+
 
     def sync_callback_dvl_only(self, dvl_msg: DVLData):
         dvl_twist_msg = TwistWithCovarianceStamped()
         dvl_twist_msg.twist.twist.linear = dvl_msg.velocity.mean
         dvl_twist_msg.header.stamp = dvl_msg.header.stamp
-        dvl_twist_msg.header.frame_id = "base_link"
+        dvl_twist_msg.header.frame_id = "dvl_frame"
         # fmt: off
         dvl_twist_msg.twist.covariance = [
             0.1, 0.0, 0.0,  0.0, 0.0, 0.0,

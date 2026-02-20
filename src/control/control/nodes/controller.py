@@ -144,10 +144,10 @@ def main(args=None):
     pid = PID(
         kP_position=np.array([1, 1, 1]),
         kD_position=np.array([1.1, 1.1, 1.1]),
-        kI_position=np.array([0, 0, 0]),
-        kP_orientation=np.array([0.1, 0.1, 0.1]),
-        kD_orientation=np.array([0.2, 0.2, 0.2]),
-        kI_orientation=np.array([0, 0, 0]),
+        kI_position=np.array([0, 0, 0.2]),
+        kP_orientation=np.array([0.1, 0.1, 0.2]),
+        kD_orientation=np.array([0.05, 0.05, 0.05]),
+        kI_orientation=np.array([0.00, 0.00, 0]),
         max_integral_position=np.array([1, 1, 1]),
         max_integral_orientation=np.array([1, 1, 1]),
     )

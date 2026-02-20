@@ -4,9 +4,11 @@ from sensor_msgs.msg import Imu
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from hardware.utils.average_quaternions import average_quaternions
+import copy
 
 NO_IMU_POSITION = False
 NO_IMU_ROTATION = False
+DISABLE_IMU_TRANSFORM = True
 
 NUM_CALIBRATION_QUATERNIONS = 200
 
@@ -28,36 +30,65 @@ class IMU(Node):
         self.calibrated = False
 
     def imu_listener_callback(self, msg: Imu):
+        # ---- PASSTHROUGH MODE ----
+        if DISABLE_IMU_TRANSFORM:
+            out = copy.deepcopy(msg)  # avoid aliasing / accidental mutation
+
+
+            GYRO_BIAS = np.array([
+                -0.006099891562248375,
+                -0.0034746338098969654,
+                0.00273246756079096
+            ], dtype=float)
+
+            w = np.array([out.angular_velocity.x, out.angular_velocity.y, out.angular_velocity.z], dtype=float)
+            w = w - GYRO_BIAS
+            out.angular_velocity.x, out.angular_velocity.y, out.angular_velocity.z = w.tolist()
+            # Optional but recommended: enforce the frame you're using in TF/EKF
+            # If your pipeline expects imu_link, set it here.
+            if not out.header.frame_id:
+                out.header.frame_id = "imu_link"   # or "base_link" if that's your convention
+
+            # Defensive: drop obviously invalid quaternions (prevents EKF NaNs)
+            q = np.array([out.orientation.x, out.orientation.y,
+                        out.orientation.z, out.orientation.w], dtype=float)
+            if (not np.all(np.isfinite(q))) or (np.linalg.norm(q) < 1e-6):
+                self.get_logger().warn("Passthrough: invalid IMU quaternion; dropping msg")
+                return
+
+            # Normalize (cheap insurance)
+            q /= np.linalg.norm(q)
+            out.orientation.x, out.orientation.y, out.orientation.z, out.orientation.w = q.tolist()
+
+            self._imu_pub.publish(out)
+            return
+
+
+        # ---- NORMAL MODE (your existing logic) ----
         if not self.calibrated:
             if self.num_calibration_quaternions == NUM_CALIBRATION_QUATERNIONS:
                 self.calculate_transformation_matrix()
                 self.calibrated = True
             else:
-                q = np.array(
-                    [
-                        msg.orientation.x,
-                        msg.orientation.y,
-                        msg.orientation.z,
-                        msg.orientation.w,
-                    ]
-                )
+                q = np.array([
+                    msg.orientation.x,
+                    msg.orientation.y,
+                    msg.orientation.z,
+                    msg.orientation.w,
+                ])
                 q_matrix = R.from_quat(q).as_matrix()
                 transformed_q_matrix = self.R_hardware @ q_matrix @ self.R_hardware.T
                 transformed_q = R.from_matrix(transformed_q_matrix).as_quat()
                 transformed_q /= np.linalg.norm(transformed_q)
-                self.calibration_quaternions[self.num_calibration_quaternions] = (
-                    transformed_q
-                )
+
+                self.calibration_quaternions[self.num_calibration_quaternions] = transformed_q
                 self.num_calibration_quaternions += 1
                 return
 
         transformed_msg = self.transform_imu_msg(msg)
         transformed_msg.header.frame_id = "base_link"
-
         self._imu_pub.publish(transformed_msg)
-        # self.get_logger().info(
-        #     f"Sent IMU data: {transformed_msg}"
-        # )
+
 
     def calculate_transformation_matrix(self):
         # Average quaternions

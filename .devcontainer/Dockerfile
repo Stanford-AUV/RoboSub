@@ -62,8 +62,8 @@ RUN python3 -m venv /home/ros/env --system-site-packages --symlinks
 
 # Set up auto-source of workspace for ros user
 ARG WORKSPACE
-ENV WORKSPACE="/workspaces/Robosub"
+ENV WORKSPACE="/workspaces/Robosub2"
 RUN echo "if [ -f ${WORKSPACE}/requirements.txt ]; then source /home/ros/env/bin/activate; fi" >> /home/ros/.bashrc
 RUN echo "if [ -f ${WORKSPACE}/install/setup.bash ]; then source ${WORKSPACE}/install/setup.bash; fi" >> /home/ros/.bashrc
-RUN echo "if [ -f /workspaces/RoboSub/ports.sh ]; then sudo bash /workspaces/RoboSub/ports.sh; fi" >> /home/ros/.bashrc
+RUN echo "if [ -f /workspaces/RoboSub2/ports.sh ]; then sudo bash /workspaces/RoboSub2/ports.sh; fi" >> /home/ros/.bashrc
 RUN echo "export GZ_PARTITION=127.0.0.1:ros" >> /home/ros/.bashrc
