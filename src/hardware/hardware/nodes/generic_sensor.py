@@ -1,9 +1,13 @@
 from rclpy.node import Node
 import os
 import yaml
+import numpy as np
+from geometry_msgs.msg import PoseWithCovarianceStamped, TwistWithCovarianceStamped
+from sensor_msgs.msg import Imu
+
 
 METADATA_FIELDS = {"covariance", "robot_pos", "robot_rot"}
-DATA_TYPES = {"pos", "rot", "vel", "ang_vel", "accel"}
+DATA_TYPES = {"position", "rotation", "velocity", "angular", "accel"}
 
 
 class GenericSensor(Node):
@@ -30,6 +34,13 @@ class GenericSensor(Node):
 
         self.sensor_name = sensor_name
         self.active_axes = {}
+        self.publishers = {
+            "position": self.create_publisher(PoseWithCovarianceStamped, "/position", 10),
+            "rotation": self.create_publisher(Imu, "/rotation", 10),
+            "velocity": self.create_publisher(TwistWithCovarianceStamped, "velocity", 10),
+            "angular": self.create_publisher(Imu, "/angular", 10),
+            "accel": self.create_publisher(Imu, "/accel", 10)
+        }
 
         self.covariance = None
         self.robot_pos = None
@@ -66,7 +77,12 @@ class GenericSensor(Node):
 
         self.covariance = sensor_data.get("covariance")
         self.robot_pos = sensor_data.get("robot_pos")
-        self.robot_rot = sensor_data.get("robot_rot")
+
+        raw_rot = sensor_data.get("robot_rot")
+        if raw_rot is not None:
+            self.robot_rot = np.array(raw_rot, dtype=float)
+        else:
+            self.robot_rot = np.eye(3)
 
         for data_type in DATA_TYPES:
             raw_axes = sensor_data.get(data_type, 0)

@@ -1,22 +1,36 @@
 imu_0:
   covariance:
+    - [0.01, 0.0,  0.0 ]
+    - [0.0,  0.01, 0.0 ]
+    - [0.0,  0.0,  0.01]
   robot_pos: #x, y, z on robot
-  robot_rot: #yaw, pitch, roll on robot
+  # 3x3 rotation matrix: sensor frame → robot frame
+  robot_rot:
+    - [0, 0, 1]
+    - [1, 0, 0]
+    - [0, 1, 0]
   # Now for sensor info, 0 if none, 123 depending on what it has
-  pos: 0
-  rot: 123
-  vel: 0
-  ang_vel: 0
+  position: 0
+  rotation: 123
+  velocity: 0
+  angular: 123
   accel: 123
 
 dvl_0:
   covariance:
+    - [0.01, 0.0,  0.0 ]
+    - [0.0,  0.01, 0.0 ]
+    - [0.0,  0.0,  0.01]
   robot_pos:
+  # 3x3 rotation matrix: sensor frame → robot frame
   robot_rot:
-  pos: 3
-  rot: 0
-  vel: 123
-  ang_vel: 0
+    - [-0.70710678,  0.70710678, 0]
+    - [-0.70710678, -0.70710678, 0]
+    - [ 0,           0,          1]
+  position: 3
+  rotation: 0
+  velocity: 123
+  angular: 0
   accel: 0
 
 ### or whatever this actually is, idk
