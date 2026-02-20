@@ -21,6 +21,17 @@ class AlignedFrame:
     hardware_stamp_nanosec: int = 0
 
 
+def _raise_device_in_use(exc: RuntimeError):
+    err = str(exc)
+    if "X_LINK_DEVICE_ALREADY_IN_USE" in err or "used by another process" in err.lower():
+        raise RuntimeError(
+            "OAK device is already in use by another process. "
+            "Stop any other node that uses the camera (oak_node, objects_localizer, or another aligned_depth_publisher) "
+            "then try again."
+        ) from exc
+    raise exc
+
+
 def _build_camera_info_from_k(
     frame_id: str,
     height: int,
@@ -62,7 +73,10 @@ class OakAlignedBackend:
         fps = rgb_cfg.get("rgb_fps", 30)
         stereo_size = (width, height)
 
-        pipeline = dai.Pipeline()
+        try:
+            pipeline = dai.Pipeline()
+        except RuntimeError as e:
+            _raise_device_in_use(e)
 
         cam_rgb = pipeline.create(dai.node.Camera).build(dai.CameraBoardSocket.CAM_A)
         left = pipeline.create(dai.node.Camera).build(dai.CameraBoardSocket.CAM_B)
@@ -102,7 +116,10 @@ class OakAlignedBackend:
         self._rgb_queue = rgb_out.createOutputQueue()
         self._depth_queue = depth_out.createOutputQueue()
 
-        pipeline.start()
+        try:
+            pipeline.start()
+        except RuntimeError as e:
+            _raise_device_in_use(e)
 
         self._pipeline = pipeline
         self._width = width
