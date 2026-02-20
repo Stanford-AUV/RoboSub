@@ -61,7 +61,8 @@ ARG WORKSPACE
 RUN python3 -m venv /home/ros/env --system-site-packages --symlinks
 
 # PyTorch with CUDA for GPU YOLO inference (object_localizer)
-RUN /home/ros/env/bin/pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# Using --extra-index-url so PyPI remains available as fallback, and cu124 for Python 3.12 compatibility
+RUN /home/ros/env/bin/pip install --no-cache-dir torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu124
 
 # Set up auto-source of workspace for ros user
 ARG WORKSPACE
