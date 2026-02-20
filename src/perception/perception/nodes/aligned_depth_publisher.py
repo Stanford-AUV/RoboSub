@@ -18,6 +18,7 @@ class AlignedDepthPublisherNode(Node):
 
         self.declare_parameter("camera_type", "oak")
         self.declare_parameter("camera_key", "oak_0")
+        self.declare_parameter("timing_info", False)
 
         camera_type = self.get_parameter("camera_type").get_parameter_value().string_value
         camera_key = self.get_parameter("camera_key").get_parameter_value().string_value
@@ -25,6 +26,7 @@ class AlignedDepthPublisherNode(Node):
         self._bridge = CvBridge()
         self._camera_key = camera_key
         self._camera_type = camera_type.lower()
+        self.timing_info = self.get_parameter("timing_info").get_parameter_value().bool_value
 
         if not os.path.exists(yaml_path):
             raise FileNotFoundError(f"Cameras yaml not found: {yaml_path}")
@@ -103,7 +105,7 @@ class AlignedDepthPublisherNode(Node):
         self._timer_count += 1
         get_frame_ms = (t1 - t0) * 1000
         build_publish_ms = (t2 - t1) * 1000
-        if self._timer_count % 30 == 0:
+        if self.timing_info and self._timer_count % 30 == 0:
             self.get_logger().info(
                 f"aligned_depth_publisher timing (tick #{self._timer_count}): "
                 f"get_frame={get_frame_ms:.1f}ms build_publish={build_publish_ms:.1f}ms (None in last 30: {self._get_frame_none_count})"

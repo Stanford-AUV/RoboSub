@@ -26,8 +26,9 @@ class ObjectLocalizer(Node):
         self.declare_parameter("object_id", "person")
         self.declare_parameter("camera_key", "oak_0")
         self.declare_parameter("aligned_topic", "")
-        self.declare_parameter("visualize_camera", False)
+        self.declare_parameter("visualize_camera", True)
         self.declare_parameter("print_positions", False)
+        self.declare_parameter("timing_info", False)
 
         self._model_name = self.get_parameter("model_name").get_parameter_value().string_value
         self._object_id = self.get_parameter("object_id").get_parameter_value().string_value
@@ -55,6 +56,7 @@ class ObjectLocalizer(Node):
             f"Subscribed to {aligned_topic}, publishing detections3d "
             f"(visualize_camera={self._visualize_camera}, print_positions={self._print_positions})"
         )
+        self.timing_info = self.get_parameter("timing_info").get_parameter_value().bool_value
 
     def destroy_node(self):
         if self._visualize_camera:
@@ -189,7 +191,7 @@ class ObjectLocalizer(Node):
         postprocess_ms = (t3 - t2) * 1000
         publish_vis_ms = (t4 - t3) * 1000
         total_ms = (t4 - t0) * 1000
-        if self._callback_count % 30 == 0 or total_ms > 100.0:
+        if self.timing_info and (self._callback_count % 30 == 0 or total_ms > 100.0):
             self.get_logger().info(
                 f"object_localizer timing (cb #{self._callback_count}): "
                 f"decode={decode_ms:.1f}ms yolo={yolo_ms:.1f}ms postprocess={postprocess_ms:.1f}ms publish_vis={publish_vis_ms:.1f}ms total={total_ms:.1f}ms"
