@@ -39,8 +39,8 @@ class ObjectLocalizer(Node):
         self._print_positions = self.get_parameter("print_positions").get_parameter_value().bool_value
 
         self._model = YOLO(self._model_name)
-        inference_device = next(self._model.model.parameters()).device
-        self.get_logger().info(f"YOLO inference device: {inference_device}")
+        self._inference_device = self._resolve_inference_device()
+        self.get_logger().info(f"YOLO inference device: {self._inference_device}")
         self._bridge = CvBridge()
 
         self._sub = self.create_subscription(
@@ -55,6 +55,20 @@ class ObjectLocalizer(Node):
             f"Subscribed to {aligned_topic}, publishing detections3d "
             f"(visualize_camera={self._visualize_camera}, print_positions={self._print_positions})"
         )
+
+    def _resolve_inference_device(self):
+        """Try GPU first; on failure log and use CPU."""
+        if not torch.cuda.is_available():
+            self.get_logger().info("CUDA not available, using CPU for YOLO inference")
+            return "cpu"
+        try:
+            # Quick warmup to verify GPU inference works
+            dummy = np.zeros((640, 640, 3), dtype=np.uint8)
+            list(self._model(dummy, stream=True, device="cuda", verbose=False))
+            return "cuda"
+        except Exception as e:
+            self.get_logger().warning(f"GPU inference failed, using CPU: {e}")
+            return "cpu"
 
     def destroy_node(self):
         if self._visualize_camera:
@@ -88,7 +102,7 @@ class ObjectLocalizer(Node):
         stamp = msg.rgb.header.stamp
 
         try:
-            results = self._model(rgb, stream=True)
+            results = self._model(rgb, stream=True, device=self._inference_device)
         except Exception as e:
             self.get_logger().error(f"YOLO error: {e}")
             return
