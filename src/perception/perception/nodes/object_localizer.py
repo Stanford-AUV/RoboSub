@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Camera-agnostic object localizer: subscribes to AlignedDepthImage, runs YOLO + depth lookup + deprojection."""
 
+import cv2
 import numpy as np
 import rclpy
 from rclpy.node import Node
@@ -23,6 +24,7 @@ class ObjectLocalizer(Node):
         self.declare_parameter("object_id", "person")
         self.declare_parameter("camera_key", "oak_0")
         self.declare_parameter("aligned_topic", "")
+        self.declare_parameter("visualize_camera", False)
 
         self._model_name = self.get_parameter("model_name").get_parameter_value().string_value
         self._object_id = self.get_parameter("object_id").get_parameter_value().string_value
@@ -30,6 +32,7 @@ class ObjectLocalizer(Node):
         aligned_topic = self.get_parameter("aligned_topic").get_parameter_value().string_value
         if not aligned_topic:
             aligned_topic = f"/camera/{camera_key}/aligned"
+        self._visualize_camera = self.get_parameter("visualize_camera").get_parameter_value().bool_value
 
         self._model = YOLO(self._model_name)
         self._bridge = CvBridge()
@@ -41,7 +44,12 @@ class ObjectLocalizer(Node):
             10,
         )
         self._pub = self.create_publisher(Detection3DArray, "detections3d", 10)
-        self.get_logger().info(f"Subscribed to {aligned_topic}, publishing detections3d")
+        self.get_logger().info(f"Subscribed to {aligned_topic}, publishing detections3d (visualize_camera={self._visualize_camera})")
+
+    def destroy_node(self):
+        if self._visualize_camera:
+            cv2.destroyAllWindows()
+        super().destroy_node()
 
     def _callback(self, msg: AlignedDepthImage):
         try:
@@ -128,6 +136,18 @@ class ObjectLocalizer(Node):
                 detections_3d.detections.append(detection)
 
         self._pub.publish(detections_3d)
+
+        if self._visualize_camera:
+            vis = rgb.copy()
+            for box, score, cls in zip(boxes, scores, classes):
+                class_name = self._model.names[int(cls)]
+                if class_name != self._object_id:
+                    continue
+                x1, y1, x2, y2 = map(int, box)
+                cv2.rectangle(vis, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                cv2.putText(vis, f"{class_name} {score:.2f}", (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+            cv2.imshow("object_localizer", vis)
+            cv2.waitKey(1)
 
 
 def main(args=None):

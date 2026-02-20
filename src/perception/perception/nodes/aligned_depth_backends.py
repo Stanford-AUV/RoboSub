@@ -102,21 +102,7 @@ class OakAlignedBackend:
         self._rgb_queue = rgb_out.createOutputQueue()
         self._depth_queue = depth_out.createOutputQueue()
 
-        mxid = self._cam_cfg.get("camera", {}).get("i_mx_id")
-        if mxid:
-            device_info = None
-            try:
-                for d in dai.Device.getAllAvailableDevices():
-                    if getattr(d, "getMxId", lambda: None)() == mxid or getattr(d, "getDeviceId", lambda: None)() == mxid:
-                        device_info = d
-                        break
-            except Exception:
-                pass
-            if device_info is None:
-                device_info = dai.DeviceInfo(mxid)
-            pipeline.start(device_info)
-        else:
-            pipeline.start()
+        pipeline.start()
 
         self._pipeline = pipeline
         self._width = width
