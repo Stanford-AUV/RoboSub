@@ -1,4 +1,4 @@
-"""Launch aligned depth publisher + camera-agnostic object localizer."""
+"""Launch aligned depth publisher + camera-agnostic object localizer (all nodes in one launch)."""
 
 import os
 from launch import LaunchDescription
@@ -34,6 +34,11 @@ def generate_launch_description():
                 default_value="person",
                 description="Class name to localize (e.g. person)",
             ),
+            DeclareLaunchArgument(
+                "visualize_camera",
+                default_value="false",
+                description="Show cv2.imshow debug window for object_localizer",
+            ),
             Node(
                 package="perception",
                 executable="aligned_depth_publisher",
@@ -53,6 +58,7 @@ def generate_launch_description():
                     {"model_name": LaunchConfiguration("model_name")},
                     {"object_id": LaunchConfiguration("object_id")},
                     {"camera_key": LaunchConfiguration("camera_key")},
+                    {"visualize_camera": LaunchConfiguration("visualize_camera")},
                 ],
             ),
         ]
