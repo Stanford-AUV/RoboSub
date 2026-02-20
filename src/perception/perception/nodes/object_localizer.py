@@ -4,6 +4,7 @@
 import time
 import cv2
 import numpy as np
+import torch
 import rclpy
 from rclpy.node import Node
 from cv_bridge import CvBridge
@@ -25,7 +26,8 @@ class ObjectLocalizer(Node):
         self.declare_parameter("object_id", "person")
         self.declare_parameter("camera_key", "oak_0")
         self.declare_parameter("aligned_topic", "")
-        self.declare_parameter("visualize_camera", True)
+        self.declare_parameter("visualize_camera", False)
+        self.declare_parameter("print_positions", False)
 
         self._model_name = self.get_parameter("model_name").get_parameter_value().string_value
         self._object_id = self.get_parameter("object_id").get_parameter_value().string_value
@@ -34,8 +36,11 @@ class ObjectLocalizer(Node):
         if not aligned_topic:
             aligned_topic = f"/camera/{camera_key}/aligned"
         self._visualize_camera = self.get_parameter("visualize_camera").get_parameter_value().bool_value
+        self._print_positions = self.get_parameter("print_positions").get_parameter_value().bool_value
 
         self._model = YOLO(self._model_name)
+        inference_device = next(self._model.model.parameters()).device
+        self.get_logger().info(f"YOLO inference device: {inference_device}")
         self._bridge = CvBridge()
 
         self._sub = self.create_subscription(
@@ -46,7 +51,10 @@ class ObjectLocalizer(Node):
         )
         self._pub = self.create_publisher(Detection3DArray, "detections3d", 10)
         self._callback_count = 0
-        self.get_logger().info(f"Subscribed to {aligned_topic}, publishing detections3d (visualize_camera={self._visualize_camera})")
+        self.get_logger().info(
+            f"Subscribed to {aligned_topic}, publishing detections3d "
+            f"(visualize_camera={self._visualize_camera}, print_positions={self._print_positions})"
+        )
 
     def destroy_node(self):
         if self._visualize_camera:
@@ -89,7 +97,7 @@ class ObjectLocalizer(Node):
         detections_3d = Detection3DArray()
         detections_3d.header.stamp = stamp
         detections_3d.header.frame_id = frame_id
-        vis_items = []
+        vis_items = [] if self._visualize_camera else None
 
         h, w = rgb.shape[:2]
         for res in results:
@@ -143,12 +151,20 @@ class ObjectLocalizer(Node):
                 detection.bbox.size.z = 0.0
 
                 detections_3d.detections.append(detection)
-                vis_items.append((box, score, class_name, x_cam, y_cam, z_m))
+                if vis_items is not None:
+                    vis_items.append((box, score, class_name, x_cam, y_cam, z_m))
 
         t3 = time.perf_counter()
         self._pub.publish(detections_3d)
 
-        if self._visualize_camera:
+        if self._print_positions and detections_3d.detections:
+            for det in detections_3d.detections:
+                c = det.bbox.center.position
+                label = det.results[0].hypothesis.class_id if det.results else "?"
+                score = det.results[0].hypothesis.score if det.results else 0.0
+                self.get_logger().info(f"detection: {label} score={score:.2f} x={c.x:.3f} y={c.y:.3f} z={c.z:.3f} m")
+
+        if self._visualize_camera and vis_items is not None:
             try:
                 vis = rgb.copy()
                 for box, score, class_name, x_cam, y_cam, z_m in vis_items:
