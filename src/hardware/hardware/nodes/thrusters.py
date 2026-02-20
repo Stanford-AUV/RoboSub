@@ -18,15 +18,9 @@ class Thrusters(Node):
 
         self.declare_parameter("timer_period", Parameter.Type.DOUBLE)
         self.declare_parameter("history_depth", Parameter.Type.INTEGER)
-        self.declare_parameter("thruster_count", Parameter.Type.INTEGER)
 
         self.last_voltages = [14.8]
-
-        thruster_count = (
-            self.get_parameter("thruster_count").get_parameter_value().integer_value
-        )
-
-        self.pwms = np.zeros(thruster_count, dtype=np.int16)
+        self.pwms = None  # Will be initialized from first ThrustsStamped message
 
         history_depth = (
             self.get_parameter("history_depth").get_parameter_value().integer_value
@@ -54,6 +48,12 @@ class Thrusters(Node):
 
     def thrusts_callback(self, msg: ThrustsStamped):
         try:
+            # Initialize pwms array from first message if not already initialized
+            if self.pwms is None:
+                thruster_count = len(msg.thrusts)
+                self.pwms = np.zeros(thruster_count, dtype=np.int16)
+                self.get_logger().info(f"Initialized thruster count: {thruster_count}")
+            
             voltage = self.get_voltage()
             self.get_logger().info(f"Voltage {voltage}")
             self.get_logger().info(f"Received thrusts {msg.thrusts}")
@@ -70,6 +70,9 @@ class Thrusters(Node):
             self.last_voltages.pop(0)
 
     def timer_callback(self):
+        if self.pwms is None:
+            # Haven't received any thrusts yet, skip publishing
+            return
         msg = PWMsStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.pwms = self.pwms
