@@ -1,5 +1,6 @@
 # Backends that produce aligned RGB + depth + camera_info for AlignedDepthImage.
-# OAK uses DepthAI with setDepthAlign(CAM_A); RealSense uses rs.align(rs.stream.color).
+# OAK uses DepthAI v3 (no XLinkOut; requestOutput/createOutputQueue; ImageAlign or stereo.inputAlignTo).
+# RealSense uses rs.align(rs.stream.color).
 # Both return RGB image as BGR (OpenCV convention) for consistency with YOLO.
 
 from dataclasses import dataclass
@@ -45,7 +46,7 @@ def _build_camera_info_from_k(
 
 
 class OakAlignedBackend:
-    """Produces aligned RGB + depth from OAK using DepthAI with setDepthAlign(CAM_A)."""
+    """Produces aligned RGB + depth from OAK using DepthAI v3 (no XLinkOut; ImageAlign or stereo.inputAlignTo for alignment)."""
 
     def __init__(self, camera_key: str, cam_cfg: dict, logger=None):
         import depthai as dai
@@ -59,82 +60,83 @@ class OakAlignedBackend:
         width = rgb_cfg.get("rgb_width", 640)
         height = rgb_cfg.get("rgb_height", 480)
         fps = rgb_cfg.get("rgb_fps", 30)
-
-        resolution_map = {
-            "400P": dai.MonoCameraProperties.SensorResolution.THE_400_P,
-            "480P": dai.MonoCameraProperties.SensorResolution.THE_480_P,
-            "720P": dai.MonoCameraProperties.SensorResolution.THE_720_P,
-            "800P": dai.MonoCameraProperties.SensorResolution.THE_800_P,
-            "1080P": dai.MonoCameraProperties.SensorResolution.THE_1200_P,
-        }
-        preset_map = {
-            "FAST_ACCURACY": dai.node.StereoDepth.PresetMode.FAST_ACCURACY,
-            "FAST_DENSITY": dai.node.StereoDepth.PresetMode.FAST_DENSITY,
-            "HIGH_ACCURACY": dai.node.StereoDepth.PresetMode.HIGH_ACCURACY,
-            "HIGH_DENSITY": dai.node.StereoDepth.PresetMode.HIGH_DENSITY,
-        }
+        stereo_size = (width, height)
 
         pipeline = dai.Pipeline()
-        cam_rgb = pipeline.create(dai.node.ColorCamera)
-        cam_rgb.setPreviewSize(width, height)
-        cam_rgb.setFps(fps)
-        cam_rgb.setInterleaved(False)
-        cam_rgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
 
-        mono_left = pipeline.create(dai.node.MonoCamera)
-        mono_right = pipeline.create(dai.node.MonoCamera)
+        cam_rgb = pipeline.create(dai.node.Camera).build(dai.CameraBoardSocket.CAM_A)
+        left = pipeline.create(dai.node.Camera).build(dai.CameraBoardSocket.CAM_B)
+        right = pipeline.create(dai.node.Camera).build(dai.CameraBoardSocket.CAM_C)
         stereo = pipeline.create(dai.node.StereoDepth)
 
-        preset = stereo_cfg.get("i_depth_preset", "FAST_ACCURACY")
-        stereo.setDefaultProfilePreset(preset_map.get(preset, dai.node.StereoDepth.PresetMode.FAST_ACCURACY))
+        stereo.setRectification(True)
+        stereo.setExtendedDisparity(stereo_cfg.get("i_extended_disp", True))
         stereo.setLeftRightCheck(True)
-        stereo.setSubpixel(True)
-        stereo.setExtendedDisparity(stereo_cfg.get("i_extended_disp", False))
-        stereo.setDepthAlign(dai.CameraBoardSocket.CAM_A)
-        stereo.setOutputSize(width, height)
+        try:
+            stereo.setSubpixel(True)
+        except Exception:
+            pass
 
-        mono_left.setBoardSocket(dai.CameraBoardSocket.LEFT)
-        mono_right.setBoardSocket(dai.CameraBoardSocket.RIGHT)
-        left_res = stereo_cfg.get("left", {}).get("i_resolution", "400P")
-        right_res = stereo_cfg.get("right", {}).get("i_resolution", "400P")
-        mono_left.setResolution(resolution_map.get(left_res, dai.MonoCameraProperties.SensorResolution.THE_400_P))
-        mono_right.setResolution(resolution_map.get(right_res, dai.MonoCameraProperties.SensorResolution.THE_400_P))
+        try:
+            rgb_out = cam_rgb.requestOutput(size=stereo_size, fps=fps, type=dai.ImgFrame.Type.BGR888p)
+        except Exception:
+            rgb_out = cam_rgb.requestOutput(size=stereo_size, fps=fps)
+        left_out = left.requestOutput(size=stereo_size, fps=fps)
+        right_out = right.requestOutput(size=stereo_size, fps=fps)
 
-        mono_left.out.link(stereo.left)
-        mono_right.out.link(stereo.right)
+        left_out.link(stereo.left)
+        right_out.link(stereo.right)
 
-        xout_rgb = pipeline.create(dai.node.XLinkOut)
-        xout_depth = pipeline.create(dai.node.XLinkOut)
-        xout_rgb.setStreamName("rgb")
-        xout_depth.setStreamName("depth")
-        cam_rgb.preview.link(xout_rgb.input)
-        stereo.depth.link(xout_depth.input)
+        try:
+            align = pipeline.create(dai.node.ImageAlign)
+            stereo.depth.link(align.input)
+            rgb_out.link(align.inputAlignTo)
+            depth_out = align.outputAligned
+        except Exception:
+            if hasattr(stereo, "inputAlignTo"):
+                rgb_out.link(stereo.inputAlignTo)
+                depth_out = stereo.depth
+            else:
+                raise
+
+        self._rgb_queue = rgb_out.createOutputQueue()
+        self._depth_queue = depth_out.createOutputQueue()
 
         mxid = self._cam_cfg.get("camera", {}).get("i_mx_id")
         if mxid:
             device_info = None
-            for d in dai.Device.getAllAvailableDevices():
-                if d.getMxId() == mxid or d.getDeviceId() == mxid:
-                    device_info = d
-                    break
+            try:
+                for d in dai.Device.getAllAvailableDevices():
+                    if getattr(d, "getMxId", lambda: None)() == mxid or getattr(d, "getDeviceId", lambda: None)() == mxid:
+                        device_info = d
+                        break
+            except Exception:
+                pass
             if device_info is None:
                 device_info = dai.DeviceInfo(mxid)
-            self._device = dai.Device(pipeline, device_info)
+            pipeline.start(device_info)
         else:
-            self._device = dai.Device(pipeline)
+            pipeline.start()
 
-        self._calib = self._device.readCalibration()
-        self._k = np.array(self._calib.getCameraIntrinsics(dai.CameraBoardSocket.CAM_A, width, height))
+        self._pipeline = pipeline
         self._width = width
         self._height = height
         self._frame_id = f"{camera_key}_color_optical_frame"
 
-        self._rgb_queue = self._device.getOutputQueue("rgb", maxSize=4, blocking=False)
-        self._depth_queue = self._device.getOutputQueue("depth", maxSize=4, blocking=False)
+        try:
+            calib = pipeline.getCalibration()
+            self._k = np.array(calib.getCameraIntrinsics(dai.CameraBoardSocket.CAM_A, width, height))
+        except Exception:
+            try:
+                dev = pipeline.getDefaultDevice()
+                calib = dev.getCalibration()
+                self._k = np.array(calib.getCameraIntrinsics(dai.CameraBoardSocket.CAM_A, width, height))
+            except Exception:
+                fx = width * 1.2
+                fy = height * 1.2
+                self._k = np.array([[fx, 0, width / 2.0], [0, fy, height / 2.0], [0, 0, 1.0]])
 
     def get_frame(self, stamp=None) -> Optional[AlignedFrame]:
-        import depthai as dai
-
         rgb_msg = self._rgb_queue.tryGet()
         depth_msg = self._depth_queue.tryGet()
         if rgb_msg is None or depth_msg is None:
@@ -148,8 +150,8 @@ class OakAlignedBackend:
         try:
             ts = rgb_msg.getTimestamp()
             if ts is not None:
-                hw_sec = ts.seconds
-                hw_nsec = ts.nanos
+                hw_sec = getattr(ts, "seconds", 0)
+                hw_nsec = getattr(ts, "nanos", 0)
         except Exception:
             pass
 
@@ -165,8 +167,11 @@ class OakAlignedBackend:
         )
 
     def shutdown(self):
-        if hasattr(self, "_device"):
-            self._device.close()
+        if hasattr(self, "_pipeline"):
+            try:
+                self._pipeline.stop()
+            except Exception:
+                pass
 
 
 class RealsenseAlignedBackend:
