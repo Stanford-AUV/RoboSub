@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Camera-agnostic object localizer: subscribes to AlignedDepthImage, runs YOLO + depth lookup + deprojection."""
 
+import time
 import cv2
 import numpy as np
 import rclpy
@@ -44,6 +45,7 @@ class ObjectLocalizer(Node):
             10,
         )
         self._pub = self.create_publisher(Detection3DArray, "detections3d", 10)
+        self._callback_count = 0
         self.get_logger().info(f"Subscribed to {aligned_topic}, publishing detections3d (visualize_camera={self._visualize_camera})")
 
     def destroy_node(self):
@@ -55,6 +57,7 @@ class ObjectLocalizer(Node):
         super().destroy_node()
 
     def _callback(self, msg: AlignedDepthImage):
+        t0 = time.perf_counter()
         try:
             rgb = self._bridge.imgmsg_to_cv2(msg.rgb, "bgr8")
         except Exception as e:
@@ -65,6 +68,7 @@ class ObjectLocalizer(Node):
         except Exception as e:
             self.get_logger().error(f"Error decoding depth: {e}")
             return
+        t1 = time.perf_counter()
 
         if depth.dtype != np.uint16:
             depth = np.asarray(depth, dtype=np.uint16)
@@ -80,6 +84,7 @@ class ObjectLocalizer(Node):
         except Exception as e:
             self.get_logger().error(f"YOLO error: {e}")
             return
+        t2 = time.perf_counter()
 
         detections_3d = Detection3DArray()
         detections_3d.header.stamp = stamp
@@ -140,6 +145,7 @@ class ObjectLocalizer(Node):
                 detections_3d.detections.append(detection)
                 vis_items.append((box, score, class_name, x_cam, y_cam, z_m))
 
+        t3 = time.perf_counter()
         self._pub.publish(detections_3d)
 
         if self._visualize_camera:
@@ -159,6 +165,19 @@ class ObjectLocalizer(Node):
                         f"Could not show visualization (display unavailable?): {e}. "
                         "Set DISPLAY for your session (e.g. unset DISPLAY or export DISPLAY=:0) or run without visualize_camera."
                     )
+        t4 = time.perf_counter()
+
+        self._callback_count += 1
+        decode_ms = (t1 - t0) * 1000
+        yolo_ms = (t2 - t1) * 1000
+        postprocess_ms = (t3 - t2) * 1000
+        publish_vis_ms = (t4 - t3) * 1000
+        total_ms = (t4 - t0) * 1000
+        if self._callback_count % 30 == 0 or total_ms > 100.0:
+            self.get_logger().info(
+                f"object_localizer timing (cb #{self._callback_count}): "
+                f"decode={decode_ms:.1f}ms yolo={yolo_ms:.1f}ms postprocess={postprocess_ms:.1f}ms publish_vis={publish_vis_ms:.1f}ms total={total_ms:.1f}ms"
+            )
 
 
 def main(args=None):
