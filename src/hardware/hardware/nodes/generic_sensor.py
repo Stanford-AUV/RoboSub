@@ -34,7 +34,7 @@ class GenericSensor(Node):
 
         self.sensor_name = sensor_name
         self.active_axes = {}
-        self.publishers = {
+        self._publishers = {
             "position": self.create_publisher(PoseWithCovarianceStamped, "/position", 10),
             "rotation": self.create_publisher(Imu, "/rotation", 10),
             "velocity": self.create_publisher(TwistWithCovarianceStamped, "/velocity", 10),
