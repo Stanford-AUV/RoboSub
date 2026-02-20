@@ -2,6 +2,7 @@
 """Publishes AlignedDepthImage (Option A) from either OAK or RealSense backend."""
 
 import os
+import time
 import rclpy
 from rclpy.node import Node
 from cv_bridge import CvBridge
@@ -56,15 +57,26 @@ class AlignedDepthPublisherNode(Node):
             f"/camera/{camera_key}/aligned",
             10,
         )
+        self._timer_count = 0
+        self._get_frame_none_count = 0
         self.get_logger().info(
             f"Publishing AlignedDepthImage on /camera/{camera_key}/aligned ({camera_type})"
         )
         self.create_timer(1.0 / 30.0, self._publish_frame)
 
     def _publish_frame(self):
+        t0 = time.perf_counter()
         stamp = self.get_clock().now().to_msg()
         frame = self._backend.get_frame(stamp)
+        t1 = time.perf_counter()
         if frame is None:
+            self._get_frame_none_count += 1
+            self._timer_count += 1
+            if self._timer_count % 30 == 0:
+                self.get_logger().info(
+                    f"aligned_depth_publisher: get_frame returned None {self._get_frame_none_count}/30 ticks (backend not ready)"
+                )
+                self._get_frame_none_count = 0
             return
 
         rgb_msg = self._bridge.cv2_to_imgmsg(frame.rgb, "bgr8")
@@ -86,6 +98,17 @@ class AlignedDepthPublisherNode(Node):
             nanosec=frame.hardware_stamp_nanosec,
         )
         self._pub.publish(out)
+        t2 = time.perf_counter()
+
+        self._timer_count += 1
+        get_frame_ms = (t1 - t0) * 1000
+        build_publish_ms = (t2 - t1) * 1000
+        if self._timer_count % 30 == 0:
+            self.get_logger().info(
+                f"aligned_depth_publisher timing (tick #{self._timer_count}): "
+                f"get_frame={get_frame_ms:.1f}ms build_publish={build_publish_ms:.1f}ms (None in last 30: {self._get_frame_none_count})"
+            )
+            self._get_frame_none_count = 0
 
     def destroy_node(self):
         self._backend.shutdown()
