@@ -37,7 +37,7 @@ class GenericSensor(Node):
         self.publishers = {
             "position": self.create_publisher(PoseWithCovarianceStamped, "/position", 10),
             "rotation": self.create_publisher(Imu, "/rotation", 10),
-            "velocity": self.create_publisher(TwistWithCovarianceStamped, "velocity", 10),
+            "velocity": self.create_publisher(TwistWithCovarianceStamped, "/velocity", 10),
             "angular": self.create_publisher(Imu, "/angular", 10),
             "accel": self.create_publisher(Imu, "/accel", 10)
         }

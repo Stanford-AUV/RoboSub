@@ -7,8 +7,6 @@ from hardware.nodes.generic_sensor import GenericSensor
 
 NUM_CALIBRATION_QUATERNIONS = 200
 
-# Covariance array with first element -1 tells downstream (e.g. robot_localization)
-# to ignore that field entirely.
 COVARIANCE_IGNORE = [-1.0] + [0.0] * 8
 
 
@@ -28,9 +26,6 @@ class IMU(GenericSensor):
 
         self._latest_msg = None
 
-    # ------------------------------------------------------------------ #
-    #  Subscription callback – calibration then publish
-    # ------------------------------------------------------------------ #
     def imu_listener_callback(self, msg: Imu):
         if not self.calibrated:
             if self.num_calibration_quaternions == NUM_CALIBRATION_QUATERNIONS:
@@ -58,9 +53,6 @@ class IMU(GenericSensor):
         self._latest_msg = msg
         self.publish_sensor_data()
 
-    # ------------------------------------------------------------------ #
-    #  Calibration
-    # ------------------------------------------------------------------ #
     def _calculate_transformation_matrix(self):
         avg_quat = average_quaternions(self.calibration_quaternions)
         r_imu = R.from_quat(avg_quat)
@@ -69,9 +61,6 @@ class IMU(GenericSensor):
         self.R_calib = self.r_imu_to_robot.as_matrix()
         self.get_logger().info(f"Calibrated with:\n{self.R_calib}")
 
-    # ------------------------------------------------------------------ #
-    #  Transform helpers
-    # ------------------------------------------------------------------ #
     def _transform_orientation(self, msg):
         q = np.array(
             [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w]
@@ -96,18 +85,12 @@ class IMU(GenericSensor):
         )
         return self.robot_rot @ linear_acceleration
 
-    # ------------------------------------------------------------------ #
-    #  Covariance helper
-    # ------------------------------------------------------------------ #
     def _cov3x3(self):
-        """Flatten the 3×3 covariance matrix from sensors.yaml into a 9-element list."""
+        """Flatten 3×3 covariance matrix from sensors.yaml into 9-element list."""
         if self.covariance is not None:
             return [float(v) for row in self.covariance for v in row]
         return [0.0] * 9
 
-    # ------------------------------------------------------------------ #
-    #  Publishing – split data across per-type publishers
-    # ------------------------------------------------------------------ #
     def publish_sensor_data(self):
         msg = self._latest_msg
         if msg is None:
@@ -115,7 +98,6 @@ class IMU(GenericSensor):
 
         stamp = self.get_clock().now().to_msg()
 
-        # --- rotation publisher (orientation only) ---
         if self.is_active("rotation"):
             imu_rot = Imu()
             imu_rot.header.stamp = stamp
@@ -133,7 +115,6 @@ class IMU(GenericSensor):
 
             self.publishers["rotation"].publish(imu_rot)
 
-        # --- angular publisher (angular velocity only) ---
         if self.is_active("angular"):
             imu_ang = Imu()
             imu_ang.header.stamp = stamp
@@ -150,7 +131,6 @@ class IMU(GenericSensor):
 
             self.publishers["angular"].publish(imu_ang)
 
-        # --- accel publisher (linear acceleration only) ---
         if self.is_active("accel"):
             imu_acc = Imu()
             imu_acc.header.stamp = stamp
