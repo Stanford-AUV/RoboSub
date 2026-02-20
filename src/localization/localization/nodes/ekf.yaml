@@ -28,7 +28,7 @@ ekf_filter_node:
     rotation_relative: true
 
     velocity: "/velocity"
-    velocity_config: [false, false, true,  # x_pos, y_pos, z_pos,
+    velocity_config: [false, false, false,  # x_pos, y_pos, z_pos,
                   false, false, false,  # roll, pitch, yaw,
                   true, true, true,  # x_vel, y_vel, z_vel,
                   false, false, false,  # roll_vel, pitch_vel, yaw_vel,
@@ -46,7 +46,7 @@ ekf_filter_node:
     angular_relative: true
 
     accel: "/accel"
-    accel_config: [false, false, true,  # x_pos, y_pos, z_pos,
+    accel_config: [false, false, false,  # x_pos, y_pos, z_pos,
                   false, false, false,  # roll, pitch, yaw,
                   false, false, false,  # x_vel, y_vel, z_vel,
                   false, false, false,  # roll_vel, pitch_vel, yaw_vel,

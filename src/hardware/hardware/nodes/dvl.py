@@ -10,7 +10,6 @@ import serial
 
 DEBUG_MODE = False
 
-# Huge value for covariance diagonal entries the EKF should ignore
 _BIG = 1e9
 
 
@@ -25,22 +24,16 @@ class DVL(GenericSensor):
             self.timer = self.create_timer(0.1, self._publish_dummy)
             return
 
-        # Connect to DVL
         self.dvl = self.autodetect_dvl_port(baudrate)
         if not self.dvl:
             self.get_logger().error("Failed to connect to DVL.")
             return
 
-        # Register the callback function to process DVL data
         self.dvl.register_ondata_callback(self.update_data)
 
-        # Start pinging
         if not self.dvl.exit_command_mode():
             self.get_logger().error("Failed to start pinging")
 
-    # ------------------------------------------------------------------ #
-    #  Hardware connection
-    # ------------------------------------------------------------------ #
     def autodetect_dvl_port(self, baudrate, timeout=2):
         """Scan available serial ports and attempt to connect to the DVL."""
         possible_ports = glob.glob("/dev/ttyUSB*") + glob.glob("/dev/ttyACM*")
@@ -64,9 +57,6 @@ class DVL(GenericSensor):
                 self.get_logger().error(f"Unexpected error on port {port}: {e}")
         return None
 
-    # ------------------------------------------------------------------ #
-    #  DVL hardware callback → store parsed data, then publish
-    # ------------------------------------------------------------------ #
     def update_data(self, output_data: OutputData, obj):
         del obj
         if output_data is None:
@@ -78,16 +68,10 @@ class DVL(GenericSensor):
         self._latest_data = data_dict
         self.publish_sensor_data()
 
-    # ------------------------------------------------------------------ #
-    #  Helper: safe float extraction
-    # ------------------------------------------------------------------ #
     @staticmethod
     def _safe(value, default=0.0):
         return default if np.isnan(value) else float(value)
 
-    # ------------------------------------------------------------------ #
-    #  Covariance helpers
-    # ------------------------------------------------------------------ #
     def _yaml_cov(self, r, c):
         """Return a single entry from the 3×3 yaml covariance matrix."""
         if self.covariance is not None:
@@ -95,37 +79,24 @@ class DVL(GenericSensor):
         return 0.0
 
     def _build_twist_cov(self, velocity_error=None):
-        """Build the 6×6 twist covariance (row-major, 36 elements).
-        
-        Active velocity axes get variance from hardware error (if provided) or yaml.
-        Inactive velocity axes get _BIG on diagonal so EKF ignores them.
-        Angular axes always get _BIG (DVL doesn't provide angular velocity).
-        """
         cov = np.zeros(36)
+        vel_axes = self.get_axes("velocity")
         
-        # Linear velocity (indices 0-2)
-        vel_axes = self.get_axes("velocity")  # e.g. [1, 2, 3] for x,y,z
-        
-        # Start with _BIG on all linear diagonals
         for i in range(3):
             cov[i * 6 + i] = _BIG
             
-        # Apply variance to active axes
         if vel_axes:
             if velocity_error is not None:
-                # Use hardware-provided error (squared for variance)
                 var = velocity_error ** 2
                 for axis in vel_axes:
                     idx = axis - 1
                     cov[idx * 6 + idx] = var
             elif self.covariance is not None:
-                # Fall back to yaml covariance
                 for r in range(3):
                     for c in range(3):
                         if (r + 1) in vel_axes and (c + 1) in vel_axes:
                             cov[r * 6 + c] = float(self.covariance[r][c])
         
-        # Angular velocity always ignored
         cov[3 * 6 + 3] = _BIG
         cov[4 * 6 + 4] = _BIG
         cov[5 * 6 + 5] = _BIG
@@ -133,35 +104,19 @@ class DVL(GenericSensor):
         return cov.tolist()
 
     def _build_pose_cov(self):
-        """Build the 6×6 pose covariance (row-major, 36 elements).
-        
-        Active position axes get the yaml covariance.
-        Inactive position axes get _BIG on diagonal so EKF ignores them.
-        Rotation block is left at zero (EKF doesn't read it from Pose).
-        """
         cov = np.zeros(36)
+        pos_axes = self.get_axes("position")
         
-        # Position (indices 0-2 for x,y,z)
-        pos_axes = self.get_axes("position")  # e.g. [3] for z only
-        
-        # Start with _BIG on all position diagonals
         for i in range(3):
             cov[i * 6 + i] = _BIG
             
-        # Then apply yaml covariance to active axes
         if self.covariance is not None and pos_axes:
             for axis in pos_axes:
-                # Map axis number (1,2,3) to index (0,1,2)
                 idx = axis - 1
                 cov[idx * 6 + idx] = self._yaml_cov(idx, idx)
         
-        # Rotation block stays at zero (indices 3-5)
-        
         return cov.tolist()
 
-    # ------------------------------------------------------------------ #
-    #  Publish to GenericSensor publishers
-    # ------------------------------------------------------------------ #
     def publish_sensor_data(self):
         d = self._latest_data
         if d is None:
@@ -169,14 +124,11 @@ class DVL(GenericSensor):
 
         stamp = self.get_clock().now().to_msg()
 
-        # --- velocity (TwistWithCovarianceStamped) ---
         if self.is_active("velocity"):
             vx = self._safe(d["Velocity X"])
             vy = self._safe(d["Velocity Y"])
             vz = self._safe(d["Velocity Z"])
             vel = self.robot_rot @ np.array([vx, vy, vz])
-            
-            # Get hardware-provided velocity error
             vel_err = self._safe(d["Velocity Err"], default=None)
 
             twist_msg = TwistWithCovarianceStamped()
@@ -190,7 +142,6 @@ class DVL(GenericSensor):
 
             self.publishers["velocity"].publish(twist_msg)
 
-        # --- position (PoseWithCovarianceStamped) — depth (z) only ---
         if self.is_active("position"):
             mean_range = self._safe(d["Mean range"])
 
@@ -204,9 +155,6 @@ class DVL(GenericSensor):
 
             self.publishers["position"].publish(pose_msg)
 
-    # ------------------------------------------------------------------ #
-    #  Debug dummy publisher
-    # ------------------------------------------------------------------ #
     def _publish_dummy(self):
         stamp = self.get_clock().now().to_msg()
 
@@ -215,9 +163,7 @@ class DVL(GenericSensor):
             twist_msg.header.stamp = stamp
             twist_msg.header.frame_id = "base_link"
             twist_msg.twist.twist.linear.x = 0.05
-
-            twist_msg.twist.covariance = self._build_twist_cov()  # No hardware error in debug mode
-
+            twist_msg.twist.covariance = self._build_twist_cov()
             self.publishers["velocity"].publish(twist_msg)
 
         if self.is_active("position"):
