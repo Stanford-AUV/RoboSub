@@ -2,6 +2,11 @@ FROM althack/ros2:jazzy-full-2024-12-01
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Set CUDA environment variables
+ENV CUDA_HOME=/usr/local/cuda-12
+ENV PATH=/usr/local/cuda-12/bin:${PATH}
+ENV LD_LIBRARY_PATH=/usr/local/cuda-12/lib64:/usr/lib/aarch64-linux-gnu/nvidia:/usr/lib/aarch64-linux-gnu/tegra:${LD_LIBRARY_PATH}
+
 # Refresh ROS GPG key + source
 RUN rm -f /usr/share/keyrings/ros-archive-keyring.gpg /etc/apt/sources.list.d/ros2.list && \
     curl -fsSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
@@ -60,14 +65,22 @@ RUN service ssh restart
 ARG WORKSPACE
 RUN python3 -m venv /home/ros/env --system-site-packages --symlinks
 
-# PyTorch with CUDA for GPU YOLO inference (object_localizer)
-# Using --extra-index-url so PyPI remains available as fallback, and cu124 for Python 3.12 compatibility
-RUN /home/ros/env/bin/pip install --no-cache-dir torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu124
+# PyTorch with CUDA for Jetson (JP6 CUDA 12.6) - using Jetson AI Lab PyPI
+RUN /home/ros/env/bin/pip install --no-cache-dir \
+    --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
+    torch torchvision torchaudio
 
-# Install torch for system Python (used by ROS launch processes)
-# ROS launch spawns processes that don't inherit venv activation, so torch must be in system Python
-# Using --break-system-packages to override PEP 668 protection (required for ROS launch processes)
-RUN python3 -m pip install --break-system-packages --no-cache-dir torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu124
+# Install ultralytics (YOLO) in venv
+RUN /home/ros/env/bin/pip install --no-cache-dir ultralytics
+
+# Install PyTorch for system Python (Jetson version from AI Lab PyPI)
+RUN python3 -m pip install --break-system-packages --no-cache-dir \
+    --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
+    torch torchvision torchaudio
+
+# Install ultralytics for system Python (allow dependency flexibility)
+RUN python3 -m pip install --break-system-packages --no-cache-dir ultralytics || \
+    python3 -m pip install --break-system-packages --no-cache-dir --no-deps ultralytics
 
 # Set up auto-source of workspace for ros user
 ARG WORKSPACE
