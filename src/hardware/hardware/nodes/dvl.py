@@ -140,7 +140,7 @@ class DVL(GenericSensor):
 
             twist_msg.twist.covariance = self._build_twist_cov(velocity_error=vel_err)
 
-            self.publishers["velocity"].publish(twist_msg)
+            self._publishers["velocity"].publish(twist_msg)
 
         if self.is_active("position"):
             mean_range = self._safe(d["Mean range"])
@@ -153,7 +153,7 @@ class DVL(GenericSensor):
 
             pose_msg.pose.covariance = self._build_pose_cov()
 
-            self.publishers["position"].publish(pose_msg)
+            self._publishers["position"].publish(pose_msg)
 
     def _publish_dummy(self):
         stamp = self.get_clock().now().to_msg()
@@ -164,7 +164,7 @@ class DVL(GenericSensor):
             twist_msg.header.frame_id = "base_link"
             twist_msg.twist.twist.linear.x = 0.05
             twist_msg.twist.covariance = self._build_twist_cov()
-            self.publishers["velocity"].publish(twist_msg)
+            self._publishers["velocity"].publish(twist_msg)
 
         if self.is_active("position"):
             pose_msg = PoseWithCovarianceStamped()
@@ -175,7 +175,7 @@ class DVL(GenericSensor):
 
             pose_msg.pose.covariance = self._build_pose_cov()
 
-            self.publishers["position"].publish(pose_msg)
+            self._publishers["position"].publish(pose_msg)
 
 
 def main(args=None):

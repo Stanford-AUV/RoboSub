@@ -151,7 +151,7 @@ class IMU(GenericSensor):
             imu_rot.angular_velocity_covariance = COVARIANCE_IGNORE
             imu_rot.linear_acceleration_covariance = COVARIANCE_IGNORE
 
-            self.publishers["rotation"].publish(imu_rot)
+            self._publishers["rotation"].publish(imu_rot)
 
         if self.is_active("angular"):
             imu_ang = Imu()
@@ -167,7 +167,7 @@ class IMU(GenericSensor):
             imu_ang.angular_velocity_covariance = self._cov3x3()
             imu_ang.linear_acceleration_covariance = COVARIANCE_IGNORE
 
-            self.publishers["angular"].publish(imu_ang)
+            self._publishers["angular"].publish(imu_ang)
 
         if self.is_active("accel"):
             imu_acc = Imu()
@@ -183,7 +183,7 @@ class IMU(GenericSensor):
             imu_acc.angular_velocity_covariance = COVARIANCE_IGNORE
             imu_acc.linear_acceleration_covariance = self._cov3x3()
 
-            self.publishers["accel"].publish(imu_acc)
+            self._publishers["accel"].publish(imu_acc)
 
 
 def main(args=None):

@@ -57,7 +57,9 @@ class ThrustGenerator(Node):
             ori = [val["dx"], val["dy"], val["dz"]]
             thruster_positions.append(pos)
             thruster_orientations.append(ori)
-        return thruster_positions, thruster_orientations
+        return np.array(thruster_positions, dtype=float), np.array(
+            thruster_orientations, dtype=float
+        )
 
     def timer_callback(self):
         """Convert wrench to individual thruster magnitudes and publish them."""
