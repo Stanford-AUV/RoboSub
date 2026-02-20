@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../../opt/ros/jazzy/share/realsense2_camera"
+		},
+		{
+			"path": "../../../opt/ros/jazzy/lib/realsense2_camera"
+		}
+	],
+	"settings": {}
+}
