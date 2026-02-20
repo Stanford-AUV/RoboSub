@@ -66,7 +66,8 @@ RUN /home/ros/env/bin/pip install --no-cache-dir torch torchvision torchaudio --
 
 # Install torch for system Python (used by ROS launch processes)
 # ROS launch spawns processes that don't inherit venv activation, so torch must be in system Python
-RUN python3 -m pip install --no-cache-dir torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu124
+# Using --break-system-packages to override PEP 668 protection (required for ROS launch processes)
+RUN python3 -m pip install --break-system-packages --no-cache-dir torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu124
 
 # Set up auto-source of workspace for ros user
 ARG WORKSPACE
