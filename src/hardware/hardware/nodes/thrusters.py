@@ -22,15 +22,12 @@ class Thrusters(Node):
         self.last_voltages = [14.8]
         self.pwms = None  # Will be initialized from first ThrustsStamped message
 
-        history_depth = (
-            self.get_parameter("history_depth").get_parameter_value().integer_value
-        )
         self._thrusts_sub = self.create_subscription(
-            ThrustsStamped, "/thrusts", self.thrusts_callback, history_depth
+            ThrustsStamped, "/thrusts", self.thrusts_callback, 10
         )
-        self._pwms_pub = self.create_publisher(PWMsStamped, "pwms", history_depth)
+        self._pwms_pub = self.create_publisher(PWMsStamped, "pwms", 10)
         self._sensors_sub = self.create_subscription(
-            SensorsStamped, "sensors", self.sensors_callback, history_depth
+            SensorsStamped, "sensors", self.sensors_callback, 10
         )
 
         timer_period = (
@@ -53,7 +50,7 @@ class Thrusters(Node):
                 thruster_count = len(msg.thrusts)
                 self.pwms = np.zeros(thruster_count, dtype=np.int16)
                 self.get_logger().info(f"Initialized thruster count: {thruster_count}")
-            
+
             voltage = self.get_voltage()
             self.get_logger().info(f"Voltage {voltage}")
             self.get_logger().info(f"Received thrusts {msg.thrusts}")

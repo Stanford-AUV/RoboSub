@@ -15,6 +15,3 @@ dash
 pyserial
 nats-py
 dataclasses-json
-polars>=0.20.0
-ultralytics-thop>=2.0.18
-#pyrealsense2cat /workspaces/Robosub2/requirements.txt | grep torch
