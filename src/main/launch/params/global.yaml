@@ -4,6 +4,9 @@
     history_depth: 10
     thruster_count: 8
 /thrust_generator:
+  # IMU is [-0.1525, -0.02, 0.1375,]
+  # DVL [-0.105, 0, -0.0625]
+
   ros__parameters:
     # Thruster positions in body frame
     thruster_positions:
@@ -19,12 +22,12 @@
     # Blue is CCW, red is CW in sim
     thruster_orientations:
       thruster_0: [-1, +1, 0] # Top front left (CCW from back)
-      thruster_1: [-1, -1, 0] # Top front right (CCW from back)
-      thruster_2: [+1, +1, 0] # Top back left (CW viewed from back)
-      thruster_3: [+1, -1, 0] # Top back right (CW back)
-      thruster_4: [0, 0, +1] # Bottom front left (CCW from top)
-      thruster_5: [0, 0, +1] # Bottom front right (CCW from top)
-      thruster_6: [0, 0, +1] # Bottom back left (CW from top)
+      thruster_1: [+1, +1, 0] # Top front right (CCW from back) f
+      thruster_2: [-1, -1, 0] # Top back left (CW viewed from back) f
+      thruster_3: [-1, +1, 0] # Top back right (CW back) f
+      thruster_4: [0, 0, -1] # Bottom front left (CCW from top)
+      thruster_5: [0, 0, -1] # Bottom front right (CCW from top)
+      thruster_6: [0, 0, -1] # Bottom back left (CW from top)
       thruster_7: [0, 0, +1] # Bottom back right (CCW from top)
 
 
@@ -33,6 +36,8 @@
 /ekf_filter_node:
   ros__parameters:
     print_diagnostics: true
+    # debug: true
+    # debug_out_file: /tmp/ekf_debug.txt
 
     # See https://stanfordstudentrobo.slack.com/files/U04ULBF9ZUM/F08ELRVKF6F/ekf_params.yaml
     publish_tf: false
@@ -55,7 +60,7 @@
                   false, false, false, # roll    , pitch    , yaw,
                   false, false, false, # x_vel   , y_vel    , z_vel,
                   true, true, true,    # roll_vel, pitch_vel, yaw_vel,
-                  true, true, true]    # x_accel , y_accel  , z_accel
+                  false, false, false]    # x_accel , y_accel  , z_accel
     # Should be false for since measurements are not incrementing
     imu0_differential: false
     # Should measurements start at 0?
@@ -88,16 +93,14 @@
                    false, false, false, # x_vel   , y_vel    , z_vel,
                    false, false, false, # roll_vel, pitch_vel, yaw_vel,
                    false, false, false] # x_accel , y_accel  , z_accel
-    pose1_relative: true
+    pose1_relative: false
     pose1_differential: false
 
-    mag0: "/imu/mag"
-    mag0_config: [false, false, true]
-    mag0_differential: false
-    mag0_relative: false
-    mag0_queue_size: 10
-
-
+    # mag0: "/imu/mag"
+    # mag0_config: [false, false, true]
+    # mag0_differential: false
+    # mag0_relative: false
+    # mag0_queue_size: 10
 /forward_cam:
   ros__parameters:
     camera:
