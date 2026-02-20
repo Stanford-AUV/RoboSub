@@ -29,6 +29,7 @@ class ObjectLocalizer(Node):
         self.declare_parameter("visualize_camera", True)
         self.declare_parameter("print_positions", False)
         self.declare_parameter("timing_info", False)
+        self.declare_parameter("inference_device", "auto")  # "auto" | "cuda" | "cpu"
 
         self._model_name = self.get_parameter("model_name").get_parameter_value().string_value
         self._object_id = self.get_parameter("object_id").get_parameter_value().string_value
@@ -40,7 +41,8 @@ class ObjectLocalizer(Node):
         self._print_positions = self.get_parameter("print_positions").get_parameter_value().bool_value
 
         self._model = YOLO(self._model_name)
-        self._inference_device = self._resolve_inference_device()
+        device_param = self.get_parameter("inference_device").get_parameter_value().string_value
+        self._inference_device = self._resolve_inference_device(device_param)
         self.get_logger().info(f"YOLO inference device: {self._inference_device}")
         self._bridge = CvBridge()
 
@@ -58,19 +60,54 @@ class ObjectLocalizer(Node):
         )
         self.timing_info = self.get_parameter("timing_info").get_parameter_value().bool_value
 
-    def _resolve_inference_device(self):
-        """Try GPU first; on failure log and use CPU."""
+    def _resolve_inference_device(self, requested: str):
+        """Resolve inference device: 'auto' (try GPU then CPU), 'cuda', or 'cpu'."""
+        if requested == "cpu":
+            return "cpu"
+        if requested == "cuda":
+            if not torch.cuda.is_available():
+                self._log_cuda_unavailable_reason()
+                self.get_logger().warning(
+                    "inference_device=cuda but CUDA not available; falling back to CPU. "
+                    "Set inference_device:=cpu to silence, or fix CUDA (see logs above)."
+                )
+                return "cpu"
+            try:
+                dummy = np.zeros((640, 640, 3), dtype=np.uint8)
+                list(self._model(dummy, stream=True, device="cuda", verbose=False))
+                return "cuda"
+            except Exception as e:
+                self.get_logger().warning(f"GPU inference failed, using CPU: {e}")
+                return "cpu"
+        # requested == "auto"
         if not torch.cuda.is_available():
+            self._log_cuda_unavailable_reason()
             self.get_logger().info("CUDA not available, using CPU for YOLO inference")
             return "cpu"
         try:
-            # Quick warmup to verify GPU inference works
             dummy = np.zeros((640, 640, 3), dtype=np.uint8)
             list(self._model(dummy, stream=True, device="cuda", verbose=False))
             return "cuda"
         except Exception as e:
             self.get_logger().warning(f"GPU inference failed, using CPU: {e}")
             return "cpu"
+
+    def _log_cuda_unavailable_reason(self):
+        """Log why CUDA is not available to help users fix GPU inference."""
+        cuda_build = getattr(torch.version, "cuda", None)
+        if cuda_build is None or cuda_build == "":
+            self.get_logger().info(
+                "PyTorch was built without CUDA (CPU-only). For GPU inference: "
+                "install CUDA-enabled PyTorch, e.g. pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121"
+            )
+        else:
+            try:
+                torch.zeros(1).cuda()
+            except Exception as e:
+                self.get_logger().info(
+                    f"PyTorch has CUDA build ({cuda_build}) but runtime failed: {e}. "
+                    "Ensure NVIDIA drivers and, in Docker, use --gpus all (nvidia-container-toolkit)."
+                )
 
     def destroy_node(self):
         if self._visualize_camera:

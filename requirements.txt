@@ -4,6 +4,9 @@ depthai
 scipy
 opencv-python
 casadi
+# For GPU (CUDA) YOLO inference, install PyTorch with CUDA instead of default CPU build, e.g.:
+#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# In Docker/devcontainer, also use --gpus all and nvidia-container-toolkit on the host.
 torch
 torchvision
 torchaudio
