@@ -84,6 +84,7 @@ class ObjectLocalizer(Node):
         detections_3d = Detection3DArray()
         detections_3d.header.stamp = stamp
         detections_3d.header.frame_id = frame_id
+        vis_items = []
 
         h, w = rgb.shape[:2]
         for res in results:
@@ -137,19 +138,18 @@ class ObjectLocalizer(Node):
                 detection.bbox.size.z = 0.0
 
                 detections_3d.detections.append(detection)
+                vis_items.append((box, score, class_name, x_cam, y_cam, z_m))
 
         self._pub.publish(detections_3d)
 
         if self._visualize_camera:
             try:
                 vis = rgb.copy()
-                for box, score, cls in zip(boxes, scores, classes):
-                    class_name = self._model.names[int(cls)]
-                    if class_name != self._object_id:
-                        continue
+                for box, score, class_name, x_cam, y_cam, z_m in vis_items:
                     x1, y1, x2, y2 = map(int, box)
                     cv2.rectangle(vis, (x1, y1), (x2, y2), (0, 255, 0), 2)
                     cv2.putText(vis, f"{class_name} {score:.2f}", (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                    cv2.putText(vis, f"x={x_cam:.2f} y={y_cam:.2f} z={z_m:.2f}m", (x1, y2 + 16), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
                 cv2.imshow("object_localizer", vis)
                 cv2.waitKey(1)
             except Exception as e:
