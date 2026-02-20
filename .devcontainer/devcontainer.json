@@ -8,6 +8,8 @@
   },
   "remoteUser": "ros",
   "runArgs": [
+    "--gpus",
+    "all",
     "--publish=4222:4222",
     "--cap-add=SYS_PTRACE",
     "--security-opt=seccomp:unconfined",
@@ -64,5 +66,5 @@
       ]
     }
   },
-  "postCreateCommand": "/home/ros/env/bin/python3 -m pip install --no-cache-dir -r /workspaces/Robosub/requirements.txt"
+  "postCreateCommand": "/home/ros/env/bin/python3 -m pip install --no-cache-dir -r /workspaces/Robosub/requirements.txt && /home/ros/env/bin/python3 -m pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121"
 }
