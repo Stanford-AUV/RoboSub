@@ -8,7 +8,9 @@
   },
   "remoteUser": "ros",
   "runArgs": [
-    "--runtime=nvidia",
+    // GPU support: Uncomment one of the following when NVIDIA Container Toolkit is installed:
+    // For newer nvidia-container-toolkit: "--gpus", "all",
+    // For older nvidia-docker2: "--runtime=nvidia",
     "--publish=4222:4222",
     "--cap-add=SYS_PTRACE",
     "--security-opt=seccomp:unconfined",
