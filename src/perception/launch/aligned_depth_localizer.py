@@ -39,6 +39,11 @@ def generate_launch_description():
                 default_value="false",
                 description="Show cv2.imshow debug window for object_localizer",
             ),
+            DeclareLaunchArgument(
+                "print_positions",
+                default_value="false",
+                description="Log object positions (x,y,z) to console instead of displaying image",
+            ),
             Node(
                 package="perception",
                 executable="aligned_depth_publisher",
@@ -59,6 +64,7 @@ def generate_launch_description():
                     {"object_id": LaunchConfiguration("object_id")},
                     {"camera_key": LaunchConfiguration("camera_key")},
                     {"visualize_camera": LaunchConfiguration("visualize_camera")},
+                    {"print_positions": LaunchConfiguration("print_positions")},
                 ],
             ),
         ]
