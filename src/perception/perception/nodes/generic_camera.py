@@ -13,6 +13,7 @@ class GenericCameraNode(Node):
         self.bridge = CvBridge()
         self.rgb_pubs = {}
         self.depth_pubs = {}
+        self.yolo_rgb = None  # Annotated RGB image from YOLO detections
 
         self.devices = {}  # holds device objects
         self.queues = {}  # holds output queues
