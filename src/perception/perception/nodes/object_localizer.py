@@ -48,7 +48,10 @@ class ObjectLocalizer(Node):
 
     def destroy_node(self):
         if self._visualize_camera:
-            cv2.destroyAllWindows()
+            try:
+                cv2.destroyAllWindows()
+            except Exception:
+                pass
         super().destroy_node()
 
     def _callback(self, msg: AlignedDepthImage):
@@ -138,16 +141,24 @@ class ObjectLocalizer(Node):
         self._pub.publish(detections_3d)
 
         if self._visualize_camera:
-            vis = rgb.copy()
-            for box, score, cls in zip(boxes, scores, classes):
-                class_name = self._model.names[int(cls)]
-                if class_name != self._object_id:
-                    continue
-                x1, y1, x2, y2 = map(int, box)
-                cv2.rectangle(vis, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.putText(vis, f"{class_name} {score:.2f}", (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-            cv2.imshow("object_localizer", vis)
-            cv2.waitKey(1)
+            try:
+                vis = rgb.copy()
+                for box, score, cls in zip(boxes, scores, classes):
+                    class_name = self._model.names[int(cls)]
+                    if class_name != self._object_id:
+                        continue
+                    x1, y1, x2, y2 = map(int, box)
+                    cv2.rectangle(vis, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    cv2.putText(vis, f"{class_name} {score:.2f}", (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                cv2.imshow("object_localizer", vis)
+                cv2.waitKey(1)
+            except Exception as e:
+                if not getattr(self, "_visualize_display_warned", False):
+                    self._visualize_display_warned = True
+                    self.get_logger().warning(
+                        f"Could not show visualization (display unavailable?): {e}. "
+                        "Set DISPLAY for your session (e.g. unset DISPLAY or export DISPLAY=:0) or run without visualize_camera."
+                    )
 
 
 def main(args=None):
