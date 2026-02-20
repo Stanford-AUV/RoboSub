@@ -18,4 +18,4 @@ dash
 pyserial
 nats-py
 dataclasses-json
-pyrealsense2
+#pyrealsense2
