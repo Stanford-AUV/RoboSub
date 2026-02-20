@@ -119,9 +119,9 @@ class AlignedDepthPublisherNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    yaml_path = os.path.join(script_dir, "..", "cameras.yaml")
-    yaml_path = os.path.abspath(yaml_path)
+    from ament_index_python.packages import get_package_share_directory
+    package_share_dir = get_package_share_directory("perception")
+    yaml_path = os.path.join(package_share_dir, "cameras.yaml")
 
     node = AlignedDepthPublisherNode(yaml_path)
     try:
