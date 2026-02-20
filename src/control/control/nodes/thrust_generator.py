@@ -77,7 +77,12 @@ class ThrustGenerator(Node):
 def main(args=None):
     """Initialize and spin the ThrustGenerator node."""
     rclpy.init(args=args)
-    node = ThrustGenerator()
+
+    SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+    yaml_path = os.path.join(SCRIPT_DIR, "..","..", "..","hardware", "hardware" "thrusters.yaml")
+    yaml_path = os.path.abspath(yaml_path)
+
+    node = ThrustGenerator(yaml_path)
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
