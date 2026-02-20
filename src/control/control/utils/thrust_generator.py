@@ -14,8 +14,6 @@ def thruster_configs_to_TAM_inv(
 
     Parameters
     ----------
-    thruster_count : int
-        The number of thrusters.
     thruster_positions : np.ndarray
         The position of each thruster in the body frame.
     thruster_orientations : np.ndarray
@@ -27,15 +25,17 @@ def thruster_configs_to_TAM_inv(
         The thrust allocation matrix inverse.
 
     """
-    thruster_count = len(thruster_orientations) / 3
+    thruster_count = len(thruster_orientations)
     TAM = np.empty(shape=(6, thruster_count))
     TAM[:3, :] = thruster_orientations.T
     TAM[3:, :] = np.cross(thruster_positions, thruster_orientations).T
     TAM_inv = np.linalg.pinv(TAM)
     return TAM_inv
 
+
 max_wrench = np.array([0.4, 0.4, 0.4, 0.1, 0.1, 0.1])
 min_wrench = -max_wrench
+
 
 def total_force_to_individual_thrusts(TAM_inv: np.ndarray, wrench: Wrench):
     """

@@ -23,7 +23,7 @@ class ThrustGenerator(Node):
         super().__init__("thrust_generator")
 
         self.path = path
-        
+
         thruster_positions, thruster_orientations = self.get_yaml_info()
         self.TAM_inv = thruster_configs_to_TAM_inv(
             thruster_positions, thruster_orientations
@@ -31,9 +31,7 @@ class ThrustGenerator(Node):
 
         self.wrench = Wrench()
 
-        self._thrusts_pub = self.create_publisher(
-            ThrustsStamped, "/thrusts", 10
-        )
+        self._thrusts_pub = self.create_publisher(ThrustsStamped, "/thrusts", 10)
         self._wrench_sub = self.create_subscription(
             WrenchStamped, "/wrench", self.wrench_callback, 10
         )
@@ -53,9 +51,10 @@ class ThrustGenerator(Node):
 
         thruster_positions = []
         thruster_orientations = []
-        for key, val in data:
-            pos = [val['x'], val['y'], val['z']]
-            ori = [val['dx'], val['dy'], val['dz']]
+        for key in data:
+            val = data.get(key)
+            pos = [val["x"], val["y"], val["z"]]
+            ori = [val["dx"], val["dy"], val["dz"]]
             thruster_positions.append(pos)
             thruster_orientations.append(ori)
         return thruster_positions, thruster_orientations
@@ -79,7 +78,9 @@ def main(args=None):
     rclpy.init(args=args)
 
     SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-    yaml_path = os.path.join(SCRIPT_DIR, "..","..", "..","hardware", "hardware" "thrusters.yaml")
+    yaml_path = os.path.join(
+        SCRIPT_DIR, "..", "..", "..", "hardware", "hardware", "thrusters.yaml"
+    )
     yaml_path = os.path.abspath(yaml_path)
 
     node = ThrustGenerator(yaml_path)
