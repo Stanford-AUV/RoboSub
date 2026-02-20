@@ -64,6 +64,10 @@ RUN python3 -m venv /home/ros/env --system-site-packages --symlinks
 # Using --extra-index-url so PyPI remains available as fallback, and cu124 for Python 3.12 compatibility
 RUN /home/ros/env/bin/pip install --no-cache-dir torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu124
 
+# Install torch for system Python (used by ROS launch processes)
+# ROS launch spawns processes that don't inherit venv activation, so torch must be in system Python
+RUN pip3 install --no-cache-dir torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu124
+
 # Set up auto-source of workspace for ros user
 ARG WORKSPACE
 ENV WORKSPACE="/workspaces/Robosub"

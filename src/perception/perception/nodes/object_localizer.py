@@ -4,7 +4,12 @@
 import time
 import cv2
 import numpy as np
-import torch
+
+try:
+    import torch
+except Exception:
+    torch = None
+
 import rclpy
 from rclpy.node import Node
 from cv_bridge import CvBridge
@@ -62,6 +67,15 @@ class ObjectLocalizer(Node):
 
     def _resolve_inference_device(self, requested: str):
         """Resolve inference device: 'auto' (try GPU then CPU), 'cuda', or 'cpu'."""
+        if torch is None:
+            if requested in ("cuda", "auto"):
+                self.get_logger().warning(
+                    "PyTorch 'torch' module not available in this environment; "
+                    "using CPU for YOLO inference. Install torch in the ROS Python "
+                    "environment to enable GPU inference."
+                )
+            return "cpu"
+
         if requested == "cpu":
             return "cpu"
         if requested == "cuda":
@@ -94,6 +108,13 @@ class ObjectLocalizer(Node):
 
     def _log_cuda_unavailable_reason(self):
         """Log why CUDA is not available to help users fix GPU inference."""
+        if torch is None:
+            self.get_logger().info(
+                "PyTorch 'torch' module is not installed in this Python environment; "
+                "CUDA/GPU inference is unavailable."
+            )
+            return
+
         cuda_build = getattr(torch.version, "cuda", None)
         if cuda_build is None or cuda_build == "":
             self.get_logger().info(
