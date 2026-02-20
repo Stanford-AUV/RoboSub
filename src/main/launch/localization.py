@@ -33,5 +33,28 @@ def generate_launch_description():
                 name="ekf_filter_node",
                 parameters=[global_params],
             ),
+            Node(
+                package="tf2_ros",
+                executable="static_transform_publisher",
+                name="base_to_imu_tf",
+                arguments=[
+                    "-0.1525", "-0.02", "0.1375",   # x y z
+                    "-1.57079632679", "0.0", "1.57079632679", # roll pitch yaw (rad)
+                    "base_link",
+                    "imu_frame",
+                ],
+            ),
+            Node(
+                package="tf2_ros",
+                executable="static_transform_publisher",
+                name="base_to_dvl_tf",
+                arguments=[
+                    "-0.105", "0.0", "-0.0625",     # x y z
+                    "0.0", "0.0", "0.0",             # roll pitch yaw (rad)
+                    "base_link",
+                    "dvl_frame",
+                ],
+            ),
+
         ]
     )

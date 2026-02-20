@@ -1,3 +1,5 @@
+import os
+from glob import glob
 from setuptools import find_packages, setup
 import os
 from glob import glob
@@ -26,7 +28,7 @@ setup(
     entry_points={
         "console_scripts": [
             "thrust_generator = control.nodes.thrust_generator:main",
-            "controller = control.nodes.controller:main",
+            "pid_control = control.nodes.pid_control:main",
             "path_tracker = control.nodes.path_tracker:main",
             "test_path = control.nodes.test_path:main",
             "logger = control.nodes.logger:main",

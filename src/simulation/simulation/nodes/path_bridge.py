@@ -3,7 +3,7 @@ import sys
 
 # Add the correct lib/python path for custom msgs
 sys.path.append(
-    "/workspaces/RoboSub/build/custom_gz_plugins/custom_gz_plugins-msgs_genmsg/python"
+    "/workspaces/RoboSub2/build/custom_gz_plugins/custom_gz_plugins-msgs_genmsg/python"
 )
 
 import rclpy

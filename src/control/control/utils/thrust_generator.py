@@ -6,7 +6,6 @@ from geometry_msgs.msg import Wrench
 
 
 def thruster_configs_to_TAM_inv(
-    thruster_count: int,
     thruster_positions: np.ndarray,
     thruster_orientations: np.ndarray,
 ) -> np.ndarray:
@@ -28,6 +27,7 @@ def thruster_configs_to_TAM_inv(
         The thrust allocation matrix inverse.
 
     """
+    thruster_count = len(thruster_orientations) / 3
     TAM = np.empty(shape=(6, thruster_count))
     TAM[:3, :] = thruster_orientations.T
     TAM[3:, :] = np.cross(thruster_positions, thruster_orientations).T
