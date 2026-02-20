@@ -30,6 +30,8 @@ setup(
             "camera_viewer = perception.nodes.camera_viewer:main",
             "oak_node = perception.nodes.oak:main",
             "object_detection = perception.nodes.object_detections:main",
+            "aligned_depth_publisher = perception.nodes.aligned_depth_publisher:main",
+            "object_localizer = perception.nodes.object_localizer:main",
         ],
     },
 )
