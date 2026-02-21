@@ -1,3 +1,4 @@
+import copy
 import rclpy
 from sensor_msgs.msg import Imu
 import numpy as np
@@ -17,6 +18,13 @@ DISABLE_IMU_TRANSFORM = False
 class IMU(GenericSensor):
     def __init__(self):
         super().__init__("imu", "imu_0")
+
+        self._publishers = {
+            "rotation": self.create_publisher(Imu, "/rotation", 10),
+            "angular": self.create_publisher(Imu, "/angular", 10),
+            "accel": self.create_publisher(Imu, "/accel", 10),
+        }
+        self._imu_pub = self.create_publisher(Imu, "/imu/data/corrected", 10)
 
         self.imu_subscription = self.create_subscription(
             Imu, "/imu/data", self.imu_listener_callback, 10
