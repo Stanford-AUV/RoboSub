@@ -49,3 +49,14 @@ dvl_0:
   velocity: 123
   angular: 0
   accel: 0
+
+depth_0:
+  position_covariance:
+    - [1.0e9, 0.0,   0.0  ]
+    - [0.0,   1.0e9, 0.0  ]
+    - [0.0,   0.0,   0.01 ]
+  position: 3
+  rotation: 0
+  velocity: 0
+  angular: 0
+  accel: 0
