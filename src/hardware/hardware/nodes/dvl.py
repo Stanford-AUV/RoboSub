@@ -128,7 +128,7 @@ class DVL(GenericSensor):
             vx = self._safe(d["Velocity X"])
             vy = self._safe(d["Velocity Y"])
             vz = self._safe(d["Velocity Z"])
-            vel = self.robot_rot @ np.array([vx, vy, vz])
+            vel = self.R_sensor_to_base @ np.array([vx, vy, vz])
             vel_err = self._safe(d["Velocity Err"], default=None)
 
             twist_msg = TwistWithCovarianceStamped()
