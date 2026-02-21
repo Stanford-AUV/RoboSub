@@ -6,7 +6,7 @@ from geometry_msgs.msg import PoseWithCovarianceStamped, TwistWithCovarianceStam
 from sensor_msgs.msg import Imu
 
 
-METADATA_FIELDS = {"covariance", "robot_pos", "robot_rot"}
+METADATA_FIELDS = {"covariance", "sensor_pos_in_base", "R_sensor_to_base"}
 DATA_TYPES = {"position", "rotation", "velocity", "angular", "accel"}
 
 
@@ -14,8 +14,8 @@ class GenericSensor(Node):
     """Base class for all sensor nodes.
 
     Reads sensors.yaml to determine which data types (pos, rot, vel, ang_vel, accel)
-    are active and which axes each provides. Metadata fields (covariance, robot_pos,
-    robot_rot) are stored as instance variables for subclass use.
+    are active and which axes each provides. Metadata fields (covariance,
+    sensor_pos_in_base, R_sensor_to_base) are stored as instance variables for subclass use.
 
     Subclasses are responsible for:
       - Creating publishers with the appropriate message types for their
@@ -43,8 +43,8 @@ class GenericSensor(Node):
         }
 
         self.covariance = None
-        self.robot_pos = None
-        self.robot_rot = None
+        self.sensor_pos_in_base = None
+        self.R_sensor_to_base = None
 
         self._load_config()
 
@@ -76,13 +76,13 @@ class GenericSensor(Node):
             return
 
         self.covariance = sensor_data.get("covariance")
-        self.robot_pos = sensor_data.get("robot_pos")
+        self.sensor_pos_in_base = sensor_data.get("sensor_pos_in_base")
 
-        raw_rot = sensor_data.get("robot_rot")
+        raw_rot = sensor_data.get("R_sensor_to_base")
         if raw_rot is not None:
-            self.robot_rot = np.array(raw_rot, dtype=float)
+            self.R_sensor_to_base = np.array(raw_rot, dtype=float)
         else:
-            self.robot_rot = np.eye(3)
+            self.R_sensor_to_base = np.eye(3)
 
         for data_type in DATA_TYPES:
             raw_axes = sensor_data.get(data_type, 0)

@@ -3,9 +3,9 @@ imu_0:
     - [0.01, 0.0,  0.0 ]
     - [0.0,  0.01, 0.0 ]
     - [0.0,  0.0,  0.01]
-  robot_pos: #x, y, z on robot
-  # 3x3 rotation matrix: sensor frame → robot frame
-  robot_rot:
+  sensor_pos_in_base: #x, y, z on (base) robot frame
+  # 3x3 rotation matrix: sensor frame → base (robot) frame
+  R_sensor_to_base:
     - [0, 0, 1]
     - [1, 0, 0]
     - [0, 1, 0]
@@ -21,9 +21,9 @@ dvl_0:
     - [0.01, 0.0,  0.0 ]
     - [0.0,  0.01, 0.0 ]
     - [0.0,  0.0,  0.01]
-  robot_pos:
-  # 3x3 rotation matrix: sensor frame → robot frame
-  robot_rot:
+  sensor_pos_in_base:
+  # 3x3 rotation matrix: sensor frame → base (robot) frame
+  R_sensor_to_base:
     - [-0.70710678,  0.70710678, 0]
     - [-0.70710678, -0.70710678, 0]
     - [ 0,           0,          1]

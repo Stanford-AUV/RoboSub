@@ -12,7 +12,7 @@ DISABLE_IMU_TRANSFORM = True
 NUM_CALIBRATION_QUATERNIONS = 200
 
 COVARIANCE_IGNORE = [-1.0] + [0.0] * 8
-
+DISABLE_IMU_TRANSFORM = False
 
 class IMU(GenericSensor):
     def __init__(self):
@@ -22,7 +22,7 @@ class IMU(GenericSensor):
             Imu, "/imu/data", self.imu_listener_callback, 10
         )
 
-        self.R_calib = None
+        self.R_imu_to_base = None
 
         self.num_calibration_quaternions = 0
         self.calibration_quaternions = np.zeros((NUM_CALIBRATION_QUATERNIONS, 4))
@@ -78,7 +78,7 @@ class IMU(GenericSensor):
                     msg.orientation.w,
                 ])
                 q_matrix = R.from_quat(q).as_matrix()
-                transformed_q_matrix = self.robot_rot @ q_matrix @ self.robot_rot.T
+                transformed_q_matrix = self.R_sensor_to_base @ q_matrix @ self.R_sensor_to_base.T
                 transformed_q = R.from_matrix(transformed_q_matrix).as_quat()
                 transformed_q /= np.linalg.norm(transformed_q)
 
@@ -94,10 +94,10 @@ class IMU(GenericSensor):
     def _calculate_transformation_matrix(self):
         avg_quat = average_quaternions(self.calibration_quaternions)
         r_imu = R.from_quat(avg_quat)
-        r_robot = R.from_quat([0, 0, 0, 1])
-        self.r_imu_to_robot = r_robot * r_imu.inv()
-        self.R_calib = self.r_imu_to_robot.as_matrix()
-        self.get_logger().info(f"Calibrated with:\n{self.R_calib}")
+        r_base = R.from_quat([0, 0, 0, 1])
+        self.r_imu_to_base = r_base * r_imu.inv()
+        self.R_imu_to_base = self.r_imu_to_base.as_matrix()
+        self.get_logger().info(f"Calibrated with:\n{self.R_imu_to_base}")
 
     def _transform_orientation(self, msg):
         q = np.array(
@@ -105,7 +105,7 @@ class IMU(GenericSensor):
         )
         q_matrix = R.from_quat(q).as_matrix()
         transformed_q_matrix = (
-            self.R_calib @ self.robot_rot @ q_matrix @ self.robot_rot.T
+            self.R_imu_to_base @ self.R_sensor_to_base @ q_matrix @ self.R_sensor_to_base.T
         )
         transformed_q = R.from_matrix(transformed_q_matrix).as_quat()
         transformed_q /= np.linalg.norm(transformed_q)
@@ -115,13 +115,13 @@ class IMU(GenericSensor):
         angular_velocity = np.array(
             [msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z]
         )
-        return self.robot_rot @ angular_velocity
+        return self.R_sensor_to_base @ angular_velocity
 
     def _transform_linear_acceleration(self, msg):
         linear_acceleration = np.array(
             [msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z]
         )
-        return self.robot_rot @ linear_acceleration
+        return self.R_sensor_to_base @ linear_acceleration
 
     def _cov3x3(self):
         """Flatten 3×3 covariance matrix from sensors.yaml into 9-element list."""
