@@ -17,6 +17,11 @@ class DVL(GenericSensor):
     def __init__(self, baudrate=115200):
         super().__init__("dvl_ros_bridge", "dvl_0")
 
+        self._publishers = {
+            "position": self.create_publisher(PoseWithCovarianceStamped, "/position", 10),
+            "velocity": self.create_publisher(TwistWithCovarianceStamped, "/velocity", 10),
+        }
+
         self._latest_data = None
 
         if DEBUG_MODE:

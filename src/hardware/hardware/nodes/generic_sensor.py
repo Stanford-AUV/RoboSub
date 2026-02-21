@@ -2,8 +2,6 @@ from rclpy.node import Node
 import os
 import yaml
 import numpy as np
-from geometry_msgs.msg import PoseWithCovarianceStamped, TwistWithCovarianceStamped
-from sensor_msgs.msg import Imu
 
 
 METADATA_FIELDS = {"covariance", "sensor_pos_in_base", "R_sensor_to_base"}
@@ -20,6 +18,7 @@ class GenericSensor(Node):
     Subclasses are responsible for:
       - Creating publishers with the appropriate message types for their
         downstream consumers (e.g. sensor_msgs/Imu for robot_localization).
+      - Populating self._publishers with their data-type keyed publishers.
       - Implementing publish_sensor_data() to read hardware and publish.
       - Setting the correct frame_id (use a sensor-specific frame for raw data,
         or 'base_link' only after transforming to the body frame).
@@ -34,13 +33,7 @@ class GenericSensor(Node):
 
         self.sensor_name = sensor_name
         self.active_axes = {}
-        self._publishers = {
-            "position": self.create_publisher(PoseWithCovarianceStamped, "/position", 10),
-            "rotation": self.create_publisher(Imu, "/rotation", 10),
-            "velocity": self.create_publisher(TwistWithCovarianceStamped, "/velocity", 10),
-            "angular": self.create_publisher(Imu, "/angular", 10),
-            "accel": self.create_publisher(Imu, "/accel", 10)
-        }
+        self._publishers = {}
 
         self.covariance = None
         self.sensor_pos_in_base = None
