@@ -1,8 +1,16 @@
 imu_0:
-  covariance:
-    - [0.01, 0.0,  0.0 ]
-    - [0.0,  0.01, 0.0 ]
-    - [0.0,  0.0,  0.01]
+  rotation_covariance:
+    - [1.0, 0.0, 0.0]
+    - [0.0, 1.0, 0.0]
+    - [0.0, 0.0, 1.0]
+  angular_covariance:
+    - [1.0, 0.0, 0.0]
+    - [0.0, 1.0, 0.0]
+    - [0.0, 0.0, 1.0]
+  accel_covariance:
+    - [0.2, 0.0, 0.0]
+    - [0.0, 0.2, 0.0]
+    - [0.0, 0.0, 0.2]
   sensor_pos_in_base: #x, y, z on (base) robot frame
   # 3x3 rotation matrix: sensor frame → base (robot) frame
   R_sensor_to_base:
@@ -17,10 +25,6 @@ imu_0:
   accel: 123
 
 dvl_0:
-  covariance:
-    - [0.01, 0.0,  0.0 ]
-    - [0.0,  0.01, 0.0 ]
-    - [0.0,  0.0,  0.01]
   sensor_pos_in_base:
   # 3x3 rotation matrix: sensor frame → base (robot) frame
   R_sensor_to_base:
