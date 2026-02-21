@@ -1,89 +1,84 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Imu
+from geometry_msgs.msg import TwistWithCovarianceStamped
 import matplotlib.pyplot as plt
-from msgs.msg import DVLData
 
 
 class SensorsPlot(Node):
     def __init__(self):
         super().__init__("sensors_plot")
 
-        # Create subscribers for IMU and DVL
-        self.imu_sub = self.create_subscription(Imu, "/imu", self.imu_callback, 10)
-        self.dvl_sub = self.create_subscription(DVLData, "/dvl", self.dvl_callback, 10)
+        self.accel_sub = self.create_subscription(
+            Imu, "/accel", self.accel_callback, 10
+        )
+        self.angular_sub = self.create_subscription(
+            TwistWithCovarianceStamped, "/angular", self.angular_callback, 10
+        )
+        self.velocity_sub = self.create_subscription(
+            TwistWithCovarianceStamped, "/velocity", self.velocity_callback, 10
+        )
 
-        # Initialize plot
-        plt.ion()  # Enable interactive mode
+        plt.ion()
         self.fig = plt.figure(figsize=(12, 8))
 
-        # Create subplots
         self.ax_imu_accel = self.fig.add_subplot(221)
         self.ax_imu_gyro = self.fig.add_subplot(222)
         self.ax_dvl_vel = self.fig.add_subplot(223)
 
-        # Set titles
         self.ax_imu_accel.set_title("IMU Acceleration")
         self.ax_imu_gyro.set_title("IMU Angular Velocity")
         self.ax_dvl_vel.set_title("DVL Velocity")
 
-        # Initialize data history
-        self.time_history = []
         self.start_time = self.get_clock().now()
 
-        # IMU data history
+        self.accel_time = []
         self.accel_x_history = []
         self.accel_y_history = []
         self.accel_z_history = []
+
+        self.gyro_time = []
         self.gyro_x_history = []
         self.gyro_y_history = []
         self.gyro_z_history = []
 
-        # DVL data history
+        self.vel_time = []
         self.vel_x_history = []
         self.vel_y_history = []
         self.vel_z_history = []
 
-        # Last received values for DVL
-        self.last_vel_x = 0.0
-        self.last_vel_y = 0.0
-        self.last_vel_z = 0.0
-
-        # Plot update rate (in seconds)
         self.update_period = 0.1
         self.last_plot_time = self.get_clock().now()
 
-    def imu_callback(self, msg: Imu):
-        current_time = self.get_clock().now()
-        time_sec = (current_time - self.start_time).nanoseconds * 1e-9
+    def _elapsed(self):
+        return (self.get_clock().now() - self.start_time).nanoseconds * 1e-9
 
-        # Extract IMU data
+    def _maybe_update_plot(self):
+        now = self.get_clock().now()
+        if (now - self.last_plot_time).nanoseconds * 1e-9 >= self.update_period:
+            self.update_plot()
+            self.last_plot_time = now
+
+    def accel_callback(self, msg: Imu):
+        self.accel_time.append(self._elapsed())
         self.accel_x_history.append(msg.linear_acceleration.x)
         self.accel_y_history.append(msg.linear_acceleration.y)
         self.accel_z_history.append(msg.linear_acceleration.z)
-        self.gyro_x_history.append(msg.angular_velocity.x)
-        self.gyro_y_history.append(msg.angular_velocity.y)
-        self.gyro_z_history.append(msg.angular_velocity.z)
+        self._maybe_update_plot()
 
-        # Add DVL data using last known values
-        self.vel_x_history.append(self.last_vel_x)
-        self.vel_y_history.append(self.last_vel_y)
-        self.vel_z_history.append(self.last_vel_z)
+    def angular_callback(self, msg: TwistWithCovarianceStamped):
+        self.gyro_time.append(self._elapsed())
+        self.gyro_x_history.append(msg.twist.twist.angular.x)
+        self.gyro_y_history.append(msg.twist.twist.angular.y)
+        self.gyro_z_history.append(msg.twist.twist.angular.z)
+        self._maybe_update_plot()
 
-        self.time_history.append(time_sec)
-
-        # Update plot periodically
-        if (
-            current_time - self.last_plot_time
-        ).nanoseconds * 1e-9 >= self.update_period:
-            self.update_plot()
-            self.last_plot_time = current_time
-
-    def dvl_callback(self, msg: DVLData):
-        # Store latest DVL values
-        self.last_vel_x = msg.velocity.mean.x
-        self.last_vel_y = msg.velocity.mean.y
-        self.last_vel_z = msg.velocity.mean.z
+    def velocity_callback(self, msg: TwistWithCovarianceStamped):
+        self.vel_time.append(self._elapsed())
+        self.vel_x_history.append(msg.twist.twist.linear.x)
+        self.vel_y_history.append(msg.twist.twist.linear.y)
+        self.vel_z_history.append(msg.twist.twist.linear.z)
+        self._maybe_update_plot()
 
     def update_plot(self):
         # Clear all plots
@@ -91,28 +86,25 @@ class SensorsPlot(Node):
         self.ax_imu_gyro.cla()
         self.ax_dvl_vel.cla()
 
-        # Plot IMU acceleration
-        self.ax_imu_accel.plot(self.time_history, self.accel_x_history, "r-", label="X")
-        self.ax_imu_accel.plot(self.time_history, self.accel_y_history, "g-", label="Y")
-        self.ax_imu_accel.plot(self.time_history, self.accel_z_history, "b-", label="Z")
+        self.ax_imu_accel.plot(self.accel_time, self.accel_x_history, "r-", label="X")
+        self.ax_imu_accel.plot(self.accel_time, self.accel_y_history, "g-", label="Y")
+        self.ax_imu_accel.plot(self.accel_time, self.accel_z_history, "b-", label="Z")
         self.ax_imu_accel.set_xlabel("Time (s)")
         self.ax_imu_accel.set_ylabel("Acceleration (m/s²)")
         self.ax_imu_accel.grid(True)
         self.ax_imu_accel.legend()
 
-        # Plot IMU angular velocity
-        self.ax_imu_gyro.plot(self.time_history, self.gyro_x_history, "r-", label="X")
-        self.ax_imu_gyro.plot(self.time_history, self.gyro_y_history, "g-", label="Y")
-        self.ax_imu_gyro.plot(self.time_history, self.gyro_z_history, "b-", label="Z")
+        self.ax_imu_gyro.plot(self.gyro_time, self.gyro_x_history, "r-", label="X")
+        self.ax_imu_gyro.plot(self.gyro_time, self.gyro_y_history, "g-", label="Y")
+        self.ax_imu_gyro.plot(self.gyro_time, self.gyro_z_history, "b-", label="Z")
         self.ax_imu_gyro.set_xlabel("Time (s)")
         self.ax_imu_gyro.set_ylabel("Angular Velocity (rad/s)")
         self.ax_imu_gyro.grid(True)
         self.ax_imu_gyro.legend()
 
-        # Plot DVL velocity
-        self.ax_dvl_vel.plot(self.time_history, self.vel_x_history, "r-", label="X")
-        self.ax_dvl_vel.plot(self.time_history, self.vel_y_history, "g-", label="Y")
-        self.ax_dvl_vel.plot(self.time_history, self.vel_z_history, "b-", label="Z")
+        self.ax_dvl_vel.plot(self.vel_time, self.vel_x_history, "r-", label="X")
+        self.ax_dvl_vel.plot(self.vel_time, self.vel_y_history, "g-", label="Y")
+        self.ax_dvl_vel.plot(self.vel_time, self.vel_z_history, "b-", label="Z")
         self.ax_dvl_vel.set_xlabel("Time (s)")
         self.ax_dvl_vel.set_ylabel("Velocity (m/s)")
         self.ax_dvl_vel.grid(True)
