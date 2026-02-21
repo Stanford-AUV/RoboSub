@@ -77,49 +77,45 @@ class DVL(GenericSensor):
     def _safe(value, default=0.0):
         return default if np.isnan(value) else float(value)
 
-    def _yaml_cov(self, r, c):
-        """Return a single entry from the 3×3 yaml covariance matrix."""
-        if self.covariance is not None:
-            return float(self.covariance[r][c])
-        return 0.0
-
     def _build_twist_cov(self, velocity_error=None):
         cov = np.zeros(36)
         vel_axes = self.get_axes("velocity")
-        
+        vel_cov = self.get_covariance("velocity")
+
         for i in range(3):
             cov[i * 6 + i] = _BIG
-            
+
         if vel_axes:
             if velocity_error is not None:
                 var = velocity_error ** 2
                 for axis in vel_axes:
                     idx = axis - 1
                     cov[idx * 6 + idx] = var
-            elif self.covariance is not None:
+            elif vel_cov is not None:
                 for r in range(3):
                     for c in range(3):
                         if (r + 1) in vel_axes and (c + 1) in vel_axes:
-                            cov[r * 6 + c] = float(self.covariance[r][c])
-        
+                            cov[r * 6 + c] = float(vel_cov[r][c])
+
         cov[3 * 6 + 3] = _BIG
         cov[4 * 6 + 4] = _BIG
         cov[5 * 6 + 5] = _BIG
-        
+
         return cov.tolist()
 
     def _build_pose_cov(self):
         cov = np.zeros(36)
         pos_axes = self.get_axes("position")
-        
+        pos_cov = self.get_covariance("position")
+
         for i in range(3):
             cov[i * 6 + i] = _BIG
-            
-        if self.covariance is not None and pos_axes:
+
+        if pos_cov is not None and pos_axes:
             for axis in pos_axes:
                 idx = axis - 1
-                cov[idx * 6 + idx] = self._yaml_cov(idx, idx)
-        
+                cov[idx * 6 + idx] = float(pos_cov[idx][idx])
+
         return cov.tolist()
 
     def publish_sensor_data(self):

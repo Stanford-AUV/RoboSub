@@ -1,3 +1,5 @@
+##### NOTE: This node is not used in the current implementation (ekf.yaml). It is kept here for reference."
+
 """This node converts sensor messages sent from the hardware into a unified format for use for state estimation."""
 
 import rclpy
