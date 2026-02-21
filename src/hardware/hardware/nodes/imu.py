@@ -18,15 +18,15 @@ class IMU(GenericSensor):
         super().__init__("imu", "imu_0")
 
         if self.is_active("rotation"):
-            self._publishers["rotation"] = self.create_publisher(
+            self.sensor_publishers["rotation"] = self.create_publisher(
                 PoseWithCovarianceStamped, "/rotation", 10
             )
         if self.is_active("angular"):
-            self._publishers["angular"] = self.create_publisher(
+            self.sensor_publishers["angular"] = self.create_publisher(
                 TwistWithCovarianceStamped, "/angular", 10
             )
         if self.is_active("accel"):
-            self._publishers["accel"] = self.create_publisher(Imu, "/accel", 10)
+            self.sensor_publishers["accel"] = self.create_publisher(Imu, "/accel", 10)
 
         self.imu_subscription = self.create_subscription(
             Imu, "/imu/data", self._imu_callback, 10
@@ -123,7 +123,7 @@ class IMU(GenericSensor):
             rot_msg.header.frame_id = "imu_frame"
             rot_msg.pose.pose.orientation = msg.orientation
             rot_msg.pose.covariance = self._build_rotation_cov()
-            self._publishers["rotation"].publish(rot_msg)
+            self.sensor_publishers["rotation"].publish(rot_msg)
 
         if self.is_active("angular"):
             ang_msg = TwistWithCovarianceStamped()
@@ -131,7 +131,7 @@ class IMU(GenericSensor):
             ang_msg.header.frame_id = "imu_frame"
             ang_msg.twist.twist.angular = msg.angular_velocity
             ang_msg.twist.covariance = self._build_angular_cov()
-            self._publishers["angular"].publish(ang_msg)
+            self.sensor_publishers["angular"].publish(ang_msg)
 
         if self.is_active("accel"):
             accel_msg = Imu()
@@ -142,7 +142,7 @@ class IMU(GenericSensor):
             # Signal that orientation and angular velocity are not provided
             accel_msg.orientation_covariance = [-1.0] + [0.0] * 8
             accel_msg.angular_velocity_covariance = [-1.0] + [0.0] * 8
-            self._publishers["accel"].publish(accel_msg)
+            self.sensor_publishers["accel"].publish(accel_msg)
 
 
 def main(args=None):
