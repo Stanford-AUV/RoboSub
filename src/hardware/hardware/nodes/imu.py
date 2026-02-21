@@ -22,23 +22,22 @@ class IMU(GenericSensor):
 
     def imu_listener_callback(self, msg: Imu):
 
-        w = np.array([out.angular_velocity.x, out.angular_velocity.y, out.angular_velocity.z], dtype=float)
+        w = np.array([msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z], dtype=float)
         w -= GYRO_BIAS
-        out.angular_velocity.x, out.angular_velocity.y, out.angular_velocity.z = w.tolist()
+        msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z = w.tolist()
 
-        if not out.header.frame_id:
-            out.header.frame_id = "imu_frame"
+        msg.header.frame_id = "imu_frame"
 
-        q = np.array([out.orientation.x, out.orientation.y,
-                       out.orientation.z, out.orientation.w], dtype=float)
+        q = np.array([msg.orientation.x, msg.orientation.y,
+                      msg.orientation.z, msg.orientation.w], dtype=float)
         if (not np.all(np.isfinite(q))) or (np.linalg.norm(q) < 1e-6):
             self.get_logger().warn("Invalid IMU quaternion; dropping msg")
             return
 
         q /= np.linalg.norm(q)
-        out.orientation.x, out.orientation.y, out.orientation.z, out.orientation.w = q.tolist()
+        msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w = q.tolist()
 
-        self._imu_pub.publish(out)
+        self._imu_pub.publish(msg)
 
     def publish_sensor_data(self):
         pass
