@@ -173,4 +173,4 @@ def create_path(x, y, z, theta_x, theta_y, theta_z, max_velocity = 1, max_accele
     a_x, a_y, a_z = accelerations
     angular_accelerations = quaternion_spline.angular_acceleration(t_fine) #orientation_spline(t_fine, 2)
 
-    return positions, velocities, accelerations, orientations, angular_velocities, angular_accelerations
+    return positions, velocities, accelerations, orientations, angular_velocities, angular_accelerations, final_x[-1]
