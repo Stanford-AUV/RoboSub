@@ -7,5 +7,4 @@ colcon build \
         --cmake-args \
                 -DCMAKE_BUILD_TYPE=RelWithDebInfo \
                 -Wall -Wextra -Wpedantic \
-        
         --base-paths .
