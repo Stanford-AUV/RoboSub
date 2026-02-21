@@ -9,49 +9,48 @@ ekf_filter_node:
     frequency: 10.0
     sensor_timeout: 0.2
     
-    position: "/position"
-    position_config: [true, true, true,  # x_pos, y_pos, z_pos,
+    pose0: "/position"
+    pose0_config: [true, true, true,    # x_pos, y_pos, z_pos,
                   false, false, false,  # roll, pitch, yaw,
                   false, false, false,  # x_vel, y_vel, z_vel,
                   false, false, false,  # roll_vel, pitch_vel, yaw_vel,
                   false, false, false]  # x_accel, y_accel, z_accel
-    position_differential: false
-    position_relative: false
+    pose0_differential: false
+    pose0_relative: false
 
-    rotation: "/rotation"
-    rotation_config: [false, false, false,  # x_pos, y_pos, z_pos,
-                  true, true, true,  # roll, pitch, yaw,
+    pose1: "/rotation"
+    pose1_config: [false, false, false,  # x_pos, y_pos, z_pos,
+                  true, true, true,     # roll, pitch, yaw,
                   false, false, false,  # x_vel, y_vel, z_vel,
                   false, false, false,  # roll_vel, pitch_vel, yaw_vel,
                   false, false, false]  # x_accel, y_accel, z_accel
-    rotation_differential: false
-    rotation_relative: true
+    pose1_differential: false
+    pose1_relative: true
 
-    velocity: "/velocity"
-    velocity_config: [false, false, false,  # x_pos, y_pos, z_pos,
+    twist0: "/velocity"
+    twist0_config: [false, false, false,  # x_pos, y_pos, z_pos,
+                  false, false, false,    # roll, pitch, yaw,
+                  true, true, true,       # x_vel, y_vel, z_vel,
+                  false, false, false,    # roll_vel, pitch_vel, yaw_vel,
+                  false, false, false]    # x_accel, y_accel, z_accel
+    twist0_differential: false
+    twist0_relative: false
+
+    twist1: "/angular"
+    twist1_config: [false, false, false,  # x_pos, y_pos, z_pos,
+                  false, false, false,    # roll, pitch, yaw,
+                  false, false, false,    # x_vel, y_vel, z_vel,
+                  true, true, true,       # roll_vel, pitch_vel, yaw_vel,
+                  false, false, false]    # x_accel, y_accel, z_accel
+    twist1_differential: false
+    twist1_relative: true
+
+    imu0: "/accel"
+    imu0_config: [false, false, false,  # x_pos, y_pos, z_pos,
                   false, false, false,  # roll, pitch, yaw,
-                  true, true, true,  # x_vel, y_vel, z_vel,
-                  false, false, false,  # roll_vel, pitch_vel, yaw_vel,
-                  false, false, false]  # x_accel, y_accel, z_accel
-    velocity_differential: false
-    velocity_relative: false
-
-    angular: "/angular"
-    angular_config: [false, false, false,  # x_pos, y_pos, z_pos,
-                  false, false, false, # roll, pitch, yaw,
-                  false, false, false,  # x_vel, y_vel, z_vel,
-                  true, true, true,  # roll_vel, pitch_vel, yaw_vel,
-                  false, false, false]  # x_accel, y_accel, z_accel
-    angular_differential: false
-    angular_relative: true
-
-    accel: "/accel"
-    accel_config: [false, false, false,  # x_pos, y_pos, z_pos,
-                  false, false, false,  # roll, pitch, yaw,
                   false, false, false,  # x_vel, y_vel, z_vel,
                   false, false, false,  # roll_vel, pitch_vel, yaw_vel,
-                  true, true, true]  # x_accel, y_accel, z_accel
-    accel_differential: false
-    accel_relative: false
-    accel_remove_gravitational_acceleration: true
-
+                  true, true, true]     # x_accel, y_accel, z_accel
+    imu0_differential: false
+    imu0_relative: false
+    imu0_remove_gravitational_acceleration: true

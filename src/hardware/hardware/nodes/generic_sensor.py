@@ -4,16 +4,20 @@ import yaml
 import numpy as np
 
 
-METADATA_FIELDS = {"covariance", "sensor_pos_in_base", "R_sensor_to_base"}
 DATA_TYPES = {"position", "rotation", "velocity", "angular", "accel"}
+METADATA_FIELDS = (
+    {"sensor_pos_in_base", "R_sensor_to_base"}
+    | {f"{dt}_covariance" for dt in DATA_TYPES}
+)
 
 
 class GenericSensor(Node):
     """Base class for all sensor nodes.
 
     Reads sensors.yaml to determine which data types (pos, rot, vel, ang_vel, accel)
-    are active and which axes each provides. Metadata fields (covariance,
-    sensor_pos_in_base, R_sensor_to_base) are stored as instance variables for subclass use.
+    are active and which axes each provides. Per-data-type covariances
+    (e.g. rotation_covariance) are accessible via get_covariance(). Metadata fields
+    (sensor_pos_in_base, R_sensor_to_base) are stored as instance variables.
 
     Subclasses are responsible for:
       - Creating publishers with the appropriate message types for their
@@ -35,7 +39,7 @@ class GenericSensor(Node):
         self.active_axes = {}
         self._publishers = {}
 
-        self.covariance = None
+        self._type_covariances = {}
         self.sensor_pos_in_base = None
         self.R_sensor_to_base = None
 
@@ -68,7 +72,11 @@ class GenericSensor(Node):
             )
             return
 
-        self.covariance = sensor_data.get("covariance")
+        for data_type in DATA_TYPES:
+            type_cov = sensor_data.get(f"{data_type}_covariance")
+            if type_cov is not None:
+                self._type_covariances[data_type] = type_cov
+
         self.sensor_pos_in_base = sensor_data.get("sensor_pos_in_base")
 
         raw_rot = sensor_data.get("R_sensor_to_base")
@@ -95,6 +103,10 @@ class GenericSensor(Node):
     def get_axes(self, data_type):
         """Return the list of active axis indices for a data type, e.g. [1, 2, 3]."""
         return self.active_axes.get(data_type, [])
+
+    def get_covariance(self, data_type):
+        """Return the 3x3 covariance for *data_type*, or None if not configured."""
+        return self._type_covariances.get(data_type)
 
     def publish_sensor_data(self):
         """Read from hardware and publish sensor data.
