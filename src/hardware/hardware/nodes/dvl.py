@@ -73,10 +73,7 @@ class DVL(GenericSensor):
         self._latest_data = data_dict
         self.publish_sensor_data()
 
-    @staticmethod
-    def _safe(value, default=0.0):
-        return default if np.isnan(value) else float(value)
-
+    
     def _build_twist_cov(self, velocity_error=None):
         cov = np.zeros(36)
         vel_axes = self.get_axes("velocity")

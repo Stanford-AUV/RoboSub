@@ -117,3 +117,7 @@ class GenericSensor(Node):
         raise NotImplementedError(
             f"{self.__class__.__name__} must implement publish_sensor_data()"
         )
+
+    @staticmethod
+    def _safe(value, default=0.0):
+        return default if np.isnan(value) else float(value)
