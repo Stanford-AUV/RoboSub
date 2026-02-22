@@ -2,6 +2,11 @@ FROM althack/ros2:jazzy-full-2024-12-01
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Set CUDA environment variables
+ENV CUDA_HOME=/usr/local/cuda-12
+ENV PATH=/usr/local/cuda-12/bin:${PATH}
+ENV LD_LIBRARY_PATH=/usr/local/cuda-12/lib64:/usr/lib/aarch64-linux-gnu/nvidia:/usr/lib/aarch64-linux-gnu/tegra:${LD_LIBRARY_PATH}
+
 # Refresh ROS GPG key + source
 RUN rm -f /usr/share/keyrings/ros-archive-keyring.gpg /etc/apt/sources.list.d/ros2.list && \
     curl -fsSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
@@ -26,7 +31,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 ENV DEBIAN_FRONTEND=dialog
 
-ENV USER ros
+ENV USER=ros
 
 # Setup IMU Utils
 RUN apt-get update && apt-get install -y kmod \
@@ -59,6 +64,23 @@ RUN service ssh restart
 # Set up auto-source of workspace for ros user
 ARG WORKSPACE
 RUN python3 -m venv /home/ros/env --system-site-packages --symlinks
+
+# PyTorch with CUDA for Jetson (JP6 CUDA 12.6) - using Jetson AI Lab PyPI
+RUN /home/ros/env/bin/pip install --no-cache-dir \
+    --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
+    torch torchvision torchaudio
+
+# Install ultralytics (YOLO) in venv
+RUN /home/ros/env/bin/pip install --no-cache-dir ultralytics
+
+# Install PyTorch for system Python (Jetson version from AI Lab PyPI)
+RUN python3 -m pip install --break-system-packages --no-cache-dir \
+    --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
+    torch torchvision torchaudio
+
+# Install ultralytics for system Python (allow dependency flexibility)
+RUN python3 -m pip install --break-system-packages --no-cache-dir ultralytics || \
+    python3 -m pip install --break-system-packages --no-cache-dir --no-deps ultralytics
 
 # Set up auto-source of workspace for ros user
 ARG WORKSPACE

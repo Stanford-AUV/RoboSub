@@ -1,0 +1,284 @@
+#!/usr/bin/env python3
+"""Camera-agnostic object localizer: subscribes to AlignedDepthImage, runs YOLO + depth lookup + deprojection."""
+
+import time
+import cv2
+import numpy as np
+
+try:
+    import torch
+except Exception:
+    torch = None
+
+import rclpy
+from rclpy.node import Node
+from cv_bridge import CvBridge
+from geometry_msgs.msg import Pose
+from vision_msgs.msg import (
+    Detection3D,
+    Detection3DArray,
+    ObjectHypothesisWithPose,
+)
+from msgs.msg import AlignedDepthImage
+from ultralytics import YOLO
+
+
+class ObjectLocalizer(Node):
+    def __init__(self):
+        super().__init__("object_localizer")
+
+        self.declare_parameter("model_name", "yolo-Weights/yolov8n.pt")
+        self.declare_parameter("object_id", "person")
+        self.declare_parameter("camera_key", "oak_0")
+        self.declare_parameter("aligned_topic", "")
+        self.declare_parameter("visualize_camera", True)
+        self.declare_parameter("print_positions", False)
+        self.declare_parameter("timing_info", False)
+        self.declare_parameter("inference_device", "auto")  # "auto" | "cuda" | "cpu"
+
+        self._model_name = self.get_parameter("model_name").get_parameter_value().string_value
+        self._object_id = self.get_parameter("object_id").get_parameter_value().string_value
+        camera_key = self.get_parameter("camera_key").get_parameter_value().string_value
+        aligned_topic = self.get_parameter("aligned_topic").get_parameter_value().string_value
+        if not aligned_topic:
+            aligned_topic = f"/camera/{camera_key}/aligned"
+        self._visualize_camera = self.get_parameter("visualize_camera").get_parameter_value().bool_value
+        self._print_positions = self.get_parameter("print_positions").get_parameter_value().bool_value
+
+        self._model = YOLO(self._model_name)
+        device_param = self.get_parameter("inference_device").get_parameter_value().string_value
+        self._inference_device = self._resolve_inference_device(device_param)
+        self.get_logger().info(f"YOLO inference device: {self._inference_device}")
+        self._bridge = CvBridge()
+
+        self._sub = self.create_subscription(
+            AlignedDepthImage,
+            aligned_topic,
+            self._callback,
+            10,
+        )
+        self._pub = self.create_publisher(Detection3DArray, "detections3d", 10)
+        self._callback_count = 0
+        self.get_logger().info(
+            f"Subscribed to {aligned_topic}, publishing detections3d "
+            f"(visualize_camera={self._visualize_camera}, print_positions={self._print_positions})"
+        )
+        self.timing_info = self.get_parameter("timing_info").get_parameter_value().bool_value
+
+    def _resolve_inference_device(self, requested: str):
+        """Resolve inference device: 'auto' (try GPU then CPU), 'cuda', or 'cpu'."""
+        if torch is None:
+            if requested in ("cuda", "auto"):
+                self.get_logger().warning(
+                    "PyTorch 'torch' module not available in this environment; "
+                    "using CPU for YOLO inference. Install torch in the ROS Python "
+                    "environment to enable GPU inference."
+                )
+            return "cpu"
+
+        if requested == "cpu":
+            return "cpu"
+        if requested == "cuda":
+            if not torch.cuda.is_available():
+                self._log_cuda_unavailable_reason()
+                self.get_logger().warning(
+                    "inference_device=cuda but CUDA not available; falling back to CPU. "
+                    "Set inference_device:=cpu to silence, or fix CUDA (see logs above)."
+                )
+                return "cpu"
+            try:
+                dummy = np.zeros((640, 640, 3), dtype=np.uint8)
+                list(self._model(dummy, stream=True, device="cuda", verbose=False))
+                return "cuda"
+            except Exception as e:
+                self.get_logger().warning(f"GPU inference failed, using CPU: {e}")
+                return "cpu"
+        # requested == "auto"
+        if not torch.cuda.is_available():
+            self._log_cuda_unavailable_reason()
+            self.get_logger().info("CUDA not available, using CPU for YOLO inference")
+            return "cpu"
+        try:
+            dummy = np.zeros((640, 640, 3), dtype=np.uint8)
+            list(self._model(dummy, stream=True, device="cuda", verbose=False))
+            return "cuda"
+        except Exception as e:
+            self.get_logger().warning(f"GPU inference failed, using CPU: {e}")
+            return "cpu"
+
+    def _log_cuda_unavailable_reason(self):
+        """Log why CUDA is not available to help users fix GPU inference."""
+        if torch is None:
+            self.get_logger().info(
+                "PyTorch 'torch' module is not installed in this Python environment; "
+                "CUDA/GPU inference is unavailable."
+            )
+            return
+
+        cuda_build = getattr(torch.version, "cuda", None)
+        if cuda_build is None or cuda_build == "":
+            self.get_logger().info(
+                "PyTorch was built without CUDA (CPU-only). For GPU inference: "
+                "install CUDA-enabled PyTorch, e.g. pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121"
+            )
+        else:
+            try:
+                torch.zeros(1).cuda()
+            except Exception as e:
+                self.get_logger().info(
+                    f"PyTorch has CUDA build ({cuda_build}) but runtime failed: {e}. "
+                    "Ensure NVIDIA drivers and, in Docker, use --gpus all (nvidia-container-toolkit)."
+                )
+
+    def destroy_node(self):
+        if self._visualize_camera:
+            try:
+                cv2.destroyAllWindows()
+            except Exception:
+                pass
+        super().destroy_node()
+
+    def _callback(self, msg: AlignedDepthImage):
+        t0 = time.perf_counter()
+        try:
+            rgb = self._bridge.imgmsg_to_cv2(msg.rgb, "bgr8")
+        except Exception as e:
+            self.get_logger().error(f"Error decoding RGB: {e}")
+            return
+        try:
+            depth = self._bridge.imgmsg_to_cv2(msg.depth, "passthrough")
+        except Exception as e:
+            self.get_logger().error(f"Error decoding depth: {e}")
+            return
+        t1 = time.perf_counter()
+
+        if depth.dtype != np.uint16:
+            depth = np.asarray(depth, dtype=np.uint16)
+
+        k = np.array(msg.camera_info.k).reshape(3, 3)
+        fx, fy = k[0, 0], k[1, 1]
+        cx, cy = k[0, 2], k[1, 2]
+        frame_id = msg.camera_info.header.frame_id
+        stamp = msg.rgb.header.stamp
+
+        try:
+            results = self._model(rgb, stream=True, device=self._inference_device)
+        except Exception as e:
+            self.get_logger().error(f"YOLO error: {e}")
+            return
+        t2 = time.perf_counter()
+
+        detections_3d = Detection3DArray()
+        detections_3d.header.stamp = stamp
+        detections_3d.header.frame_id = frame_id
+        vis_items = [] if self._visualize_camera else None
+
+        h, w = rgb.shape[:2]
+        for res in results:
+            boxes = res.boxes.xyxy.cpu().numpy()
+            scores = res.boxes.conf.cpu().numpy()
+            classes = res.boxes.cls.cpu().numpy()
+
+            for box, score, cls in zip(boxes, scores, classes):
+                class_name = self._model.names[int(cls)]
+                if class_name != self._object_id:
+                    continue
+
+                x1, y1, x2, y2 = box
+                cx_px = (x1 + x2) / 2.0
+                cy_px = (y1 + y2) / 2.0
+
+                u, v = int(round(cx_px)), int(round(cy_px))
+                if not (0 <= u < depth.shape[1] and 0 <= v < depth.shape[0]):
+                    continue
+                z_mm = float(depth[v, u])
+                if z_mm <= 0:
+                    continue
+
+                z_m = z_mm / 1000.0
+                x_cam = (cx_px - cx) * z_m / fx
+                y_cam = (cy_px - cy) * z_m / fy
+
+                world_top_left = np.array([x1, y1, 1.0])
+                world_bottom_right = np.array([x2, y2, 1.0])
+                k_inv = np.linalg.inv(k)
+                ptl = z_m * (k_inv @ world_top_left)
+                pbr = z_m * (k_inv @ world_bottom_right)
+                size_x = abs(pbr[0] - ptl[0])
+                size_y = abs(pbr[1] - ptl[1])
+
+                detection = Detection3D()
+                detection.header = detections_3d.header
+                hypo = ObjectHypothesisWithPose()
+                hypo.hypothesis.class_id = class_name
+                hypo.hypothesis.score = float(score)
+                hypo.pose.pose.orientation.w = 1.0
+                detection.results.append(hypo)
+
+                center = Pose()
+                center.position.x = x_cam
+                center.position.y = y_cam
+                center.position.z = z_m
+                detection.bbox.center = center
+                detection.bbox.size.x = size_x
+                detection.bbox.size.y = size_y
+                detection.bbox.size.z = 0.0
+
+                detections_3d.detections.append(detection)
+                if vis_items is not None:
+                    vis_items.append((box, score, class_name, x_cam, y_cam, z_m))
+
+        t3 = time.perf_counter()
+        self._pub.publish(detections_3d)
+
+        if self._print_positions and detections_3d.detections:
+            for det in detections_3d.detections:
+                c = det.bbox.center.position
+                label = det.results[0].hypothesis.class_id if det.results else "?"
+                score = det.results[0].hypothesis.score if det.results else 0.0
+                self.get_logger().info(f"detection: {label} score={score:.2f} x={c.x:.3f} y={c.y:.3f} z={c.z:.3f} m")
+
+        if self._visualize_camera and vis_items is not None:
+            try:
+                vis = rgb.copy()
+                for box, score, class_name, x_cam, y_cam, z_m in vis_items:
+                    x1, y1, x2, y2 = map(int, box)
+                    cv2.rectangle(vis, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    cv2.putText(vis, f"{class_name} {score:.2f}", (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                    cv2.putText(vis, f"x={x_cam:.2f} y={y_cam:.2f} z={z_m:.2f}m", (x1, y2 + 16), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                cv2.imshow("object_localizer", vis)
+                cv2.waitKey(1)
+            except Exception as e:
+                if not getattr(self, "_visualize_display_warned", False):
+                    self._visualize_display_warned = True
+                    self.get_logger().warning(
+                        f"Could not show visualization (display unavailable?): {e}. "
+                        "Set DISPLAY for your session (e.g. unset DISPLAY or export DISPLAY=:0) or run without visualize_camera."
+                    )
+        t4 = time.perf_counter()
+
+        self._callback_count += 1
+        decode_ms = (t1 - t0) * 1000
+        yolo_ms = (t2 - t1) * 1000
+        postprocess_ms = (t3 - t2) * 1000
+        publish_vis_ms = (t4 - t3) * 1000
+        total_ms = (t4 - t0) * 1000
+        if self.timing_info and (self._callback_count % 30 == 0 or total_ms > 100.0):
+            self.get_logger().info(
+                f"object_localizer timing (cb #{self._callback_count}): "
+                f"decode={decode_ms:.1f}ms yolo={yolo_ms:.1f}ms postprocess={postprocess_ms:.1f}ms publish_vis={publish_vis_ms:.1f}ms total={total_ms:.1f}ms"
+            )
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = ObjectLocalizer()
+    try:
+        rclpy.spin(node)
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == "__main__":
+    main()
