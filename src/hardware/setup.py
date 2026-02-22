@@ -25,7 +25,6 @@ setup(
             "imu = hardware.nodes.imu:main",
             "imu_plot_orientation = hardware.nodes.imu_plot_orientation:main",
             "dvl = hardware.nodes.dvl:main",
-            # "sensors = hardware.nodes.sensors:main",
             "arduino = hardware.nodes.arduino:main",
             "localization_test = hardware.nodes.localization_test:main",
             "localization_plot = hardware.nodes.localization_plot:main",

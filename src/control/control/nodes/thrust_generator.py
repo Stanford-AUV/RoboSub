@@ -25,7 +25,6 @@ class ThrustGenerator(Node):
         self.path = path
 
         thruster_positions, thruster_orientations = self.get_yaml_info()
-        self.get_logger().info("hello")
         self.TAM_inv = thruster_configs_to_TAM_inv(
             thruster_positions, thruster_orientations
         )
@@ -58,7 +57,6 @@ class ThrustGenerator(Node):
             ori = [val["dx"], val["dy"], val["dz"]]
             thruster_positions.append(pos)
             thruster_orientations.append(ori)
-        self.get_logger().info(f"hello {thruster_orientations}")
         return np.array(thruster_positions, dtype=float), np.array(
             thruster_orientations, dtype=float
         )

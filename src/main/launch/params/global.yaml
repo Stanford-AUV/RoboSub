@@ -3,7 +3,6 @@
     timer_period: 0.01
     history_depth: 10
     thruster_count: 8
-
 /forward_cam:
   ros__parameters:
     camera:
