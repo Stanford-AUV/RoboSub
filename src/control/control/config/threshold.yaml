@@ -1,0 +1,23 @@
+publish_hz: 10.0
+dwell_s: 0.1
+cooldown_s: 0.01
+
+pos:         # meters
+  x: 0.10
+  y: 0.10
+  z: 0.10
+
+rpy_deg:     # degrees
+  roll: 60.0
+  pitch: 60.0
+  yaw: 5.0
+
+vel:         # m/s
+  x: 0.05
+  y: 0.05
+  z: 0.05
+
+ang_vel:     # rad/s
+  x: 0.05
+  y: 0.05
+  z: 0.05

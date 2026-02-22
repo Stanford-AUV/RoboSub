@@ -1,0 +1,46 @@
+rosbag2_bagfile_information:
+  version: 9
+  storage_identifier: mcap
+  duration:
+    nanoseconds: 138023787396
+  starting_time:
+    nanoseconds_since_epoch: 1745103926453662237
+  message_count: 17639
+  topics_with_message_count:
+    - topic_metadata:
+        name: /imu/data
+        type: sensor_msgs/msg/Imu
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 13806
+    - topic_metadata:
+        name: /depth
+        type: msgs/msg/Float32Stamped
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 2854
+    - topic_metadata:
+        name: /dvl
+        type: msgs/msg/DVLData
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 979
+  compression_format: ""
+  compression_mode: ""
+  relative_file_paths:
+    - 0419_new_0.mcap
+  files:
+    - path: 0419_new_0.mcap
+      starting_time:
+        nanoseconds_since_epoch: 1745103926453662237
+      duration:
+        nanoseconds: 138023787396
+      message_count: 17639
+  custom_data: ~
+  ros_distro: jazzy

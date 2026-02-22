@@ -1,0 +1,17 @@
+numpy
+spatialmath-python
+depthai
+scipy
+opencv-python
+casadi
+torch
+torchvision
+torchaudio
+ultralytics
+plotly
+ipywidgets
+nbformat
+dash
+pyserial
+nats-py
+dataclasses-json
