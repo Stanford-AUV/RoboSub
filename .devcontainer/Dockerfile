@@ -64,19 +64,41 @@ RUN service ssh restart
 # Set up auto-source of workspace for ros user
 ARG WORKSPACE
 RUN python3 -m venv /home/ros/env --system-site-packages --symlinks
+# Base image - use an L4T image appropriate for JetPack 6.2
+# FROM nvcr.io/nvidia/l4t-base:r36.4.0
 
-# PyTorch with CUDA for Jetson (JP6 CUDA 12.6) - using Jetson AI Lab PyPI
-RUN /home/ros/env/bin/pip install --no-cache-dir \
-    --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
-    torch torchvision torchaudio
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-pip \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
 
+# Install cuDSS
+RUN wget -q https://developer.download.nvidia.com/compute/cudss/0.5.0/local_installers/cudss-local-repo-ubuntu2204-0.5.0_0.5.0-1_arm64.deb && \
+    dpkg -i cudss-local-repo-ubuntu2204-0.5.0_0.5.0-1_arm64.deb && \
+    cp /var/cudss-local-repo-ubuntu2204-0.5.0/cudss-*-keyring.gpg /usr/share/keyrings/ && \
+    apt-get update && \
+    apt-get install -y cudss && \
+    rm -f cudss-local-repo-ubuntu2204-0.5.0_0.5.0-1_arm64.deb && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install cuSPARSELt
+RUN wget -q https://developer.download.nvidia.com/compute/cusparselt/0.8.1/local_installers/cusparselt-local-repo-ubuntu2204-0.8.1_0.8.1-1_arm64.deb && \
+    dpkg -i cusparselt-local-repo-ubuntu2204-0.8.1_0.8.1-1_arm64.deb && \
+    cp /var/cusparselt-local-repo-ubuntu2204-0.8.1/cusparselt-*-keyring.gpg /usr/share/keyrings/ && \
+    apt-get update && \
+    apt-get install -y cusparselt && \
+    rm -f cusparselt-local-repo-ubuntu2204-0.8.1_0.8.1-1_arm64.deb && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set library path
+ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
+
+# Install PyTorch - try the .io index first
+# If this fails during build, download the .whl manually and use COPY + pip install instead
+RUN pip3 install --break-system-packages --no-cache-dir torch --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 -v 2>&1 | head -30
 # Install ultralytics (YOLO) in venv
 RUN /home/ros/env/bin/pip install --no-cache-dir ultralytics
-
-# Install PyTorch for system Python (Jetson version from AI Lab PyPI)
-RUN python3 -m pip install --break-system-packages --no-cache-dir \
-    --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
-    torch torchvision torchaudio
 
 # Install ultralytics for system Python (allow dependency flexibility)
 RUN python3 -m pip install --break-system-packages --no-cache-dir ultralytics || \

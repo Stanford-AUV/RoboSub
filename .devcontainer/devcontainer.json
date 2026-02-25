@@ -1,4 +1,3 @@
-
 {
   "name": "RoboSub Development",
   "dockerFile": "Dockerfile",
@@ -9,10 +8,7 @@
   },
   "remoteUser": "ros",
   "runArgs": [
-    // GPU support: Uncomment one of the following when NVIDIA Container Toolkit is installed:
-    // For newer nvidia-container-toolkit: "--gpus", "all",
-    // For older nvidia-docker2: "--runtime=nvidia",
-    //"--gpus", "all",
+    // GPU support: Jetson requires --runtime=nvidia (--gpus all is not supported). On x86 with nvidia-container-toolkit you may use "--gpus", "all" instead.
     "--runtime=nvidia",
     "--publish=4222:4222",
     "--cap-add=SYS_PTRACE",
@@ -40,7 +36,7 @@
     "--device-cgroup-rule=c 189:* rmw",
     // Add NVIDIA library mounts:
     "--volume=/usr/local/cuda-12:/usr/local/cuda-12:ro",
-    "--volume=/usr/local/cuda-12:/usr/local/cuda:ro",  // Symlink for compatibility
+    "--volume=/usr/local/cuda-12:/usr/local/cuda:ro", // Symlink for compatibility
     "--volume=/usr/lib/aarch64-linux-gnu/nvidia:/usr/lib/aarch64-linux-gnu/nvidia:ro",
     "--volume=/usr/lib/aarch64-linux-gnu/tegra:/usr/lib/aarch64-linux-gnu/tegra:ro",
     // uncomment to use intel iGPU
@@ -53,6 +49,8 @@
     "PULSE_SERVER": "${localEnv:PULSE_SERVER}",
     "LIBGL_ALWAYS_SOFTWARE": "1",
     "CUDA_HOME": "/usr/local/cuda-12",
+    "NVIDIA_VISIBLE_DEVICES": "all",
+    "PYTHONNOUSERSITE": "1",
     "PATH": "/usr/local/cuda-12/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
     "LD_LIBRARY_PATH": "/usr/local/cuda-12/lib64:/usr/lib/aarch64-linux-gnu/nvidia:/usr/lib/aarch64-linux-gnu/tegra"
   },
@@ -78,5 +76,5 @@
       ]
     }
   },
-  "postCreateCommand": "/home/ros/env/bin/python3 -m pip install --no-cache-dir -r /workspaces/Robosub/requirements.txt"
+  "postCreateCommand": "/home/ros/env/bin/python3 -m pip install --no-cache-dir -r /workspaces/Robosub/requirements.txt && ( [ \"$(uname -m)\" = aarch64 ] && ( sudo -n bash -c 'python3 -m pip uninstall --break-system-packages -y torch torchvision torchaudio 2>/dev/null; python3 -m pip install --break-system-packages --no-cache-dir --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 --extra-index-url https://pypi.org/simple torch==2.9.0 torchvision==0.24.0 torchaudio' && /home/ros/env/bin/pip uninstall -y torch torchvision torchaudio 2>/dev/null || true; /home/ros/env/bin/pip install --no-cache-dir --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 --extra-index-url https://pypi.org/simple torch==2.9.0 torchvision==0.24.0 torchaudio ) || true )"
 }
