@@ -10,15 +10,15 @@ ENV LD_LIBRARY_PATH=/usr/local/cuda-12/lib64:/usr/lib/aarch64-linux-gnu/nvidia:/
 # Refresh ROS GPG key + source
 RUN rm -f /usr/share/keyrings/ros-archive-keyring.gpg /etc/apt/sources.list.d/ros2.list && \
     curl -fsSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
-      | gpg --dearmor -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+    | gpg --dearmor -o /usr/share/keyrings/ros-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" \
-      > /etc/apt/sources.list.d/ros2.list
+    > /etc/apt/sources.list.d/ros2.list
 
 # Install Gazebo repo key + list, then install
 RUN wget -q https://packages.osrfoundation.org/gazebo.gpg -O /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" > /etc/apt/sources.list.d/gazebo-stable.list \
     && apt-get update && apt-get install -q -y --no-install-recommends \
-       ros-jazzy-ros-gz \
+    ros-jazzy-ros-gz \
     && rm -rf /var/lib/apt/lists/*
 
 ENV DEBIAN_FRONTEND=
@@ -91,18 +91,20 @@ RUN wget -q https://developer.download.nvidia.com/compute/cusparselt/0.8.1/local
     rm -f cusparselt-local-repo-ubuntu2204-0.8.1_0.8.1-1_arm64.deb && \
     rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libopenblas0 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Set library path
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 
 # Install PyTorch - try the .io index first
 # If this fails during build, download the .whl manually and use COPY + pip install instead
-RUN pip3 install --break-system-packages --no-cache-dir torch --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 -v 2>&1 | head -30
-# Install ultralytics (YOLO) in venv
-RUN /home/ros/env/bin/pip install --no-cache-dir ultralytics
+RUN python3 -m pip install --break-system-packages torch \
+    --index-url https://download.pytorch.org/whl/cu126
 
 # Install ultralytics for system Python (allow dependency flexibility)
-RUN python3 -m pip install --break-system-packages --no-cache-dir ultralytics || \
-    python3 -m pip install --break-system-packages --no-cache-dir --no-deps ultralytics
+RUN python3 -m pip install --break-system-packages --no-cache-dir --no-deps ultralytics
 
 # Set up auto-source of workspace for ros user
 ARG WORKSPACE

@@ -10,6 +10,8 @@ global_params = os.path.join(
     os.path.dirname(__file__), "..", "..", "main", "launch", "params", "global.yaml"
 )
 
+VENV_PYTHON = "/home/ros/env/bin/python3 -u "
+
 
 def generate_launch_description():
     return LaunchDescription(
@@ -48,6 +50,7 @@ def generate_launch_description():
                 package="perception",
                 executable="aligned_depth_publisher",
                 name="aligned_depth_publisher",
+                prefix=VENV_PYTHON,
                 parameters=[
                     global_params,
                     {"camera_type": LaunchConfiguration("camera_type")},
@@ -58,6 +61,7 @@ def generate_launch_description():
                 package="perception",
                 executable="object_localizer",
                 name="object_localizer",
+                prefix=VENV_PYTHON,
                 parameters=[
                     global_params,
                     {"model_name": LaunchConfiguration("model_name")},
