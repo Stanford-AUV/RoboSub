@@ -76,5 +76,5 @@
       ]
     }
   },
-  "postCreateCommand": "/home/ros/env/bin/python3 -m pip install --no-cache-dir -r /workspaces/Robosub/requirements.txt && ( [ \"$(uname -m)\" = aarch64 ] && ( sudo -n bash -c 'python3 -m pip uninstall --break-system-packages -y torch torchvision torchaudio 2>/dev/null; python3 -m pip install --break-system-packages --no-cache-dir --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 --extra-index-url https://pypi.org/simple torch==2.9.0 torchvision==0.24.0 torchaudio' && /home/ros/env/bin/pip uninstall -y torch torchvision torchaudio 2>/dev/null || true; /home/ros/env/bin/pip install --no-cache-dir --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 --extra-index-url https://pypi.org/simple torch==2.9.0 torchvision==0.24.0 torchaudio ) || true )"
+  "postCreateCommand": "/home/ros/env/bin/python3 -m pip install --no-cache-dir -r /workspaces/Robosub3/requirements.txt"
 }
