@@ -98,11 +98,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set library path
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 
-# Install PyTorch - try the .io index first
-# If this fails during build, download the .whl manually and use COPY + pip install instead
-RUN python3 -m pip install --break-system-packages torch \
-    --index-url https://download.pytorch.org/whl/cu126
-
+RUN pip install --break-system-packages \
+    "https://pypi.jetson-ai-lab.io/jp6/cu129/+f/f36/0db283b1249b3/torch-2.8.0-cp312-cp312-linux_aarch64.whl" \
+    "https://pypi.jetson-ai-lab.io/jp6/cu129/+f/255/341cb5beb4673/torchvision-0.23.0-cp312-cp312-linux_aarch64.whl#sha256=255341cb5beb4673f0f1a26061105623f17a2b32188478c68b3f2e1a897d49a2"
 # Install ultralytics for system Python (allow dependency flexibility)
 RUN python3 -m pip install --break-system-packages --no-cache-dir --no-deps ultralytics
 
