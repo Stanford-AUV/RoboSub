@@ -87,10 +87,12 @@ class ObjectLocalizer(Node):
                 )
                 return "cpu"
             try:
+                torch.backends.cudnn.enabled = False
                 dummy = np.zeros((640, 640, 3), dtype=np.uint8)
-                list(self._model(dummy, stream=True, device="cuda", verbose=False))
+                list(self._model(dummy, stream=True, device="cuda", half=False, verbose=False))
                 return "cuda"
             except Exception as e:
+                torch.backends.cudnn.enabled = True
                 self.get_logger().warning(f"GPU inference failed, using CPU: {e}")
                 return "cpu"
         # requested == "auto"
@@ -99,10 +101,15 @@ class ObjectLocalizer(Node):
             self.get_logger().info("CUDA not available, using CPU for YOLO inference")
             return "cpu"
         try:
+            # On Jetson (Orin/Xavier), cuDNN fails to find convolution algorithms
+            # even with FP32. Disabling cuDNN lets PyTorch use native CUDA kernels
+            # which work correctly on Tegra iGPUs.
+            torch.backends.cudnn.enabled = False
             dummy = np.zeros((640, 640, 3), dtype=np.uint8)
-            list(self._model(dummy, stream=True, device="cuda", verbose=False))
+            list(self._model(dummy, stream=True, device="cuda", half=False, verbose=False))
             return "cuda"
         except Exception as e:
+            torch.backends.cudnn.enabled = True  # restore for any other use
             self.get_logger().warning(f"GPU inference failed, using CPU: {e}")
             return "cpu"
 
