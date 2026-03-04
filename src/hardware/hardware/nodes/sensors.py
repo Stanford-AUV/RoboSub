@@ -1,14 +1,12 @@
+##### NOTE: This node is not used in the current implementation (ekf.yaml). It is kept here for reference."
+
 """This node converts sensor messages sent from the hardware into a unified format for use for state estimation."""
 
 import rclpy
 from rclpy import Parameter
-import math
 from rclpy.node import Node
 from geometry_msgs.msg import TwistWithCovarianceStamped, PoseWithCovarianceStamped
-from sensor_msgs.msg import Imu
-from message_filters import Subscriber, ApproximateTimeSynchronizer
-from msgs.msg import DVLData, DVLBeam, DVLTarget, DVLVelocity, Float32Stamped
-import random
+from msgs.msg import DVLData
 
 
 class Sensors(Node):
@@ -24,66 +22,21 @@ class Sensors(Node):
         self.sync_dvl_publisher_ = self.create_publisher(
             TwistWithCovarianceStamped, "/dvl/twist_sync", history_depth
         )
-        self.sync_imu_publisher_ = self.create_publisher(
-            Imu, "/imu/data_sync", history_depth
-        )
-        self.sync_imu_pose_publisher_ = self.create_publisher(
-            PoseWithCovarianceStamped, "/imu/pose_sync", history_depth
-        )
         self.sync_depth_publisher_ = self.create_publisher(
             PoseWithCovarianceStamped, "/depth/pose_sync", history_depth
         )
 
-        self.imu_only_sub = self.create_subscription(
-            Imu, "imu", self.sync_callback_imu_only, history_depth
-        )
         self.dvl_only_sub = self.create_subscription(
             DVLData, "dvl", self.sync_callback_dvl_only, history_depth
         )
 
-        self.get_logger().info(f"Listening to DVL and IMU")
-
-    def sync_callback_imu_only(self, imu_msg: Imu):
-        imu_msg.header.frame_id = "base_link"
-
-        # fmt: off
-        imu_msg.angular_velocity_covariance = [
-            0.2, 0.0, 0.0,
-            0.0, 0.2, 0.0,
-            0.0, 0.0, 0.2
-        ]
-        # fmt: off
-        imu_msg.linear_acceleration_covariance = [
-            5.0, 0.0, 0.0,
-            0.0, 5.0, 0.0,
-            0.0, 0.0, 5.0
-        ]
-
-        imu_pose_msg = PoseWithCovarianceStamped()
-        imu_pose_msg.header.stamp = imu_msg.header.stamp
-        imu_pose_msg.header.frame_id = "base_link"
-        imu_pose_msg.pose.pose.orientation.x = imu_msg.orientation.x
-        imu_pose_msg.pose.pose.orientation.y = imu_msg.orientation.y
-        imu_pose_msg.pose.pose.orientation.z = imu_msg.orientation.z
-        imu_pose_msg.pose.pose.orientation.w = imu_msg.orientation.w
-        # fmt: off
-        imu_pose_msg.pose.covariance = [
-            0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-            0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-            0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-            0.0,  0.0,  0.0,  0.05,  0.0,  0.0,
-            0.0,  0.0,  0.0,  0.0,  0.05,  0.0,
-            0.0,  0.0,  0.0,  0.0,  0.0,  0.05
-        ]
-
-        self.sync_imu_publisher_.publish(imu_msg)
-        self.sync_imu_pose_publisher_.publish(imu_pose_msg)
+        self.get_logger().info("Listening to DVL")
 
     def sync_callback_dvl_only(self, dvl_msg: DVLData):
         dvl_twist_msg = TwistWithCovarianceStamped()
         dvl_twist_msg.twist.twist.linear = dvl_msg.velocity.mean
         dvl_twist_msg.header.stamp = dvl_msg.header.stamp
-        dvl_twist_msg.header.frame_id = "base_link"
+        dvl_twist_msg.header.frame_id = "dvl_frame"
         # fmt: off
         dvl_twist_msg.twist.covariance = [
             0.1, 0.0, 0.0,  0.0, 0.0, 0.0,

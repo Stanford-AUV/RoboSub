@@ -1,136 +1,148 @@
 import rclpy
-from rclpy.node import Node
 from sensor_msgs.msg import Imu
+from geometry_msgs.msg import PoseWithCovarianceStamped, TwistWithCovarianceStamped
 import numpy as np
-from scipy.spatial.transform import Rotation as R
-from hardware.utils.average_quaternions import average_quaternions
+from hardware.nodes.generic_sensor import GenericSensor
 
-NO_IMU_POSITION = False
-NO_IMU_ROTATION = False
+GYRO_BIAS = np.array([
+    -0.006099891562248375,
+    -0.0034746338098969654,
+    0.00273246756079096,
+], dtype=float)
 
-NUM_CALIBRATION_QUATERNIONS = 200
+_BIG = 1e9
 
-################## change this to inherit the base class GenericSensor #######
 
-class IMU(Node):
+class IMU(GenericSensor):
     def __init__(self):
-        super().__init__("imu")
-        self._imu_pub = self.create_publisher(Imu, "imu", 10)
+        super().__init__("imu", "imu_0")
+
+        if self.is_active("rotation"):
+            self.sensor_publishers["rotation"] = self.create_publisher(
+                PoseWithCovarianceStamped, "/rotation", 10
+            )
+        if self.is_active("angular"):
+            self.sensor_publishers["angular"] = self.create_publisher(
+                TwistWithCovarianceStamped, "/angular", 10
+            )
+        if self.is_active("accel"):
+            self.sensor_publishers["accel"] = self.create_publisher(Imu, "/accel", 10)
+
         self.imu_subscription = self.create_subscription(
-            Imu, "/imu/data", self.imu_listener_callback, 10
+            Imu, "/imu/data", self._imu_callback, 10
         )
 
-        # Ideal 4×4 Transformation matrix (includes homogeneous coordinates)
-        self.R_hardware = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]])
-        self.R_calib = None
+        self._latest_msg = None
 
-        self.num_calibration_quaternions = 0
-        self.calibration_quaternions = np.zeros((NUM_CALIBRATION_QUATERNIONS, 4))
-        self.calibrated = False
+    def _imu_callback(self, msg: Imu):
+        w = np.array(
+            [msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z],
+            dtype=float,
+        )
+        w -= GYRO_BIAS
+        msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z = (
+            w.tolist()
+        )
 
-    def imu_listener_callback(self, msg: Imu):
-        if not self.calibrated:
-            if self.num_calibration_quaternions == NUM_CALIBRATION_QUATERNIONS:
-                self.calculate_transformation_matrix()
-                self.calibrated = True
-            else:
-                q = np.array(
-                    [
-                        msg.orientation.x,
-                        msg.orientation.y,
-                        msg.orientation.z,
-                        msg.orientation.w,
-                    ]
-                )
-                q_matrix = R.from_quat(q).as_matrix()
-                transformed_q_matrix = self.R_hardware @ q_matrix @ self.R_hardware.T
-                transformed_q = R.from_matrix(transformed_q_matrix).as_quat()
-                transformed_q /= np.linalg.norm(transformed_q)
-                self.calibration_quaternions[self.num_calibration_quaternions] = (
-                    transformed_q
-                )
-                self.num_calibration_quaternions += 1
-                return
+        msg.header.frame_id = "imu_frame"
 
-        transformed_msg = self.transform_imu_msg(msg)
-        transformed_msg.header.frame_id = "base_link"
-
-        self._imu_pub.publish(transformed_msg)
-        # self.get_logger().info(
-        #     f"Sent IMU data: {transformed_msg}"
-        # )
-
-    def calculate_transformation_matrix(self):
-        # Average quaternions
-        avg_quat = average_quaternions(self.calibration_quaternions)
-        # avg_quat = self.callibration_quaternions[0]
-        r_imu = R.from_quat(avg_quat)  # convert to x, y, z, w
-        # Robot is aligned with world for calibration, so its quaternion is identity
-        r_robot = R.from_quat([0, 0, 0, 1])
-        # Rotation from IMU to robot
-        self.r_imu_to_robot = r_robot * r_imu.inv()
-        self.R_calib = self.r_imu_to_robot.as_matrix()
-        self.get_logger().info(f"Calibrated with:\n{self.R_calib}")
-
-    def transform_imu_msg(self, msg):
-        transformed_msg = Imu()
-        transformed_msg.header = msg.header
-
-        # Transform orientation
         q = np.array(
-            [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w]
+            [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w],
+            dtype=float,
         )
-        q_matrix = R.from_quat(q).as_matrix()
-        transformed_q_matrix = (
-            self.R_calib @ self.R_hardware @ q_matrix @ self.R_hardware.T
+        if (not np.all(np.isfinite(q))) or (np.linalg.norm(q) < 1e-6):
+            self.get_logger().warn("Invalid IMU quaternion; dropping msg")
+            return
+
+        q /= np.linalg.norm(q)
+        msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w = (
+            q.tolist()
         )
-        transformed_q = R.from_matrix(transformed_q_matrix).as_quat()
-        transformed_q /= np.linalg.norm(transformed_q)
 
-        if NO_IMU_ROTATION:
-            transformed_msg.orientation.x = 0.0
-            transformed_msg.orientation.y = 0.0
-            transformed_msg.orientation.z = 0.0
-            transformed_msg.orientation.w = 1.0
-        else:
-            transformed_msg.orientation.x = transformed_q[0]
-            transformed_msg.orientation.y = transformed_q[1]
-            transformed_msg.orientation.z = transformed_q[2]
-            transformed_msg.orientation.w = transformed_q[3]
+        self._latest_msg = msg
+        self.publish_sensor_data()
 
-        # Transform angular velocity
-        angular_velocity = np.array(
-            [msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z]
-        )
-        transformed_angular_velocity = self.R_hardware @ angular_velocity
-        if NO_IMU_ROTATION:
-            transformed_msg.angular_velocity.x = 0.0
-            transformed_msg.angular_velocity.y = 0.0
-            transformed_msg.angular_velocity.z = 0.0
-        else:
-            transformed_msg.angular_velocity.x = transformed_angular_velocity[0]
-            transformed_msg.angular_velocity.y = transformed_angular_velocity[1]
-            transformed_msg.angular_velocity.z = transformed_angular_velocity[2]
+    def _build_rotation_cov(self):
+        """6x6 pose covariance: large values for position, yaml values for orientation."""
+        cov = np.zeros(36)
+        rot_axes = self.get_axes("rotation")
+        rot_cov = self.get_covariance("rotation")
 
-        # Transform linear acceleration
-        linear_acceleration = np.array(
-            [
-                msg.linear_acceleration.x,
-                msg.linear_acceleration.y,
-                msg.linear_acceleration.z,
-            ]
-        )
-        transformed_linear_acceleration = self.R_hardware @ linear_acceleration
-        if NO_IMU_POSITION:
-            transformed_msg.linear_acceleration.x = 0.0
-            transformed_msg.linear_acceleration.y = 0.0
-            transformed_msg.linear_acceleration.z = 0.0
-        else:
-            transformed_msg.linear_acceleration.x = transformed_linear_acceleration[0]
-            transformed_msg.linear_acceleration.y = transformed_linear_acceleration[1]
-            transformed_msg.linear_acceleration.z = transformed_linear_acceleration[2]
+        for i in range(3):
+            cov[i * 6 + i] = _BIG
 
-        return transformed_msg
+        if rot_cov is not None and rot_axes:
+            for r in range(3):
+                for c in range(3):
+                    if (r + 1) in rot_axes and (c + 1) in rot_axes:
+                        cov[(r + 3) * 6 + (c + 3)] = float(rot_cov[r][c])
+
+        return cov.tolist()
+
+    def _build_angular_cov(self):
+        """6x6 twist covariance: large values for linear, yaml values for angular."""
+        cov = np.zeros(36)
+        ang_axes = self.get_axes("angular")
+        ang_cov = self.get_covariance("angular")
+
+        for i in range(3):
+            cov[i * 6 + i] = _BIG
+
+        if ang_cov is not None and ang_axes:
+            for r in range(3):
+                for c in range(3):
+                    if (r + 1) in ang_axes and (c + 1) in ang_axes:
+                        cov[(r + 3) * 6 + (c + 3)] = float(ang_cov[r][c])
+
+        return cov.tolist()
+
+    def _build_accel_cov(self):
+        """3x3 linear-acceleration covariance for the Imu message."""
+        cov = np.zeros(9)
+        accel_axes = self.get_axes("accel")
+        accel_cov = self.get_covariance("accel")
+
+        if accel_cov is not None and accel_axes:
+            for r in range(3):
+                for c in range(3):
+                    if (r + 1) in accel_axes and (c + 1) in accel_axes:
+                        cov[r * 3 + c] = float(accel_cov[r][c])
+
+        return cov.tolist()
+
+    def publish_sensor_data(self):
+        msg = self._latest_msg
+        if msg is None:
+            return
+
+        stamp = msg.header.stamp
+
+        if self.is_active("rotation"):
+            rot_msg = PoseWithCovarianceStamped()
+            rot_msg.header.stamp = stamp
+            rot_msg.header.frame_id = "imu_frame"
+            rot_msg.pose.pose.orientation = msg.orientation
+            rot_msg.pose.covariance = self._build_rotation_cov()
+            self.sensor_publishers["rotation"].publish(rot_msg)
+
+        if self.is_active("angular"):
+            ang_msg = TwistWithCovarianceStamped()
+            ang_msg.header.stamp = stamp
+            ang_msg.header.frame_id = "imu_frame"
+            ang_msg.twist.twist.angular = msg.angular_velocity
+            ang_msg.twist.covariance = self._build_angular_cov()
+            self.sensor_publishers["angular"].publish(ang_msg)
+
+        if self.is_active("accel"):
+            accel_msg = Imu()
+            accel_msg.header.stamp = stamp
+            accel_msg.header.frame_id = "imu_frame"
+            accel_msg.linear_acceleration = msg.linear_acceleration
+            accel_msg.linear_acceleration_covariance = self._build_accel_cov()
+            # Signal that orientation and angular velocity are not provided
+            accel_msg.orientation_covariance = [-1.0] + [0.0] * 8
+            accel_msg.angular_velocity_covariance = [-1.0] + [0.0] * 8
+            self.sensor_publishers["accel"].publish(accel_msg)
 
 
 def main(args=None):

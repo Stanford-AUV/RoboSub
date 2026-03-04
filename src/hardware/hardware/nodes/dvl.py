@@ -1,39 +1,41 @@
 import rclpy
-from rclpy.node import Node
-from msgs.msg import DVLData, DVLBeam, DVLTarget, DVLVelocity
-from std_msgs.msg import Header
-from geometry_msgs.msg import Vector3
+from geometry_msgs.msg import PoseWithCovarianceStamped, TwistWithCovarianceStamped
 
 from hardware.utils.dvl_utils.system import OutputData
 from hardware.utils.dvl_utils.dvl_connect import Dvl
+from hardware.nodes.generic_sensor import GenericSensor
 import numpy as np
 import glob
 import serial
 
 DEBUG_MODE = False
-########################## change this one to implement the base class GenericSensor #########
-class DVL(Node):
-    def __init__(self, baudrate=115200):
-        super().__init__("dvl_ros_bridge")
 
-        # ROS publisher
-        self.publisher = self.create_publisher(DVLData, "dvl", 10)
+_BIG = 1e9
+
+
+class DVL(GenericSensor):
+    def __init__(self, baudrate=115200):
+        super().__init__("dvl_ros_bridge", "dvl_0")
+
+        self.sensor_publishers = {
+            "position": self.create_publisher(PoseWithCovarianceStamped, "/position", 10),
+            "velocity": self.create_publisher(TwistWithCovarianceStamped, "/velocity", 10),
+        }
+
+        self._latest_data = None
 
         if DEBUG_MODE:
             self.get_logger().info("Running in DEBUG_MODE, publishing dummy data.")
-            self.timer = self.create_timer(0.1, self.publish_dummy_dvl)
+            self.timer = self.create_timer(0.1, self._publish_dummy)
             return
 
-        # Connect to DVL
         self.dvl = self.autodetect_dvl_port(baudrate)
         if not self.dvl:
             self.get_logger().error("Failed to connect to DVL.")
             return
 
-        # Register the callback function to process DVL data
         self.dvl.register_ondata_callback(self.update_data)
 
-        # Start pinging
         if not self.dvl.exit_command_mode():
             self.get_logger().error("Failed to start pinging")
 
@@ -42,7 +44,6 @@ class DVL(Node):
         possible_ports = glob.glob("/dev/ttyUSB*") + glob.glob("/dev/ttyACM*")
         for port in possible_ports:
             try:
-                # Attempt a basic serial connection to check if the port is valid
                 with serial.Serial(port, baudrate, timeout=timeout) as ser:
                     if not ser.is_open:
                         continue
@@ -59,174 +60,120 @@ class DVL(Node):
                 self.get_logger().debug(f"Port {port} timed out.")
             except Exception as e:
                 self.get_logger().error(f"Unexpected error on port {port}: {e}")
-        return None  # No valid port found
-
-    def publish_dummy_dvl(self):
-        msg = DVLData()
-        msg.header.stamp = self.get_clock().now().to_msg()
-
-        vel = DVLVelocity()
-        vel.reference = 0
-        vel.mean = Vector3(x=0.05, y=0.0, z=0.0)  # Constant X velocity
-        vel.covariance = (np.eye(3) * 0.01).flatten()
-        msg.velocity = vel
-
-        msg.target = DVLTarget()
-        msg.target.type = 0
-        msg.target.range_mean = 1.5
-
-        msg.beams = []
-        for i in range(4):
-            beam = DVLBeam()
-            beam.id = i + 1
-            beam.range_mean = 1.0 + 0.1 * i
-            beam.locked = True
-            beam.velocity = vel
-            msg.beams.append(beam)
-
-        msg.header.frame_id = "base_link"
-
-        self.publisher.publish(msg)
-        # self.get_logger().info("Published dummy DVL message.")
-
+        return None
 
     def update_data(self, output_data: OutputData, obj):
-        """Callback function to process and publish DVL data."""
         del obj
         if output_data is None:
             return
 
-        # Extract timestamp
-        timestamp = self.get_clock().now().to_msg()
-
-        # Extract raw values from settings
         settings = output_data.get_settings()
         data_dict = {setting.name: setting.value for setting in settings}
 
-        # {'Count': 0,
-        #  'Date': '2025/02/06',
-        #  'Time': '20:33:42.380',
-        #  'Coordinate': 'XYZ',
-        #  'Velocity X': nan,
-        #  'Velocity Y': nan,
-        #  'Velocity Z': nan,
-        #  'Velocity Err': nan,
-        #  'Beam 1 range': nan,
-        #  'Beam 2 range': nan,
-        #  'Beam 3 range': nan,
-        #  'Beam 4 range': nan,
-        #  'Mean range': nan,
-        #  'Speed of sound': 1500.0,
-        #  'Input voltage': 12.010638236999512,
-        #  'Transmit voltage': 35.282958984375,
-        #  'Current': 0.35809072852134705,
-        #  'Status': 255,
-        #  'BIT count': 1,
-        #  'BIT codes': 236
-        # }
+        self._latest_data = data_dict
+        self.publish_sensor_data()
 
-        # Construct DVLData message
-        dvl_msg = DVLData()
-        dvl_msg.header = Header()
-        dvl_msg.header.stamp = timestamp
+    
+    def _build_twist_cov(self, velocity_error=None):
+        cov = np.zeros(36)
+        vel_axes = self.get_axes("velocity")
+        vel_cov = self.get_covariance("velocity")
 
-        T = np.array(
-            [
-                [-np.sqrt(2) / 2, np.sqrt(2) / 2, 0],
-                [-np.sqrt(2) / 2, -np.sqrt(2) / 2, 0],
-                [0, 0, 1],
-            ]
-        )
+        for i in range(3):
+            cov[i * 6 + i] = _BIG
 
-        # Set velocity information
-        dvl_velocity = DVLVelocity()
-        dvl_velocity.reference = 0  # Unknown reference frame
-        x = data_dict["Velocity X"]
-        if np.isnan(x):
-            self.get_logger().error("Velocity X is nan")
-            x = 0.0
-        y = data_dict["Velocity Y"]
-        if np.isnan(y):
-            self.get_logger().error("Velocity Y is nan")
-            y = 0.0
-        z = data_dict["Velocity Z"]
-        if np.isnan(z):
-            self.get_logger().error("Velocity Z is nan")
-            z = 0.0
-        vel = T @ np.array([x, y, z])
-        dvl_velocity.mean = Vector3()
-        dvl_velocity.mean.x = vel[0]
-        dvl_velocity.mean.y = vel[1]
-        dvl_velocity.mean.z = vel[2]
-        err = data_dict["Velocity Err"]
-        if np.isnan(err):
-            # self.get_logger().error("Velocity Err is nan")
-            err = 0.05
-        covariance = np.eye(3, dtype=np.float32) * (err**2)
-        dvl_velocity.covariance = covariance.flatten()
+        if vel_axes:
+            if velocity_error is not None:
+                var = velocity_error ** 2
+                for axis in vel_axes:
+                    idx = axis - 1
+                    cov[idx * 6 + idx] = var
+            elif vel_cov is not None:
+                for r in range(3):
+                    for c in range(3):
+                        if (r + 1) in vel_axes and (c + 1) in vel_axes:
+                            cov[r * 6 + c] = float(vel_cov[r][c])
 
-        # Set DVL target
-        dvl_target = DVLTarget()
-        dvl_target.type = 0  # Unknown target type
-        r = data_dict["Mean range"]
-        if np.isnan(r):
-            # self.get_logger().error("Mean range is nan")
-            r = 0.0
-        dvl_target.range_mean = r
+        cov[3 * 6 + 3] = _BIG
+        cov[4 * 6 + 4] = _BIG
+        cov[5 * 6 + 5] = _BIG
 
-        # Set beam data
-        beam_ids = [1, 2, 3, 4]
-        dvl_msg.beams = []
-        for beam_id in beam_ids:
-            beam = DVLBeam()
-            beam.id = beam_id
-            br = data_dict[f"Beam {beam_id} range"]
-            if np.isnan(br):
-                # self.get_logger().error(f"Beam {beam_id} range is nan")
-                br = 0.0
-            beam.range_mean = br
-            beam.locked = True  # Assume locked unless otherwise known
+        return cov.tolist()
 
-            # Beam velocity (not explicitly given in your data)
-            beam.velocity = DVLVelocity()
-            beam.velocity.reference = 0  # Unknown reference
-            err = data_dict["Velocity Err"]
-            if np.isnan(err):
-                # self.get_logger().error("Velocity Err is nan")
-                err = 0.05
-            if beam_id == 1:
-                vx = data_dict["Velocity X"]
-                if np.isnan(vx):
-                    self.get_logger().error("Velocity X is nan")
-                    vx = 0.0
-                beam.velocity.mean = Vector3(x=vx, y=0.0, z=0.0)
-            if beam_id == 2:
-                vy = data_dict["Velocity Y"]
-                if np.isnan(vy):
-                    self.get_logger().error("Velocity Y is nan")
-                    vy = 0.0
-                beam.velocity.mean = Vector3(x=0.0, y=vy, z=0.0)
-            if beam_id == 3:
-                vz = data_dict["Velocity Z"]
-                if np.isnan(vz):
-                    self.get_logger().error("Velocity Z is nan")
-                    vz = 0.0
-                beam.velocity.mean = Vector3(x=0.0, y=0.0, z=vz)
-            else:
-                beam.velocity.mean = Vector3(x=err, y=err, z=err)
-            covariance = np.eye(3) * (err**2)
-            beam.velocity.covariance = covariance.flatten()
+    def _build_pose_cov(self):
+        cov = np.zeros(36)
+        pos_axes = self.get_axes("position")
+        pos_cov = self.get_covariance("position")
 
-            dvl_msg.beams.append(beam)
+        for i in range(3):
+            cov[i * 6 + i] = _BIG
 
-        # Assign message values
-        dvl_msg.type = 0  # Unknown type
-        dvl_msg.velocity = dvl_velocity
-        dvl_msg.target = dvl_target
+        if pos_cov is not None and pos_axes:
+            for axis in pos_axes:
+                idx = axis - 1
+                cov[idx * 6 + idx] = float(pos_cov[idx][idx])
 
-        # Publish message
-        self.publisher.publish(dvl_msg)
-        # self.get_logger().info(f"Published DVL data: {str(dvl_msg)}")
+        return cov.tolist()
+
+    def publish_sensor_data(self):
+        d = self._latest_data
+        if d is None:
+            return
+
+        stamp = self.get_clock().now().to_msg()
+
+        if self.is_active("velocity"):
+            vx = self._safe(d["Velocity X"])
+            vy = self._safe(d["Velocity Y"])
+            vz = self._safe(d["Velocity Z"])
+            vel = self.R_sensor_to_base @ np.array([vx, vy, vz])
+            vel_err = self._safe(d["Velocity Err"], default=None)
+
+            twist_msg = TwistWithCovarianceStamped()
+            twist_msg.header.stamp = stamp
+            twist_msg.header.frame_id = "base_link"
+            twist_msg.twist.twist.linear.x = vel[0]
+            twist_msg.twist.twist.linear.y = vel[1]
+            twist_msg.twist.twist.linear.z = vel[2]
+
+            twist_msg.twist.covariance = self._build_twist_cov(velocity_error=vel_err)
+
+            self.sensor_publishers["velocity"].publish(twist_msg)
+
+        if self.is_active("position"):
+            mean_range = self._safe(d["Mean range"])
+
+            pose_msg = PoseWithCovarianceStamped()
+            pose_msg.header.stamp = stamp
+            pose_msg.header.frame_id = "base_link"
+            pose_msg.pose.pose.position.z = mean_range
+            pose_msg.pose.pose.orientation.w = 1.0
+
+            pose_msg.pose.covariance = self._build_pose_cov()
+
+            self.sensor_publishers["position"].publish(pose_msg)
+
+    def _publish_dummy(self):
+        stamp = self.get_clock().now().to_msg()
+
+        if self.is_active("velocity"):
+            twist_msg = TwistWithCovarianceStamped()
+            twist_msg.header.stamp = stamp
+            twist_msg.header.frame_id = "base_link"
+            twist_msg.twist.twist.linear.x = 0.05
+            twist_msg.twist.covariance = self._build_twist_cov()
+            self.sensor_publishers["velocity"].publish(twist_msg)
+
+        if self.is_active("position"):
+            pose_msg = PoseWithCovarianceStamped()
+            pose_msg.header.stamp = stamp
+            pose_msg.header.frame_id = "base_link"
+            pose_msg.pose.pose.position.z = 1.5
+            pose_msg.pose.pose.orientation.w = 1.0
+
+            pose_msg.pose.covariance = self._build_pose_cov()
+
+            self.sensor_publishers["position"].publish(pose_msg)
 
 
 def main(args=None):
