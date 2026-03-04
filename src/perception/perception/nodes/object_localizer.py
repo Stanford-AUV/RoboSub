@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Camera-agnostic object localizer: subscribes to AlignedDepthImage, runs YOLO + depth lookup + deprojection."""
 
+import threading
 import time
 import cv2
 import numpy as np
@@ -65,6 +66,13 @@ class ObjectLocalizer(Node):
         self._latency_sum_ms = 0.0
         self.timing_info = self.get_parameter("timing_info").get_parameter_value().bool_value
         self.log_fps_latency = self.get_parameter("log_fps_latency").get_parameter_value().bool_value
+        self._vis_lock = threading.Lock()
+        self._latest_vis_frame = None
+        self._display_stop = False
+        self._display_thread = None
+        if self._visualize_camera:
+            self._display_thread = threading.Thread(target=self._display_loop, daemon=True)
+            self._display_thread.start()
         self.get_logger().info(
             f"Subscribed to {aligned_topic}, publishing detections3d "
             f"(visualize_camera={self._visualize_camera}, print_positions={self._print_positions}, "
@@ -146,11 +154,29 @@ class ObjectLocalizer(Node):
 
     def destroy_node(self):
         if self._visualize_camera:
+            self._display_stop = True
+            if self._display_thread is not None:
+                self._display_thread.join(timeout=0.5)
             try:
                 cv2.destroyAllWindows()
             except Exception:
                 pass
         super().destroy_node()
+
+    def _display_loop(self):
+        """Run in a separate thread so callback never blocks on imshow."""
+        while not self._display_stop:
+            frame = None
+            with self._vis_lock:
+                if self._latest_vis_frame is not None:
+                    frame = self._latest_vis_frame.copy()
+            if frame is not None:
+                try:
+                    cv2.imshow("object_localizer", frame)
+                    cv2.waitKey(1)
+                except Exception:
+                    pass
+            time.sleep(0.02)
 
     def _callback(self, msg: AlignedDepthImage):
         t0 = time.perf_counter()
@@ -260,13 +286,13 @@ class ObjectLocalizer(Node):
                     cv2.rectangle(vis, (x1, y1), (x2, y2), (0, 255, 0), 2)
                     cv2.putText(vis, f"{class_name} {score:.2f}", (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
                     cv2.putText(vis, f"x={x_cam:.2f} y={y_cam:.2f} z={z_m:.2f}m", (x1, y2 + 16), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-                cv2.imshow("object_localizer", vis)
-                cv2.waitKey(1)
+                with self._vis_lock:
+                    self._latest_vis_frame = vis
             except Exception as e:
                 if not getattr(self, "_visualize_display_warned", False):
                     self._visualize_display_warned = True
                     self.get_logger().warning(
-                        f"Could not show visualization (display unavailable?): {e}. "
+                        f"Could not prepare visualization (display unavailable?): {e}. "
                         "Set DISPLAY for your session (e.g. unset DISPLAY or export DISPLAY=:0) or run without visualize_camera."
                     )
         t4 = time.perf_counter()
