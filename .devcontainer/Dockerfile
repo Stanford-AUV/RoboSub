@@ -63,7 +63,9 @@ RUN service ssh restart
 
 # Set up auto-source of workspace for ros user
 ARG WORKSPACE
+USER ros
 RUN python3 -m venv /home/ros/env --system-site-packages --symlinks
+USER root
 # Base image - use an L4T image appropriate for JetPack 6.2
 # FROM nvcr.io/nvidia/l4t-base:r36.4.0
 
