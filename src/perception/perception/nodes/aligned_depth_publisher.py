@@ -19,6 +19,7 @@ class AlignedDepthPublisherNode(Node):
         self.declare_parameter("camera_type", "oak")
         self.declare_parameter("camera_key", "oak_0")
         self.declare_parameter("timing_info", True)
+        self.declare_parameter("log_fps_latency", True)
 
         camera_type = self.get_parameter("camera_type").get_parameter_value().string_value
         camera_key = self.get_parameter("camera_key").get_parameter_value().string_value
@@ -27,6 +28,7 @@ class AlignedDepthPublisherNode(Node):
         self._camera_key = camera_key
         self._camera_type = camera_type.lower()
         self.timing_info = self.get_parameter("timing_info").get_parameter_value().bool_value
+        self.log_fps_latency = self.get_parameter("log_fps_latency").get_parameter_value().bool_value
 
         if not os.path.exists(yaml_path):
             raise FileNotFoundError(f"Cameras yaml not found: {yaml_path}")
@@ -61,6 +63,8 @@ class AlignedDepthPublisherNode(Node):
         )
         self._timer_count = 0
         self._get_frame_none_count = 0
+        self._fps_window_start = None
+        self._fps_window_publish_count = 0
         self.get_logger().info(
             f"Publishing AlignedDepthImage on /camera/{camera_key}/aligned ({camera_type})"
         )
@@ -111,6 +115,19 @@ class AlignedDepthPublisherNode(Node):
                 f"get_frame={get_frame_ms:.1f}ms build_publish={build_publish_ms:.1f}ms (None in last 30: {self._get_frame_none_count})"
             )
             self._get_frame_none_count = 0
+
+        if self.log_fps_latency:
+            if self._fps_window_start is None:
+                self._fps_window_start = time.perf_counter()
+            self._fps_window_publish_count += 1
+            elapsed = time.perf_counter() - self._fps_window_start
+            if self._fps_window_publish_count >= 30 or elapsed >= 1.0:
+                fps = self._fps_window_publish_count / elapsed if elapsed > 0 else 0.0
+                self.get_logger().info(
+                    f"aligned_depth_publisher: FPS={fps:.1f}"
+                )
+                self._fps_window_start = time.perf_counter()
+                self._fps_window_publish_count = 0
 
     def destroy_node(self):
         self._backend.shutdown()

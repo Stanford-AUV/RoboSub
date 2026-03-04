@@ -34,6 +34,7 @@ class ObjectLocalizer(Node):
         self.declare_parameter("visualize_camera", False)
         self.declare_parameter("print_positions", False)
         self.declare_parameter("timing_info", False)
+        self.declare_parameter("log_fps_latency", True)
         self.declare_parameter("inference_device", "auto")  # "auto" | "cuda" | "cpu"
 
         self._model_name = self.get_parameter("model_name").get_parameter_value().string_value
@@ -59,16 +60,15 @@ class ObjectLocalizer(Node):
         )
         self._pub = self.create_publisher(Detection3DArray, "detections3d", 10)
         self._callback_count = 0
-        self.get_logger().info(
-            "did this log?"
-        )
+        self._fps_window_start = None
+        self._fps_window_count = 0
+        self._latency_sum_ms = 0.0
+        self.timing_info = self.get_parameter("timing_info").get_parameter_value().bool_value
+        self.log_fps_latency = self.get_parameter("log_fps_latency").get_parameter_value().bool_value
         self.get_logger().info(
             f"Subscribed to {aligned_topic}, publishing detections3d "
-            f"(visualize_camera={self._visualize_camera}, print_positions={self._print_positions})"
-        )
-        self.timing_info = self.get_parameter("timing_info").get_parameter_value().bool_value
-        self.get_logger().info(
-            f"Logging Timing Info {self.timing_info}"
+            f"(visualize_camera={self._visualize_camera}, print_positions={self._print_positions}, "
+            f"timing_info={self.timing_info}, log_fps_latency={self.log_fps_latency})"
         )
 
     def _resolve_inference_device(self, requested: str):
@@ -271,17 +271,41 @@ class ObjectLocalizer(Node):
                     )
         t4 = time.perf_counter()
 
+        # Latency from message stamp (publish time) to end of callback (pipeline latency)
+        now = self.get_clock().now()
+        stamp = msg.rgb.header.stamp
+        capture_ns = stamp.sec * 1_000_000_000 + stamp.nanosec
+        latency_ms = (now.nanoseconds - capture_ns) / 1e6
+
         self._callback_count += 1
         decode_ms = (t1 - t0) * 1000
         yolo_ms = (t2 - t1) * 1000
         postprocess_ms = (t3 - t2) * 1000
         publish_vis_ms = (t4 - t3) * 1000
         total_ms = (t4 - t0) * 1000
+
         if self.timing_info and (self._callback_count % 30 == 0 or total_ms > 100.0):
             self.get_logger().info(
                 f"object_localizer timing (cb #{self._callback_count}): "
-                f"decode={decode_ms:.1f}ms yolo={yolo_ms:.1f}ms postprocess={postprocess_ms:.1f}ms publish_vis={publish_vis_ms:.1f}ms total={total_ms:.1f}ms"
+                f"decode={decode_ms:.1f}ms yolo={yolo_ms:.1f}ms postprocess={postprocess_ms:.1f}ms "
+                f"publish_vis={publish_vis_ms:.1f}ms total={total_ms:.1f}ms latency_ms={latency_ms:.1f}"
             )
+
+        if self.log_fps_latency:
+            if self._fps_window_start is None:
+                self._fps_window_start = time.perf_counter()
+            self._fps_window_count += 1
+            self._latency_sum_ms += latency_ms
+            elapsed = time.perf_counter() - self._fps_window_start
+            if self._fps_window_count >= 30 or elapsed >= 1.0:
+                fps = self._fps_window_count / elapsed if elapsed > 0 else 0.0
+                avg_latency = self._latency_sum_ms / self._fps_window_count
+                self.get_logger().info(
+                    f"object_localizer: FPS={fps:.1f} latency_ms={avg_latency:.1f}"
+                )
+                self._fps_window_start = time.perf_counter()
+                self._fps_window_count = 0
+                self._latency_sum_ms = 0.0
 
 
 def main(args=None):

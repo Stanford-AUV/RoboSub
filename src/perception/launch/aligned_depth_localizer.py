@@ -49,7 +49,12 @@ def generate_launch_description():
             DeclareLaunchArgument(
                 "timing_info",
                 default_value="true",
-                description="Log timing info of different parts of the detection pipeline",
+                description="Log detailed timing (decode, yolo, postprocess, etc.) periodically",
+            ),
+            DeclareLaunchArgument(
+                "log_fps_latency",
+                default_value="true",
+                description="Log FPS and latency summary periodically",
             ),
             Node(
                 package="perception",
@@ -60,7 +65,8 @@ def generate_launch_description():
                     global_params,
                     {"camera_type": LaunchConfiguration("camera_type")},
                     {"camera_key": LaunchConfiguration("camera_key")},
-                    {"timing_info": LaunchConfiguration("timing_info")}
+                    {"timing_info": LaunchConfiguration("timing_info")},
+                    {"log_fps_latency": LaunchConfiguration("log_fps_latency")},
                 ],
             ),
             Node(
@@ -76,6 +82,7 @@ def generate_launch_description():
                     {"visualize_camera": LaunchConfiguration("visualize_camera")},
                     {"print_positions": LaunchConfiguration("print_positions")},
                     {"timing_info": LaunchConfiguration("timing_info")},
+                    {"log_fps_latency": LaunchConfiguration("log_fps_latency")},
                 ],
             ),
         ]
