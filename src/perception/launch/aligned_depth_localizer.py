@@ -48,7 +48,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 "timing_info",
-                default_value="True",
+                default_value="true",
                 description="Log timing info of different parts of the detection pipeline",
             ),
             Node(
