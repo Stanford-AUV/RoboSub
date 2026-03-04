@@ -2,24 +2,27 @@ from rclpy.node import Node
 import os
 import yaml
 import numpy as np
-from geometry_msgs.msg import PoseWithCovarianceStamped, TwistWithCovarianceStamped
-from sensor_msgs.msg import Imu
 
 
-METADATA_FIELDS = {"covariance", "robot_pos", "robot_rot"}
 DATA_TYPES = {"position", "rotation", "velocity", "angular", "accel"}
+METADATA_FIELDS = (
+    {"sensor_pos_in_base", "R_sensor_to_base"}
+    | {f"{dt}_covariance" for dt in DATA_TYPES}
+)
 
 
 class GenericSensor(Node):
     """Base class for all sensor nodes.
 
     Reads sensors.yaml to determine which data types (pos, rot, vel, ang_vel, accel)
-    are active and which axes each provides. Metadata fields (covariance, robot_pos,
-    robot_rot) are stored as instance variables for subclass use.
+    are active and which axes each provides. Per-data-type covariances
+    (e.g. rotation_covariance) are accessible via get_covariance(). Metadata fields
+    (sensor_pos_in_base, R_sensor_to_base) are stored as instance variables.
 
     Subclasses are responsible for:
       - Creating publishers with the appropriate message types for their
         downstream consumers (e.g. sensor_msgs/Imu for robot_localization).
+      - Populating self.sensor_publishers with their data-type keyed publishers.
       - Implementing publish_sensor_data() to read hardware and publish.
       - Setting the correct frame_id (use a sensor-specific frame for raw data,
         or 'base_link' only after transforming to the body frame).
@@ -34,17 +37,11 @@ class GenericSensor(Node):
 
         self.sensor_name = sensor_name
         self.active_axes = {}
-        self._publishers = {
-            "position": self.create_publisher(PoseWithCovarianceStamped, "/position", 10),
-            "rotation": self.create_publisher(Imu, "/rotation", 10),
-            "velocity": self.create_publisher(TwistWithCovarianceStamped, "/velocity", 10),
-            "angular": self.create_publisher(Imu, "/angular", 10),
-            "accel": self.create_publisher(Imu, "/accel", 10)
-        }
+        self.sensor_publishers = {}
 
-        self.covariance = None
-        self.robot_pos = None
-        self.robot_rot = None
+        self._type_covariances = {}
+        self.sensor_pos_in_base = None
+        self.R_sensor_to_base = None
 
         self._load_config()
 
@@ -75,14 +72,18 @@ class GenericSensor(Node):
             )
             return
 
-        self.covariance = sensor_data.get("covariance")
-        self.robot_pos = sensor_data.get("robot_pos")
+        for data_type in DATA_TYPES:
+            type_cov = sensor_data.get(f"{data_type}_covariance")
+            if type_cov is not None:
+                self._type_covariances[data_type] = type_cov
 
-        raw_rot = sensor_data.get("robot_rot")
+        self.sensor_pos_in_base = sensor_data.get("sensor_pos_in_base")
+
+        raw_rot = sensor_data.get("R_sensor_to_base")
         if raw_rot is not None:
-            self.robot_rot = np.array(raw_rot, dtype=float)
+            self.R_sensor_to_base = np.array(raw_rot, dtype=float)
         else:
-            self.robot_rot = np.eye(3)
+            self.R_sensor_to_base = np.eye(3)
 
         for data_type in DATA_TYPES:
             raw_axes = sensor_data.get(data_type, 0)
@@ -103,6 +104,10 @@ class GenericSensor(Node):
         """Return the list of active axis indices for a data type, e.g. [1, 2, 3]."""
         return self.active_axes.get(data_type, [])
 
+    def get_covariance(self, data_type):
+        """Return the 3x3 covariance for *data_type*, or None if not configured."""
+        return self._type_covariances.get(data_type)
+
     def publish_sensor_data(self):
         """Read from hardware and publish sensor data.
 
@@ -112,3 +117,7 @@ class GenericSensor(Node):
         raise NotImplementedError(
             f"{self.__class__.__name__} must implement publish_sensor_data()"
         )
+
+    @staticmethod
+    def _safe(value, default=0.0):
+        return default if np.isnan(value) else float(value)
