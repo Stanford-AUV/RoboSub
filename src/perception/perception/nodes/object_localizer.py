@@ -31,9 +31,9 @@ class ObjectLocalizer(Node):
         self.declare_parameter("object_id", "person")
         self.declare_parameter("camera_key", "oak_0")
         self.declare_parameter("aligned_topic", "")
-        self.declare_parameter("visualize_camera", True)
+        self.declare_parameter("visualize_camera", False)
         self.declare_parameter("print_positions", False)
-        self.declare_parameter("timing_info", True)
+        self.declare_parameter("timing_info", False)
         self.declare_parameter("inference_device", "auto")  # "auto" | "cuda" | "cpu"
 
         self._model_name = self.get_parameter("model_name").get_parameter_value().string_value
@@ -55,7 +55,7 @@ class ObjectLocalizer(Node):
             AlignedDepthImage,
             aligned_topic,
             self._callback,
-            10,
+            1,
         )
         self._pub = self.create_publisher(Detection3DArray, "detections3d", 10)
         self._callback_count = 0
