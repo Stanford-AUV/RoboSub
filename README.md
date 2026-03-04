@@ -16,6 +16,14 @@ The main components of the RoboSub tech stack are:
 
 - **VSCode with Remote SSH**: The development workflow relies heavily on Visual Studio Code's Remote SSH feature, enabling developers to work with identical setups. This setup allows for seamless development from local machines while leveraging the computational resources of remote servers and avoiding setup inconsistencies across the team.
 
+## Documentation
+
+| Document | Description |
+|---|---|
+| [Perception](src/perception/README.md) | Camera-agnostic object localization, AlignedDepthImage architecture, and perception nodes |
+| [Dependency Management](DEPENDENCY_MANAGEMENT.md) | Dependency layers (apt, venv, system Python, colcon), PyTorch GPU configuration, and troubleshooting |
+| [Simulation](SIMULATION.md) | Gazebo Harmonic simulator setup and usage |
+
 ## Warnings
 
 When developing with ROS 2 and Gazebo, it's easy to suddenly be reading outdated documentation online concerning past ROS and Gazebo versions. Make sure you are always looking at sources that refer to ROS 2 Jazzy and Gazebo Harmonic.

@@ -8,6 +8,8 @@
   },
   "remoteUser": "ros",
   "runArgs": [
+    // GPU support: Jetson requires --runtime=nvidia (--gpus all is not supported). On x86 with nvidia-container-toolkit you may use "--gpus", "all" instead.
+    "--runtime=nvidia",
     "--publish=4222:4222",
     "--cap-add=SYS_PTRACE",
     "--security-opt=seccomp:unconfined",
@@ -31,7 +33,20 @@
     "--volume=/dev/ttyUSB3:/dev/ttyUSB3",
     "--volume=/dev/ttyUSB4:/dev/ttyUSB4",
     "--volume=/dev/ttyUSB5:/dev/ttyUSB5",
-    "--device-cgroup-rule=c 189:* rmw"
+    "--device-cgroup-rule=c 189:* rmw",
+    // Add NVIDIA library mounts:
+    "--volume=/usr/local/cuda-12:/usr/local/cuda-12:ro",
+    "--volume=/usr/local/cuda-12:/usr/local/cuda:ro", // Symlink for compatibility
+    "--volume=/usr/lib/aarch64-linux-gnu/nvidia:/usr/lib/aarch64-linux-gnu/nvidia:ro",
+    "--volume=/usr/lib/aarch64-linux-gnu/tegra:/usr/lib/aarch64-linux-gnu/tegra:ro",
+    "--volume=/usr/lib/aarch64-linux-gnu/libcudnn.so.9:/usr/lib/aarch64-linux-gnu/libcudnn.so.9:ro",
+    "--volume=/usr/lib/aarch64-linux-gnu/libcudnn_adv.so.9:/usr/lib/aarch64-linux-gnu/libcudnn_adv.so.9:ro",
+    "--volume=/usr/lib/aarch64-linux-gnu/libcudnn_cnn.so.9:/usr/lib/aarch64-linux-gnu/libcudnn_cnn.so.9:ro",
+    "--volume=/usr/lib/aarch64-linux-gnu/libcudnn_engines_precompiled.so.9:/usr/lib/aarch64-linux-gnu/libcudnn_engines_precompiled.so.9:ro",
+    "--volume=/usr/lib/aarch64-linux-gnu/libcudnn_engines_runtime_compiled.so.9:/usr/lib/aarch64-linux-gnu/libcudnn_engines_runtime_compiled.so.9:ro",
+    "--volume=/usr/lib/aarch64-linux-gnu/libcudnn_graph.so.9:/usr/lib/aarch64-linux-gnu/libcudnn_graph.so.9:ro",
+    "--volume=/usr/lib/aarch64-linux-gnu/libcudnn_heuristic.so.9:/usr/lib/aarch64-linux-gnu/libcudnn_heuristic.so.9:ro",
+    "--volume=/usr/lib/aarch64-linux-gnu/libcudnn_ops.so.9:/usr/lib/aarch64-linux-gnu/libcudnn_ops.so.9:ro",
     // uncomment to use intel iGPU
     // "--device=/dev/dri"
   ],
@@ -40,7 +55,12 @@
     "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
     "XDG_RUNTIME_DIR": "${localEnv:XDG_RUNTIME_DIR}",
     "PULSE_SERVER": "${localEnv:PULSE_SERVER}",
-    "LIBGL_ALWAYS_SOFTWARE": "1"
+    "LIBGL_ALWAYS_SOFTWARE": "1",
+    "CUDA_HOME": "/usr/local/cuda-12",
+    "NVIDIA_VISIBLE_DEVICES": "all",
+    "PYTHONNOUSERSITE": "1",
+    "PATH": "/usr/local/cuda-12/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    "LD_LIBRARY_PATH": "/usr/local/cuda-12/lib64:/usr/lib/aarch64-linux-gnu/nvidia:/usr/lib/aarch64-linux-gnu/tegra:/usr/lib/aarch64-linux-gnu/host"
   },
   // Set *default* container specific settings.json values on container create.
   "customizations": {
@@ -64,5 +84,5 @@
       ]
     }
   },
-  "postCreateCommand": "/home/ros/env/bin/python3 -m pip install --no-cache-dir -r /workspaces/Robosub/requirements.txt"
+  "postCreateCommand": "/home/ros/env/bin/python3 -m pip install --no-cache-dir -r /workspaces/Robosub3/requirements.txt"
 }
