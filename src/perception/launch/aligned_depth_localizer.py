@@ -48,7 +48,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 "timing_info",
-                default_value="true",
+                default_value="false",
                 description="Log detailed timing (decode, yolo, postprocess, etc.) periodically",
             ),
             DeclareLaunchArgument(
@@ -58,7 +58,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 "display_scale",
-                default_value="1.0",
+                default_value="0.25",
                 description="Scale factor for display window (e.g. 0.5 = half size, faster over remote X)",
             ),
             Node(

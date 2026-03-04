@@ -1,4 +1,8 @@
+import os
+from glob import glob
 from setuptools import find_packages, setup
+import os
+from glob import glob
 
 package_name = "control"
 
@@ -9,6 +13,8 @@ setup(
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml"]),
+        (os.path.join('share', package_name, 'launch'), glob('launch/*.py')),
+        (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
     ],
     install_requires=["setuptools"],
     zip_safe=True,
@@ -22,7 +28,7 @@ setup(
     entry_points={
         "console_scripts": [
             "thrust_generator = control.nodes.thrust_generator:main",
-            "controller = control.nodes.controller:main",
+            "pid_control = control.nodes.pid_control:main",
             "path_tracker = control.nodes.path_tracker:main",
             "test_path = control.nodes.test_path:main",
             "logger = control.nodes.logger:main",

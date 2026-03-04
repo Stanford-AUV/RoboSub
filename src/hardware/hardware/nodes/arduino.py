@@ -37,10 +37,8 @@ class Arduino(Node):
         )
 
         self._sensors_pub = self.create_publisher(
-            SensorsStamped, "sensors", history_depth
+            SensorsStamped, "/arduino/sensors", history_depth
         )
-
-        self._depth_pub = self.create_publisher(Float32Stamped, "depth", history_depth)
 
         try:
             # NOTE: If this fails, run the following command:
@@ -95,47 +93,23 @@ class Arduino(Node):
             self.light_changed = False
         self.send_pwms()
         response = self.portName.readline().decode().strip()
-        parts = response.split(" ")
-        if parts[0] != ">":
-            self.get_logger().error(f"Unexpected response from Arduino: {response}")
-            return
-        sensors = {
-            "pressure": None,
-            "temperature": None,
-            "depth": None,
-            "current": None,
-            "voltage": None,
-        }
-        for part in parts[1:]:
-            self.get_logger().error(f"{part} idhfo9eiurfioe")
-            try:
-                name, value = part.split(":")
-            except:
-                continue
-            if name == "servo":
-                continue
-            if name not in sensors:
-                self.get_logger().error(f"Unknown sensor name: {name}")
-            if len(value) < 1:
-                continue
-            self.get_logger().error(f"{name} {value} yagadooga")
-            value = float(value)
-            sensors[name] = value
-        for name, value in sensors.items():
-            if value is None:
-                self.get_logger().error(f"Missing sensor value: {name}")
+        tokens = response.split()
+        data = {tokens[i].rstrip(':'): float(tokens[i+1]) for i in range(0, len(tokens), 2)}
+
         msg = SensorsStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.pressure = sensors["pressure"]
-        msg.temperature = sensors["temperature"]
-        msg.depth = sensors["depth"]
-        msg.current = sensors["current"]
-        msg.voltage = sensors["voltage"]
-        # self.get_logger().info(f"Publishing sensors {msg}")
+        msg.header.frame_id = "sensor"
+
+        msg.pressure = data["pressure"]
+        msg.depth = data["depth"]
+        msg.external_temperature = data["external_temperature"]
+        msg.internal_temperature1 = data["internal_temperature1"]
+        msg.internal_temperature2 = data["internal_temperature2"]
+        msg.humidity = data["humidity"]
+        msg.current = data["current"]
+        msg.voltage = data["voltage"]
+
         self._sensors_pub.publish(msg)
-        depth_msg = Float32Stamped()
-        depth_msg.data = sensors["depth"]
-        self._depth_pub.publish(depth_msg)
 
     def kill_motors(self):
         self.pwms = [self.zero_thrust] * self.thruster_count
