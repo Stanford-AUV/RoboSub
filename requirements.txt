@@ -8,6 +8,10 @@ casadi
 #   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 # In the devcontainer/Docker image, CUDA-enabled PyTorch is installed explicitly; we
 # intentionally do NOT list torch/torchvision/torchaudio here to avoid pulling CPU wheels.
+# For GPU (CUDA) YOLO inference, install PyTorch with CUDA instead of the default CPU build, e.g.:
+#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+# In the devcontainer/Docker image, CUDA-enabled PyTorch is installed explicitly; we
+# intentionally do NOT list torch/torchvision/torchaudio here to avoid pulling CPU wheels.
 plotly
 ipywidgets
 nbformat
@@ -15,3 +19,6 @@ dash
 pyserial
 nats-py
 dataclasses-json
+polars>=0.20.0
+ultralytics-thop>=2.0.18
+#pyrealsense2cat /workspaces/Robosub2/requirements.txt | grep torch
