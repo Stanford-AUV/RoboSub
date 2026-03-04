@@ -37,6 +37,7 @@ class ObjectLocalizer(Node):
         self.declare_parameter("timing_info", False)
         self.declare_parameter("log_fps_latency", True)
         self.declare_parameter("inference_device", "auto")  # "auto" | "cuda" | "cpu"
+        self.declare_parameter("display_scale", 1.0)  # scale factor for display (e.g. 0.5 = half size)
 
         self._model_name = self.get_parameter("model_name").get_parameter_value().string_value
         self._object_id = self.get_parameter("object_id").get_parameter_value().string_value
@@ -66,6 +67,13 @@ class ObjectLocalizer(Node):
         self._latency_sum_ms = 0.0
         self.timing_info = self.get_parameter("timing_info").get_parameter_value().bool_value
         self.log_fps_latency = self.get_parameter("log_fps_latency").get_parameter_value().bool_value
+        p = self.get_parameter("display_scale").get_parameter_value()
+        try:
+            self._display_scale = p.double_value
+        except Exception:
+            self._display_scale = float(p.string_value)
+        if self._display_scale <= 0 or self._display_scale > 1.0:
+            self._display_scale = 1.0
         self._vis_lock = threading.Lock()
         self._latest_vis_frame = None
         self._display_stop = False
@@ -76,7 +84,7 @@ class ObjectLocalizer(Node):
         self.get_logger().info(
             f"Subscribed to {aligned_topic}, publishing detections3d "
             f"(visualize_camera={self._visualize_camera}, print_positions={self._print_positions}, "
-            f"timing_info={self.timing_info}, log_fps_latency={self.log_fps_latency})"
+            f"timing_info={self.timing_info}, log_fps_latency={self.log_fps_latency}, display_scale={self._display_scale})"
         )
 
     def _resolve_inference_device(self, requested: str):
@@ -286,6 +294,8 @@ class ObjectLocalizer(Node):
                     cv2.rectangle(vis, (x1, y1), (x2, y2), (0, 255, 0), 2)
                     cv2.putText(vis, f"{class_name} {score:.2f}", (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
                     cv2.putText(vis, f"x={x_cam:.2f} y={y_cam:.2f} z={z_m:.2f}m", (x1, y2 + 16), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                if self._display_scale != 1.0 and self._display_scale > 0:
+                    vis = cv2.resize(vis, None, fx=self._display_scale, fy=self._display_scale, interpolation=cv2.INTER_AREA)
                 with self._vis_lock:
                     self._latest_vis_frame = vis
             except Exception as e:

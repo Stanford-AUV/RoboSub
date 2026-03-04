@@ -56,6 +56,11 @@ def generate_launch_description():
                 default_value="true",
                 description="Log FPS and latency summary periodically",
             ),
+            DeclareLaunchArgument(
+                "display_scale",
+                default_value="1.0",
+                description="Scale factor for display window (e.g. 0.5 = half size, faster over remote X)",
+            ),
             Node(
                 package="perception",
                 executable="aligned_depth_publisher",
@@ -83,6 +88,7 @@ def generate_launch_description():
                     {"print_positions": LaunchConfiguration("print_positions")},
                     {"timing_info": LaunchConfiguration("timing_info")},
                     {"log_fps_latency": LaunchConfiguration("log_fps_latency")},
+                    {"display_scale": LaunchConfiguration("display_scale")},
                 ],
             ),
         ]
