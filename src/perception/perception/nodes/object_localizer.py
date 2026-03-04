@@ -173,6 +173,7 @@ class ObjectLocalizer(Node):
 
     def _display_loop(self):
         """Run in a separate thread so callback never blocks on imshow."""
+        cv2.namedWindow("object_localizer", cv2.WINDOW_NORMAL)  # resizable window
         while not self._display_stop:
             frame = None
             with self._vis_lock:
