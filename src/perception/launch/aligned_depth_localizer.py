@@ -46,6 +46,11 @@ def generate_launch_description():
                 default_value="false",
                 description="Log object positions (x,y,z) to console instead of displaying image",
             ),
+            DeclareLaunchArgument(
+                "timing_info",
+                default_value="True",
+                description="Log timing info of different parts of the detection pipeline",
+            ),
             Node(
                 package="perception",
                 executable="aligned_depth_publisher",
@@ -55,6 +60,7 @@ def generate_launch_description():
                     global_params,
                     {"camera_type": LaunchConfiguration("camera_type")},
                     {"camera_key": LaunchConfiguration("camera_key")},
+                    {"timing_info": LaunchConfiguration("timing_info")}
                 ],
             ),
             Node(
@@ -69,6 +75,7 @@ def generate_launch_description():
                     {"camera_key": LaunchConfiguration("camera_key")},
                     {"visualize_camera": LaunchConfiguration("visualize_camera")},
                     {"print_positions": LaunchConfiguration("print_positions")},
+                    {"timing_info": LaunchConfiguration("timing_info")},
                 ],
             ),
         ]

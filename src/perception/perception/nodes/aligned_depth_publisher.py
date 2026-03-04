@@ -18,7 +18,7 @@ class AlignedDepthPublisherNode(Node):
 
         self.declare_parameter("camera_type", "oak")
         self.declare_parameter("camera_key", "oak_0")
-        self.declare_parameter("timing_info", False)
+        self.declare_parameter("timing_info", True)
 
         camera_type = self.get_parameter("camera_type").get_parameter_value().string_value
         camera_key = self.get_parameter("camera_key").get_parameter_value().string_value

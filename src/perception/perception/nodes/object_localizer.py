@@ -33,7 +33,7 @@ class ObjectLocalizer(Node):
         self.declare_parameter("aligned_topic", "")
         self.declare_parameter("visualize_camera", True)
         self.declare_parameter("print_positions", False)
-        self.declare_parameter("timing_info", False)
+        self.declare_parameter("timing_info", True)
         self.declare_parameter("inference_device", "auto")  # "auto" | "cuda" | "cpu"
 
         self._model_name = self.get_parameter("model_name").get_parameter_value().string_value
@@ -60,10 +60,16 @@ class ObjectLocalizer(Node):
         self._pub = self.create_publisher(Detection3DArray, "detections3d", 10)
         self._callback_count = 0
         self.get_logger().info(
+            "did this log?"
+        )
+        self.get_logger().info(
             f"Subscribed to {aligned_topic}, publishing detections3d "
             f"(visualize_camera={self._visualize_camera}, print_positions={self._print_positions})"
         )
         self.timing_info = self.get_parameter("timing_info").get_parameter_value().bool_value
+        self.get_logger().info(
+            f"Logging Timing Info {self.timing_info}"
+        )
 
     def _resolve_inference_device(self, requested: str):
         """Resolve inference device: 'auto' (try GPU then CPU), 'cuda', or 'cpu'."""
@@ -105,6 +111,7 @@ class ObjectLocalizer(Node):
             # even with FP32. Disabling cuDNN lets PyTorch use native CUDA kernels
             # which work correctly on Tegra iGPUs.
             torch.backends.cudnn.enabled = False
+            self.get_logger().info("Disabled cuDNN")
             dummy = np.zeros((640, 640, 3), dtype=np.uint8)
             list(self._model(dummy, stream=True, device="cuda", half=False, verbose=False))
             return "cuda"
