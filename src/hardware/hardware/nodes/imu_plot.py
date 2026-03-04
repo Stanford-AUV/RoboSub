@@ -8,7 +8,7 @@ qos.reliability = QoSReliabilityPolicy.BEST_EFFORT
 from sensor_msgs.msg import Imu
 import matplotlib
 import numpy as np
-from transforms3d.euler import euler2mat, quat2euler
+from transforms3d.euler import quat2euler
 
 matplotlib.use("TkAgg")  # Use a GUI backend
 import matplotlib.pyplot as plt
@@ -59,10 +59,8 @@ class SensorsPlot(Node):
         ])
 
         # Apply coordinate transformation
-        R_base_imu = euler2mat(-1.57079632679, 0.0, 1.57079632679)
-        # accel_transformed = accel
-        accel_transformed = R_base_imu @ accel
-
+        # accel_transformed = T @ accel
+        accel_transformed = accel
 
         # Append data
         self.time_history.append(time_sec)

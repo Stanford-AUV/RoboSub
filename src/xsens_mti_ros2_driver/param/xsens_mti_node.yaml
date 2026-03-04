@@ -24,7 +24,7 @@
         # to set baudrate to 115200, send the command: FA FF 30 00 D1,
         # or to set it to 921600, send: FA FF 18 01 80 68.
 
-        port: "/dev/ttyUSB1" # Uncomment and set your device's port.
+        # port: "/dev/ttyUSB1" # Uncomment and set your device's port.
         # baudrate: 115200 # Uncomment and set your device's baudrate.
 
         # Device Scanning Selection

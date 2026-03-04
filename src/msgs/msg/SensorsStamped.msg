@@ -1,10 +1,7 @@
 std_msgs/Header header
 
 float32 pressure
+float32 temperature
 float32 depth
-float32 external_temperature
-float32 internal_temperature1
-float32 internal_temperature2
-float32 humidity
 float32 current
 float32 voltage

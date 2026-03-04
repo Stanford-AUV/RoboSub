@@ -1,7 +1,4 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
-from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 from pathlib import Path
@@ -16,7 +13,6 @@ parameters_file_path = Path(
 def generate_launch_description():
     return LaunchDescription(
         [
-            DeclareLaunchArgument("plot", default_value="false", description="Run sensors_plot for IMU/DVL visualization"),
             Node(
                 package="xsens_mti_ros2_driver",
                 executable="xsens_mti_node",
@@ -52,11 +48,6 @@ def generate_launch_description():
                 executable="arduino",
                 parameters=[global_params],
                 arguments=["--ros-args"],
-            ),
-            Node(
-                package="hardware",
-                executable="sensors_plot",
-                condition=IfCondition(LaunchConfiguration("plot")),
             ),
         ]
     )

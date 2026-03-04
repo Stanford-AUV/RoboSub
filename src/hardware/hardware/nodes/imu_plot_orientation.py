@@ -8,7 +8,6 @@ from scipy.spatial.transform import Rotation as R
 matplotlib.use("TkAgg")  # Use a GUI backend
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from transforms3d.euler import euler2mat, quat2euler
 
 correction = np.array([0, 0, 0])
 
@@ -18,7 +17,7 @@ class SensorsPlot(Node):
         super().__init__("sensors_plot")
         self.imu_sub = self.create_subscription(Imu, "imu", self.imu_callback, 10)
         self.imu_data_sub = self.create_subscription(
-            Imu, "/imu/pose_sync", self.imu_data_callback, 10
+            Imu, "/imu/data", self.imu_data_callback, 10
         )
         self.orientation = None
         self.data_orientation = None
@@ -56,45 +55,45 @@ class SensorsPlot(Node):
     def imu_callback(self, msg: Imu):
         q = [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w]
         self.orientation = R.from_quat(q)
-        # self.get_logger().info(f"{self.orientation}")
 
     def imu_data_callback(self, msg: Imu):
         q = [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w]
         self.data_orientation = R.from_quat(q)
 
-
     def update_plot(self):
-        if self.orientation is None:
+        if self.orientation is None or self.data_orientation is None:
             return
 
-        # IMU orientation quaternion -> Rotation
-        R_imu_world = self.orientation.as_matrix()   # imu -> world
-
-        # Static TF: base_link -> imu_frame (roll, pitch, yaw)
-        R_base_imu = R.from_euler(
-            "xyz",
-            [1.57079632679, 0.0, -1.57079632679],
-            degrees=False
-        ).as_matrix()  # base -> imu
-
-        # Compose: base -> world
-        R_base_world = R_imu_world @ R_base_imu.T
+        R_quat = self.orientation.as_matrix()
+        R_data_quat = self.data_orientation.as_matrix()
 
         # Remove old arrows
         if self.quiver_X:
             self.quiver_X.remove()
             self.quiver_Y.remove()
             self.quiver_Z.remove()
+            # self.quiver_data_X.remove()
+            # self.quiver_data_Y.remove()
+            # self.quiver_data_Z.remove()
 
-        # Draw base axes in world coords
-        self.quiver_X = self.ax.quiver(0, 0, 0, *R_base_world[:, 0], color="r", label="X_base")
-        self.quiver_Y = self.ax.quiver(0, 0, 0, *R_base_world[:, 1], color="g", label="Y_base")
-        self.quiver_Z = self.ax.quiver(0, 0, 0, *R_base_world[:, 2], color="b", label="Z_base")
+        # Draw axes
+        self.quiver_X = self.ax.quiver(0, 0, 0, *R_quat[:, 0], color="r", label="X")
+        self.quiver_Y = self.ax.quiver(0, 0, 0, *R_quat[:, 1], color="g", label="Y")
+        self.quiver_Z = self.ax.quiver(0, 0, 0, *R_quat[:, 2], color="b", label="Z")
+
+        # self.quiver_data_X = self.ax.quiver(
+        #     0, 0, 0, *R_data_quat[:, 0], color="m", label="X Data"
+        # )
+        # self.quiver_data_Y = self.ax.quiver(
+        #     0, 0, 0, *R_data_quat[:, 1], color="y", label="Y Data"
+        # )
+        # self.quiver_data_Z = self.ax.quiver(
+        #     0, 0, 0, *R_data_quat[:, 2], color="c", label="Z Data"
+        # )
 
         self.ax.legend()
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
-
 
 
 def main(args=None):

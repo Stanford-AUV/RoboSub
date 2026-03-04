@@ -12,15 +12,8 @@ setup(
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml"]),
         (os.path.join("share", package_name, "launch"), glob("launch/*.py")),
-        (os.path.join("share", package_name), glob("perception/cameras.yaml")),
     ],
-    install_requires=[
-        "setuptools",
-        # torch and ultralytics are installed system-wide with GPU support in Dockerfile
-        # Do not install here to avoid pulling CPU-only versions from PyPI
-        # "torch",
-        # "ultralytics",
-    ],
+    install_requires=["setuptools"],
     zip_safe=True,
     maintainer="Stanford Robosub",
     maintainer_email="scotthickmann21@gmail.com",
@@ -31,14 +24,12 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "realsense_node = perception.nodes.realsense:main",
+            "perception_node = perception.nodes.perception_node:main",
             "test.video = perception.nodes.test.video:main",
             "test.view_video = perception.nodes.test.view_video:main",
+            "test.view_detections_3d = perception.nodes.test.view_detections_3d:main",
+            "objects_localizer = perception.nodes.objects_localizer:main",
             "camera_viewer = perception.nodes.camera_viewer:main",
-            "oak_node = perception.nodes.oak:main",
-            "object_detection = perception.nodes.object_detections:main",
-            "aligned_depth_publisher = perception.nodes.aligned_depth_publisher:main",
-            "object_localizer = perception.nodes.object_localizer:main",
         ],
     },
 )

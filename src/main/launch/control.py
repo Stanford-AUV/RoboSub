@@ -39,10 +39,10 @@ def generate_launch_description():
                 parameters=[global_params],
             ),
             # END B
-            # Node(
-            #     package="control",
-            #     executable="logger",
-            #     parameters=[global_params],
-            # ),
+            Node(
+                package="control",
+                executable="logger",
+                parameters=[global_params],
+            ),
         ]
     )

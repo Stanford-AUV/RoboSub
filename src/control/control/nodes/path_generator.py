@@ -9,7 +9,6 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 
 from control.utils.create_path import create_path
-""""""""""""""""""""""''DEPRECATED"""""""""""""""
 
 
 class PathGenerator(Node):
