@@ -10,6 +10,7 @@ from dash.dependencies import Input, Output, State
 from threading import Thread, Lock
 import json
 from rosidl_runtime_py.utilities import get_message
+from rclpy.serialization import deserialize_message
 
 
 class SubMonitorNode(Node):
@@ -36,80 +37,119 @@ class SubMonitorNode(Node):
         
         # Discover topics
         self.discover_topics()
-    
-    def discover_topics(self):
-        """Discover all available topics and their types"""
-        topic_list = self.get_topic_names_and_types()
-        
-        for topic_name, topic_types in topic_list:
-            if topic_types:
-                self.available_topics[topic_name] = topic_types[0]
-        
-        # Get topics with active publishers
-        topic_info = self.get_publishers_info_by_topic()
-        for topic_name in topic_info:
-            if len(topic_info[topic_name]) > 0:
-                self.active_publishers.add(topic_name)
-        
-        self.get_logger().info(f"Discovered {len(self.available_topics)} topics")
-        self.get_logger().info(f"Active publishers on {len(self.active_publishers)} topics")
-    
-    def subscribe_to_topic(self, topic_name: str):
-        """Subscribe to a topic for time-series graphing"""
-        if topic_name not in self.available_topics:
-            self.get_logger().warn(f"Topic {topic_name} not found")
-            return
-        
-        # Unsubscribe from previous topic if exists
-        if self.selected_subscription:
-            self.destroy_subscription(self.selected_subscription)
-        
-        topic_type = self.available_topics[topic_name]
-        
-        # Clear previous data
-        with self.lock:
-            self.time_series_data['timestamps'].clear()
-            self.time_series_data['values'].clear()
-            self.selected_topic = topic_name
-        
-        # Create generic callback
-        def generic_callback(msg):
-            with self.lock:
-                self.time_series_data['timestamps'].append(time.time())
-                # Extract first numeric field from message
-                value = self.extract_numeric_value(msg)
-                self.time_series_data['values'].append(value)
-        
-        # Create subscription
-        try:
-            msg_class = get_message(topic_type)
             
-            self.selected_subscription = self.create_subscription(
-                msg_class,
-                topic_name,
-                generic_callback,
-                10
+            # Control data
+            "wrench_force_x": 0.0,
+            "wrench_force_y": 0.0,
+            "wrench_force_z": 0.0,
+            "wrench_torque_x": 0.0,
+            "wrench_torque_y": 0.0,
+            "wrench_torque_z": 0.0,
+            
+            # Depth
+            "depth": 0.0,
+            
+            # Status
+            "last_update": "Never",
+        }
+
+        # Create subscriptions to all critical topics
+        self.odom_sub = self.create_subscription(
+            Odometry, "/odometry/filtered", self.odom_callback, 10
+        )
+        
+        self.imu_sub = self.create_subscription(
+            Imu, "/imu/data", self.imu_callback, 10
+        )
+        
+        self.detections_sub = self.create_subscription(
+            Detection3DArray, "/detections3d", self.detections_callback, 10
+        )
+        
+        self.wrench_sub = self.create_subscription(
+            WrenchStamped, "/wrench", self.wrench_callback, 10
+        )
+        
+        self.depth_sub = self.create_subscription(
+            Float32, "/depth", self.depth_callback, 10
+        )
+
+    def odom_callback(self, msg: Odometry):
+        """Process odometry data"""
+        # Position
+        self.data["position_x"] = msg.pose.pose.position.x
+        self.data["position_y"] = msg.pose.pose.position.y
+        self.data["position_z"] = msg.pose.pose.position.z
+        
+        # Velocity
+        self.data["velocity_x"] = msg.twist.twist.linear.x
+        self.data["velocity_y"] = msg.twist.twist.linear.y
+        self.data["velocity_z"] = msg.twist.twist.linear.z
+        
+        # Angular velocity
+        self.data["angular_vel_x"] = msg.twist.twist.angular.x
+        self.data["angular_vel_y"] = msg.twist.twist.angular.y
+        self.data["angular_vel_z"] = msg.twist.twist.angular.z
+        
+        # Orientation (convert quaternion to euler)
+        qx = msg.pose.pose.orientation.x
+        qy = msg.pose.pose.orientation.y
+        qz = msg.pose.pose.orientation.z
+        qw = msg.pose.pose.orientation.w
+        roll, pitch, yaw = quat2euler([qw, qx, qy, qz])
+        
+        self.data["roll"] = np.degrees(roll)
+        self.data["pitch"] = np.degrees(pitch)
+        self.data["yaw"] = np.degrees(yaw)
+        
+        self.data["last_update"] = "Odometry"
+
+    def imu_callback(self, msg: Imu):
+        """Process IMU data"""
+        self.data["imu_accel_x"] = msg.linear_acceleration.x
+        self.data["imu_accel_y"] = msg.linear_acceleration.y
+        self.data["imu_accel_z"] = msg.linear_acceleration.z
+        
+        self.data["imu_gyro_x"] = msg.angular_velocity.x
+        self.data["imu_gyro_y"] = msg.angular_velocity.y
+        self.data["imu_gyro_z"] = msg.angular_velocity.z
+
+    def detections_callback(self, msg: Detection3DArray):
+        """Process detection data"""
+        self.data["num_detections"] = len(msg.detections)
+        
+        labels = []
+        distances = []
+        for detection in msg.detections:
+            if detection.results:
+                label = detection.results[0].hypothesis.class_id
+                labels.append(label)
+            
+            # Calculate distance from center
+            center = detection.bbox.center
+            distance = np.sqrt(
+                center.position.x**2 + 
+                center.position.y**2 + 
+                center.position.z**2
             )
-            self.get_logger().info(f"Subscribed to {topic_name}")
-        except Exception as e:
-            self.get_logger().error(f"Failed to subscribe to {topic_name}: {e}")
-    
-    def extract_numeric_value(self, msg) -> float:
-        """Extract a numeric value from a ROS message"""
-        # Try to find first numeric field
-        for field in msg.get_fields_and_field_types():
-            try:
-                value = getattr(msg, field)
-                if isinstance(value, (int, float)):
-                    return float(value)
-                # Handle nested messages (e.g., pose.position.x)
-                if hasattr(value, 'x'):
-                    return float(value.x)
-                if hasattr(value, 'data'):
-                    return float(value.data)
-            except:
-                continue
-        return 0.0
+            distances.append(round(distance, 2))
+        
+        self.data["detection_labels"] = labels
+        self.data["detection_distances"] = distances
+
+    def wrench_callback(self, msg: WrenchStamped):
+        """Process control wrench data"""
+        self.data["wrench_force_x"] = msg.wrench.force.x
+        self.data["wrench_force_y"] = msg.wrench.force.y
+        self.data["wrench_force_z"] = msg.wrench.force.z
+        
+        self.data["wrench_torque_x"] = msg.wrench.torque.x
+        self.data["wrench_torque_y"] = msg.wrench.torque.y
+        self.data["wrench_torque_z"] = msg.wrench.torque.z
+
+    def depth_callback(self, msg: Float32):
+        """Process depth sensor data"""
+        self.data["depth"] = msg.data
 
 
 def create_dash_app(node: SubMonitorNode):
@@ -288,28 +328,29 @@ def ros2_thread(node):
     rclpy.shutdown()
 
 
-def main():
-    rclpy.init()
-    
+def main(args=None):
+    rclpy.init(args=args)
+
     # Create ROS2 node
     node = SubMonitorNode()
-    
+
     # Create Dash app
     app = create_dash_app(node)
-    
+    app.config["suppress_callback_exceptions"] = True
+
     # Run ROS2 spin in a separate thread
     ros_thread = Thread(target=ros2_thread, args=(node,))
     ros_thread.daemon = True
     ros_thread.start()
 
-    # Run Dash app on port 8052
+    # Run Dash app on port 8052 (different from view_detections_3d)
     print("\n" + "="*60)
     print("RoboSub Monitor Dashboard Starting...")
     print("Open your browser to: http://localhost:8052")
     print("="*60 + "\n")
     
     app.run(debug=False, host="0.0.0.0", port=8052, use_reloader=False)
-
+    
 
 if __name__ == "__main__":
     main()
