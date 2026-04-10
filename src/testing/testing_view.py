@@ -24,11 +24,14 @@ class SubMonitorNode(Node):
         self.available_topics = {}
         self.active_publishers = set()
         
-        # Time-series data storage (max 100 points)
+        # Time-series data storage (10 seconds of data at ~100Hz = 1000 points)
         self.time_series_data = {
-            'timestamps': deque(maxlen=100),
-            'values': deque(maxlen=100)
+            'timestamps': deque(maxlen=1000),
+            'values': deque(maxlen=1000)
         }
+        
+        # Track start time for relative timestamps
+        self.graph_start_time = None
         
         # Current selected topic for graphing
         self.selected_topic = None
@@ -77,7 +80,10 @@ class SubMonitorNode(Node):
         # Create generic callback
         def generic_callback(msg):
             with self.lock:
-                self.time_series_data['timestamps'].append(time.time())
+                current_time = time.time()
+                if self.graph_start_time is None:
+                    self.graph_start_time = current_time
+                self.time_series_data['timestamps'].append(current_time)
                 # Extract first numeric field from message
                 value = self.extract_numeric_value(msg)
                 self.time_series_data['values'].append(value)
@@ -112,6 +118,13 @@ class SubMonitorNode(Node):
             except:
                 continue
         return 0.0
+    
+    def reset_graph_data(self):
+        """Reset the graph data"""
+        with self.lock:
+            self.time_series_data['timestamps'].clear()
+            self.time_series_data['values'].clear()
+            self.graph_start_time = None
 
 
 def create_dash_app(node: SubMonitorNode):
@@ -158,7 +171,18 @@ def create_dash_app(node: SubMonitorNode):
             
             # Bottom-right panel - Time Series Graph
             html.Div([
-                html.H2("Time-Series Topic Monitor"),
+                html.Div([
+                    html.H2("Time-Series Topic Monitor", style={'display': 'inline-block', 'marginRight': '20px'}),
+                    html.Button('Reset Graph', id='reset-button', n_clicks=0, style={
+                        'backgroundColor': '#ff4444',
+                        'color': 'white',
+                        'border': 'none',
+                        'padding': '8px 16px',
+                        'borderRadius': '4px',
+                        'cursor': 'pointer',
+                        'fontSize': '14px'
+                    })
+                ], style={'marginBottom': '10px'}),
                 html.Label("Select ROS2 Topic:"),
                 dcc.Dropdown(
                     id='topic-dropdown',
@@ -169,7 +193,7 @@ def create_dash_app(node: SubMonitorNode):
                 dcc.Graph(
                     id='time-series-graph',
                     config={'displayModeBar': False},
-                    style={'height': '300px'}
+                    style={'height': '280px'}
                 )
             ], style={
                 'border': '2px solid #333',
@@ -231,6 +255,17 @@ def create_dash_app(node: SubMonitorNode):
             node.subscribe_to_topic(topic_name)
         return topic_name
     
+    # Callback for reset button
+    @app.callback(
+        Output('reset-button', 'n_clicks'),
+        [Input('reset-button', 'n_clicks')],
+        prevent_initial_call=True
+    )
+    def reset_graph(n_clicks):
+        if n_clicks > 0:
+            node.reset_graph_data()
+        return 0
+    
     # Callback to update time-series graph
     @app.callback(
         Output('time-series-graph', 'figure'),
@@ -244,39 +279,82 @@ def create_dash_app(node: SubMonitorNode):
                     'data': [],
                     'layout': go.Layout(
                         title='No data yet - select a topic',
-                        xaxis={'title': 'Time (s)'},
+                        xaxis={'title': 'Time (s)', 'range': [-10, 0]},
                         yaxis={'title': 'Value'},
-                        margin={'l': 40, 'r': 20, 't': 40, 'b': 40}
+                        margin={'l': 50, 'r': 20, 't': 40, 'b': 40}
                     )
                 }
             
-            # Convert timestamps to relative time
+            # Get current time and filter to last 10 seconds
+            current_time = time.time()
             timestamps = list(node.time_series_data['timestamps'])
             values = list(node.time_series_data['values'])
             
-            if timestamps:
-                start_time = timestamps[0]
-                relative_times = [t - start_time for t in timestamps]
-            else:
-                relative_times = []
+            # Filter to last 10 seconds
+            cutoff_time = current_time - 10.0
+            filtered_data = [(t, v) for t, v in zip(timestamps, values) if t >= cutoff_time]
+            
+            if not filtered_data:
+                return {
+                    'data': [],
+                    'layout': go.Layout(
+                        title=f'Topic: {node.selected_topic or "None"} (waiting for data...)',
+                        xaxis={'title': 'Time (s)', 'range': [-10, 0]},
+                        yaxis={'title': 'Value'},
+                        margin={'l': 50, 'r': 20, 't': 40, 'b': 40}
+                    )
+                }
+            
+            filtered_timestamps, filtered_values = zip(*filtered_data)
+            
+            # Convert to relative time (negative values, 0 = now)
+            relative_times = [t - current_time for t in filtered_timestamps]
+            
+            # Auto-scale Y-axis with some padding
+            y_min = min(filtered_values)
+            y_max = max(filtered_values)
+            y_range = y_max - y_min
+            y_padding = y_range * 0.1 if y_range > 0 else 1.0
             
             return {
                 'data': [
                     go.Scatter(
                         x=relative_times,
-                        y=values,
-                        mode='lines+markers',
+                        y=filtered_values,
+                        mode='lines',
                         name=node.selected_topic or 'Topic',
-                        line={'color': '#1f77b4', 'width': 2},
-                        marker={'size': 4}
+                        line={'color': '#1f77b4', 'width': 2}
                     )
                 ],
                 'layout': go.Layout(
                     title=f'Topic: {node.selected_topic or "None"}',
-                    xaxis={'title': 'Time (s)'},
-                    yaxis={'title': 'Value'},
+                    xaxis={
+                        'title': 'Time (s)',
+                        'range': [-10, 0],
+                        'fixedrange': True
+                    },
+                    yaxis={
+                        'title': 'Value',
+                        'range': [y_min - y_padding, y_max + y_padding],
+                        'autorange': False
+                    },
                     margin={'l': 50, 'r': 20, 't': 40, 'b': 40},
-                    hovermode='closest'
+                    hovermode='closest',
+                    shapes=[
+                        # Red vertical line at present moment (x=0)
+                        {
+                            'type': 'line',
+                            'x0': 0,
+                            'x1': 0,
+                            'y0': y_min - y_padding,
+                            'y1': y_max + y_padding,
+                            'line': {
+                                'color': 'red',
+                                'width': 2,
+                                'dash': 'dash'
+                            }
+                        }
+                    ]
                 )
             }
 
