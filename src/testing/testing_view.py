@@ -279,7 +279,7 @@ def create_dash_app(node: SubMonitorNode):
                     'data': [],
                     'layout': go.Layout(
                         title='No data yet - select a topic',
-                        xaxis={'title': 'Time (s)', 'range': [-10, 0]},
+                        xaxis={'title': 'Time (s)', 'range': [-5, 5]},
                         yaxis={'title': 'Value'},
                         margin={'l': 50, 'r': 20, 't': 40, 'b': 40}
                     )
@@ -299,7 +299,7 @@ def create_dash_app(node: SubMonitorNode):
                     'data': [],
                     'layout': go.Layout(
                         title=f'Topic: {node.selected_topic or "None"} (waiting for data...)',
-                        xaxis={'title': 'Time (s)', 'range': [-10, 0]},
+                        xaxis={'title': 'Time (s)', 'range': [-5, 5]},
                         yaxis={'title': 'Value'},
                         margin={'l': 50, 'r': 20, 't': 40, 'b': 40}
                     )
@@ -307,14 +307,25 @@ def create_dash_app(node: SubMonitorNode):
             
             filtered_timestamps, filtered_values = zip(*filtered_data)
             
-            # Convert to relative time (negative values, 0 = now)
+            # Convert to relative time (0 = now, centered)
+            # Show -5s to +5s with 0 in the center
             relative_times = [t - current_time for t in filtered_timestamps]
             
-            # Auto-scale Y-axis with some padding
+            # Auto-scale Y-axis with adaptive padding
             y_min = min(filtered_values)
             y_max = max(filtered_values)
             y_range = y_max - y_min
-            y_padding = y_range * 0.1 if y_range > 0 else 1.0
+            
+            # Handle different scale scenarios
+            if y_range < 1e-6:  # Essentially constant value
+                y_center = (y_min + y_max) / 2
+                y_min = y_center - 0.5
+                y_max = y_center + 0.5
+            else:
+                # Add 10% padding for better visibility
+                y_padding = y_range * 0.1
+                y_min = y_min - y_padding
+                y_max = y_max + y_padding
             
             return {
                 'data': [
@@ -330,24 +341,24 @@ def create_dash_app(node: SubMonitorNode):
                     title=f'Topic: {node.selected_topic or "None"}',
                     xaxis={
                         'title': 'Time (s)',
-                        'range': [-10, 0],
+                        'range': [-5, 5],
                         'fixedrange': True
                     },
                     yaxis={
                         'title': 'Value',
-                        'range': [y_min - y_padding, y_max + y_padding],
+                        'range': [y_min, y_max],
                         'autorange': False
                     },
                     margin={'l': 50, 'r': 20, 't': 40, 'b': 40},
                     hovermode='closest',
                     shapes=[
-                        # Red vertical line at present moment (x=0)
+                        # Red vertical line at present moment (x=0, center)
                         {
                             'type': 'line',
                             'x0': 0,
                             'x1': 0,
-                            'y0': y_min - y_padding,
-                            'y1': y_max + y_padding,
+                            'y0': y_min,
+                            'y1': y_max,
                             'line': {
                                 'color': 'red',
                                 'width': 2,
