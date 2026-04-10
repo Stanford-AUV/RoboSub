@@ -388,8 +388,8 @@ def main(args=None):
     print("Open your browser to: http://localhost:8052")
     print("="*60 + "\n")
     
-    app.run_server(debug=False, host="0.0.0.0", port=8052, use_reloader=False)
-
+    app.run(debug=False, host="0.0.0.0", port=8052, use_reloader=False)
+    
 
 if __name__ == "__main__":
     main()

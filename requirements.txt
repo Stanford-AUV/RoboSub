@@ -16,6 +16,7 @@ plotly
 ipywidgets
 nbformat
 dash
+transforms3d
 pyserial
 nats-py
 dataclasses-json
