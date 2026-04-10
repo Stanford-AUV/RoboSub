@@ -44,12 +44,14 @@ class SubMonitorNode(Node):
         for topic_name, topic_types in topic_list:
             if topic_types:
                 self.available_topics[topic_name] = topic_types[0]
-        
-        # Get topics with active publishers
-        topic_info = self.get_publishers_info_by_topic()
-        for topic_name in topic_info:
-            if len(topic_info[topic_name]) > 0:
-                self.active_publishers.add(topic_name)
+                
+                # Check if this topic has active publishers
+                try:
+                    publishers = self.get_publishers_info_by_topic(topic_name)
+                    if len(publishers) > 0:
+                        self.active_publishers.add(topic_name)
+                except:
+                    pass
         
         self.get_logger().info(f"Discovered {len(self.available_topics)} topics")
         self.get_logger().info(f"Active publishers on {len(self.active_publishers)} topics")
