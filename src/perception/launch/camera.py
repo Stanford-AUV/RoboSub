@@ -26,6 +26,26 @@ def generate_launch_description():
                 default_value="oak_0",
                 description="Comma-separated camera names for camera_viewer",
             ),
+            DeclareLaunchArgument(
+                "photographer",
+                default_value="false",
+                description="Launch the photographer node (saves periodic snapshots to disk)",
+            ),
+            DeclareLaunchArgument(
+                "photographer_cameras",
+                default_value="oak_0",
+                description="Comma-separated camera names for the photographer",
+            ),
+            DeclareLaunchArgument(
+                "photographer_output_dir",
+                default_value="real/wet_data",
+                description="Directory where the photographer saves captured frames",
+            ),
+            DeclareLaunchArgument(
+                "photographer_period",
+                default_value="0.25",
+                description="Seconds between photographer snapshots",
+            ),
             Node(
                 package="perception",
                 executable="oak_node",
@@ -41,6 +61,7 @@ def generate_launch_description():
                 ],
             ),
             OpaqueFunction(function=_launch_camera_viewers),
+            OpaqueFunction(function=_launch_photographer),
         ]
     )
 
@@ -62,4 +83,32 @@ def _launch_camera_viewers(context, *args, **kwargs):
             ],
         )
         for name in names
+    ]
+
+
+def _launch_photographer(context, *args, **kwargs):
+    if not IfCondition(LaunchConfiguration("photographer")).evaluate(context):
+        return []
+
+    raw_names = LaunchConfiguration("photographer_cameras").perform(context)
+    names = [name.strip() for name in raw_names.split(",") if name.strip()]
+    if not names:
+        return []
+
+    output_dir = LaunchConfiguration("photographer_output_dir").perform(context)
+    period = LaunchConfiguration("photographer_period").perform(context)
+
+    return [
+        Node(
+            package="perception",
+            executable="photographer",
+            arguments=names,
+            parameters=[
+                global_params,
+                {
+                    "output_dir": output_dir,
+                    "capture_period_s": float(period),
+                },
+            ],
+        )
     ]
