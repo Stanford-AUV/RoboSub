@@ -35,6 +35,7 @@ setup(
             "test.video = perception.nodes.test.video:main",
             "test.view_video = perception.nodes.test.view_video:main",
             "camera_viewer = perception.nodes.camera_viewer:main",
+            "photographer = perception.nodes.photographer:main",
             "oak_node = perception.nodes.oak:main",
             "object_detection = perception.nodes.object_detections:main",
             "aligned_depth_publisher = perception.nodes.aligned_depth_publisher:main",
