@@ -9,6 +9,37 @@ from scipy.optimize import root_scalar
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
+class LinearSpline:
+    def __init__(self, x, y):
+        self.x = np.asarray(x, dtype=float)
+        self.y = np.asarray(y, dtype=float)
+        self._vel = np.gradient(self.y, self.x) if len(self.x) > 1 else np.array([0.0])
+
+    def __call__(self, t_values, nu=0):
+        t_arr = np.asarray(t_values, dtype=float)
+        if nu == 0:
+            out = np.interp(t_arr, self.x, self.y)
+        elif nu == 1:
+            out = np.interp(t_arr, self.x, self._vel)
+        else:
+            out = np.zeros_like(t_arr, dtype=float)
+        return float(out) if np.isscalar(t_values) else out
+
+
+def _fit_spline_with_fallback(x, y, k, t=None, bc_type=None):
+    k_eff = min(k, max(len(x) - 1, 1))
+    bc_eff = bc_type if k_eff >= 2 else None
+    for candidate_k, candidate_bc in (
+        (k_eff, bc_eff),
+        (min(3, k_eff), None),
+        (1, None),
+    ):
+        try:
+            return make_interp_spline(x=x, y=y, k=candidate_k, t=t, bc_type=candidate_bc)
+        except (np.linalg.LinAlgError, ValueError):
+            continue
+    return LinearSpline(x, y)
+
 # Find the maximum value of a B-spline between t_start and t_end.
 def find_maximum_bspl(spline, t_start, t_end, num_points=1000):
     t_values = np.linspace(t_start, t_end, num_points)
@@ -47,9 +78,11 @@ def find_maximum_bspl(spline, t_start, t_end, num_points=1000):
     return max_abs_value, max_time
 
 def make_interp_spline_with_constraints(x, y, k=3, t=None, bc_type=None, v_max=None, a_max=None):
-    spline_pos = make_interp_spline(x=x, y=y, k=k, t=t, bc_type=bc_type)
+    spline_pos = _fit_spline_with_fallback(x=x, y=y, k=k, t=t, bc_type=bc_type)
 
     if v_max is None or a_max is None:
+        return spline_pos, x
+    if not hasattr(spline_pos, "derivative"):
         return spline_pos, x
 
     spline_vel = spline_pos.derivative()
@@ -62,7 +95,7 @@ def make_interp_spline_with_constraints(x, y, k=3, t=None, bc_type=None, v_max=N
     for i in range(len(factors)):
         x_new.append(x_new[-1] + (x[i + 1] - x[i]) * factors[i])
 
-    return make_interp_spline(x=x, y=y, k=k, t=t, bc_type=bc_type), x_new
+    return _fit_spline_with_fallback(x=x, y=y, k=k, t=t, bc_type=bc_type), x_new
 
 def create_path(x, y, z, theta_x, theta_y, theta_z, max_velocity = 1, max_acceleration = 1, max_angular_velocity = 1, max_angular_acceleration = 1):
     orientations = Rotation.from_euler('xyz', np.column_stack((theta_x, theta_y, theta_z)), degrees=True).as_euler('xyz', degrees=True)

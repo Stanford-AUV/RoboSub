@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped, Twist
+from nav_msgs.msg import Odometry
 from msgs.msg import GeneratedPath  # Custom message import
 from rclpy import Parameter
 
@@ -19,9 +20,12 @@ class PathGenerator(Node):
             Path, "/waypoints", self.waypoints_callback, 10
         )
 
-        self.generated_path_publisher = self.create_publisher(
-            GeneratedPath, "/generated_path", 10
-        )
+        self.publish_desired = self.create_publisher(Odometry, "/desired/pose", 10)
+
+        self.generated_path = None
+        self.path_start_time = None
+
+        self.create_timer(1.0 / 60.0, self.publish_pose) 
 
         self.get_logger().info("PathGenerator node has been started.")
 
@@ -61,7 +65,23 @@ class PathGenerator(Node):
         pitch_angles = np.array(pitch_angles)
         yaw_angles = np.array(yaw_angles)
 
-        (
+        try:
+            (
+                positions,
+                velocities,
+                accelerations,
+                orientations,
+                angular_velocities,
+                angular_accelerations,
+                duration,
+            ) = create_path(
+                x_positions, y_positions, z_positions, roll_angles, pitch_angles, yaw_angles
+            )
+        except Exception as exc:
+            self.get_logger().error(f"Failed to generate path from waypoints: {exc}")
+            return
+
+        self.make_generated_path(
             positions,
             velocities,
             accelerations,
@@ -69,21 +89,9 @@ class PathGenerator(Node):
             angular_velocities,
             angular_accelerations,
             duration,
-        ) = create_path(
-            x_positions, y_positions, z_positions, roll_angles, pitch_angles, yaw_angles
         )
 
-        self.publish_generated_path(
-            positions,
-            velocities,
-            accelerations,
-            orientations,
-            angular_velocities,
-            angular_accelerations,
-            duration,
-        )
-
-    def publish_generated_path(
+    def make_generated_path(
         self,
         positions,
         velocities,
@@ -131,8 +139,30 @@ class PathGenerator(Node):
 
             generated_path.twists.append(twist)
 
-        self.generated_path_publisher.publish(generated_path)
-        self.get_logger().info("Published generated path with poses and twists.")
+        self.generated_path = generated_path
+        self.path_start_time = self.get_clock().now()
+        self.get_logger().info("Generated path with poses and twists.")
+    
+    def publish_pose(self):
+        if self.generated_path is None or self.path_start_time is None:
+            return
+
+        elapsed = (self.get_clock().now() - self.path_start_time).nanoseconds / 1e9
+        duration = self.generated_path.duration
+        n = len(self.generated_path.poses)
+
+        if duration <= 0.0 or n == 0:
+            return
+
+        t = min(max(elapsed, 0.0), duration)
+        index = int(t / duration * (n - 1))
+        index = min(index, n - 1)
+
+        odom = Odometry()
+        odom.header = self.generated_path.poses[index].header
+        odom.pose.pose = self.generated_path.poses[index].pose
+        odom.twist.twist = self.generated_path.twists[index]
+        self.publish_desired.publish(odom)
 
 
 def main(args=None):
