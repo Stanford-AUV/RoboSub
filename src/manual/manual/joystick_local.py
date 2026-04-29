@@ -12,9 +12,16 @@ SEND_INTERVAL_MS = 50  # Send every 50 ms
 pygame.init()
 pygame.joystick.init()
 
-##################################################################
-#              TODO: Connect to joystick                         #
-##################################################################
+count = pygame.joystick.get_count()
+print(count)
+
+joystick = pygame.joystick.Joystick(0)
+
+
+# CONNECT TO JOYSTICK
+print(joystick.get_name())
+print(joystick.get_axis(0))
+
 
 async def main():
     # Connect to NATS
@@ -26,9 +33,24 @@ async def main():
             pygame.event.pump()
             state = JoystickState()
 
-##################################################################
-#           TODO: Calculate, send joystick state                 #
-##################################################################
+            ##################################################################
+            #           TODO: Calculate, send joystick state                 #
+            ##################################################################
+            num_axes = joystick.get_numaxes()
+            axes = []
+            # retrieve axes data, round
+            for i in range(num_axes):
+                axes.append(joystick.get_axis(i))
+
+            # retrieve button states
+            num_buttons = joystick.get_numbuttons()
+            buttons = []
+
+            for i in range(num_buttons):
+                print(joystick.get_button(i))
+                buttons.append(joystick.get_button(i))
+
+            state = JoystickState(axes=axes, buttons=buttons)
 
             try:
                 await nc.publish("joystick", state.to_json().encode("utf-8"))
@@ -37,9 +59,11 @@ async def main():
                 print("Failed to send:", e)
 
             await asyncio.sleep(SEND_INTERVAL_MS / 1000.0)
+
     finally:
         print("Closing NATS connection.")
         await nc.close()
+
 
 if __name__ == "__main__":
     try:

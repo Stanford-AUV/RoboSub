@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>gui</name>
+  <version>0.0.1</version>
+  <description>AUV HUD — ROS2 WebSocket bridge and browser GUI</description>
+  <maintainer email="you@stanford.edu">Your Name</maintainer>
+  <license>MIT</license>
+
+  <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
+
+  <build_type>ament_python</build_type>
+</package>

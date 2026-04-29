@@ -13,7 +13,9 @@ class JoystickNode(Node):
     def __init__(self):
         super().__init__("joystick_node")
 
-        self.wrench_publisher = self.create_publisher(WrenchStamped, "wrench", 10)
+        self.wrench_publisher = self.create_publisher(
+            WrenchStamped, "wrench", 10
+        )  # thrusters
         self.light_publisher = self.create_publisher(Int16, "light", 10)
         self.torpedo_publisher = self.create_publisher(Int16, "torpedo", 10)
         self.dropper_publisher = self.create_publisher(Int16, "dropper", 10)
@@ -39,11 +41,33 @@ class JoystickNode(Node):
             loop.close()
 
     async def set_state(self, state: JoystickState):
-        pass
-        ############################################################
-        #           TODO: Process joystick state                   #
-        ############################################################
+        # compute joystick axes
+        lx = state.axes[0] if len(state.axes) > 0 else 0.0
+        ly = state.axes[1] if len(state.axes) > 1 else 0.0
+        rx = state.axes[2] if len(state.axes) > 2 else 0.0
 
+        wrench = WrenchStamped()  # define type
+        wrench.header.stamp = self.get_clock().now().to_msg()
+
+        # compute + publish forces (30/15 being max force)
+        wrench.wrench.force.x = ly * 30.0  # surge #in N
+        wrench.wrench.force.y = lx * 30.0  # sway
+        wrench.wrench.torque.z = rx * 15.0  # yaw
+
+        self.wrench_publisher.publish(wrench)
+
+        # torpedo
+        if len(state.buttons) > 0 and state.buttons[0] == 1:
+            self.torpedo_publisher.publish(Int16(data=1))
+
+        # dropper
+        if len(state.buttons) > 1 and state.buttons[1] == 1:
+            self.dropper_publisher.publish(Int16(data=1))
+
+        # light
+        if len(state.axes) > 4:
+            brightness = int((state.axes[4] + 1) * 500)
+            self.light_publisher.publish(Int16(data=brightness))
 
     async def run_server(self):
         self.nc = await nats.connect("nats://localhost:4222")
