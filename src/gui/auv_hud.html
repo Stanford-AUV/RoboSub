@@ -340,7 +340,10 @@ canvas.gauge { display: block; }
 
   <!-- ── Controls ── -->
   <div class="controls-row">
-    <button class="btn btn-launch" onclick="launchSub()">▶ LAUNCH</button>
+    <button class="btn btn-launch" id="btnLaunch"        onclick="launchSub()">▶ LAUNCH TEST</button>
+    <button class="btn btn-stop"   id="btnLaunchStop"    onclick="killProc('launch')"   style="display:none">■ STOP LAUNCH</button>
+    <button class="btn btn-launch" id="btnHardware"      onclick="startHardware()">▶ START HARDWARE</button>
+    <button class="btn btn-stop"   id="btnHardwareStop"  onclick="killProc('hardware')" style="display:none">■ STOP HARDWARE</button>
     <button class="btn btn-stop"   onclick="stopSub()">■ E-STOP</button>
     <div class="log-panel" id="logPanel">Awaiting ROS2 bridge connection on ws://localhost:9091</div>
     <button class="btn btn-graph"  onclick="openGraph()">+ NEW GRAPH</button>
@@ -392,6 +395,8 @@ function connectWS(url) {
         setEl('lastMsg', t, 'color:var(--accent3)');
         setEl('imuStatus',  msg.imu_ok  ? 'ONLINE' : 'OFFLINE', 'color:' + (msg.imu_ok  ? 'var(--accent3)' : 'var(--accent2)'));
         setEl('odomStatus', msg.odom_ok ? 'ONLINE' : 'OFFLINE', 'color:' + (msg.odom_ok ? 'var(--accent3)' : 'var(--accent2)'));
+      } else if (msg.type === 'log') {
+        pushLog(msg.source, msg.text);
       }
     } catch(err) {}
   };
@@ -597,14 +602,113 @@ function simLoop() {
 /* ════════════════════════════════════════════════════════
    LAUNCH / STOP
 ════════════════════════════════════════════════════════ */
+var _logWins  = { launch: null, hardware: null };
+var _logLines = { launch: [],   hardware: [] };
+
+function _openLogWindow(source, title) {
+  var html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>${title}</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#040e1a;color:#00e5ff;font-family:'Share Tech Mono',monospace;padding:12px;min-height:100vh;display:flex;flex-direction:column}
+.title{font-size:12px;letter-spacing:3px;color:rgba(0,229,255,0.5);margin-bottom:8px;flex-shrink:0}
+#log{flex:1;background:rgba(0,5,15,0.8);border:1px solid rgba(0,229,255,0.15);border-radius:6px;padding:10px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;font-size:11px;line-height:1.6}
+.line-err{color:#ff4f4f}
+.line-ok{color:#a3ff6a}
+</style></head><body>
+<div class="title">${title}</div>
+<div id="log"></div>
+<script>
+var logEl = document.getElementById('log');
+window.addEventListener('message', function(e) {
+  if (!e.data || e.data.type !== 'log') return;
+  var line = document.createElement('div');
+  var text = e.data.text || '';
+  line.className = /error|Error|WARN|warn|fatal|Fatal/.test(text) ? 'line-err' : 'line-ok';
+  line.textContent = text;
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+});
+<\/script></body></html>`;
+  var w = window.open('', '_blank', 'width=800,height=500,menubar=no,toolbar=no');
+  w.document.write(html);
+  w.document.close();
+  _logWins[source] = w;
+  // replay buffered lines once the popup's listener is ready
+  setTimeout(function() {
+    _logLines[source].forEach(function(text) {
+      w.postMessage({ type: 'log', text: text }, '*');
+    });
+  }, 300);
+  return w;
+}
+
+function pushLog(source, text) {
+  if (_logLines[source]) _logLines[source].push(text);
+  var w = _logWins[source];
+  if (w && !w.closed) {
+    w.postMessage({ type: 'log', text: text }, '*');
+  }
+}
+
+var _btnConfig = {
+  launch:   { btnId: 'btnLaunch',   stopId: 'btnLaunchStop',   label: '▶ LAUNCH TEST',    wsType: 'launch' },
+  hardware: { btnId: 'btnHardware', stopId: 'btnHardwareStop', label: '▶ START HARDWARE', wsType: 'start_hardware' },
+};
+
+function _activateLogButton(source) {
+  var cfg = _btnConfig[source];
+  var btn = document.getElementById(cfg.btnId);
+  var title = cfg.label.replace('▶ ', '');
+  btn.textContent = '▣ ' + title + ' LOG';
+  btn.style.borderColor = '#00e5ff';
+  btn.style.color = '#00e5ff';
+  btn.onclick = function() {
+    _logLines[source] = [];
+    if (_logWins[source] && !_logWins[source].closed) _logWins[source].close();
+    sendWS({ type: cfg.wsType });
+    log('Restarting ' + title + '…');
+    _openLogWindow(source, title + ' LOG');
+  };
+  document.getElementById(cfg.stopId).style.display = '';
+}
+
+function _deactivateLogButton(source) {
+  var cfg = _btnConfig[source];
+  var btn = document.getElementById(cfg.btnId);
+  btn.textContent = cfg.label;
+  btn.style.borderColor = '';
+  btn.style.color = '';
+  btn.onclick = source === 'launch' ? launchSub : startHardware;
+  document.getElementById(cfg.stopId).style.display = 'none';
+}
+
+function killProc(source) {
+  sendWS({ type: 'kill', source: source });
+  log('Killed ' + source + ' process.');
+  _deactivateLogButton(source);
+}
+
 function launchSub() {
   running = true;
   document.getElementById('statusPill').className = 'status-pill running';
   document.getElementById('statusPill').textContent = 'RUNNING';
+  _logLines['launch'] = [];
   sendWS({ type: 'launch' });
   sendWS({ type: 'estop', active: false });
   log('Launch sequence initiated — running launch_sub.sh');
-  if (!wsOk) { simLoop(); }  // fall back to sim
+  _activateLogButton('launch');
+  _openLogWindow('launch', 'LAUNCH TEST LOG');
+  if (!wsOk) { simLoop(); }
+}
+
+function startHardware() {
+  _logLines['hardware'] = [];
+  sendWS({ type: 'start_hardware' });
+  log('Starting hardware — running start_hardware.sh');
+  _activateLogButton('hardware');
+  _openLogWindow('hardware', 'HARDWARE LOG');
 }
 
 function stopSub() {
@@ -613,9 +717,14 @@ function stopSub() {
   document.getElementById('statusPill').className = 'status-pill stopped';
   document.getElementById('statusPill').textContent = 'E-STOPPED';
   sendWS({ type: 'estop', active: true });
+  sendWS({ type: 'kill_all' });
   sendWS({ type: 'cmd_vel', lx:0,ly:0,lz:0,ax:0,ay:0,az:0 });
   log('E-STOP issued. /estop published. All thrusters commanded to zero.');
 }
+
+window.addEventListener('beforeunload', function() {
+  sendWS({ type: 'kill_all' });
+});
 
 /* ════════════════════════════════════════════════════════
    GRAPH WINDOWS

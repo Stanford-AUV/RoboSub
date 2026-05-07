@@ -17,10 +17,12 @@ Run (after building & sourcing):
 The GUI auto-reconnects if this node restarts.
 """
 
+import atexit
 import asyncio
 import json
 import math
 import os
+import signal
 import subprocess
 import threading
 import time
@@ -53,7 +55,8 @@ except ImportError:
 WS_HOST = "0.0.0.0"
 WS_PORT = 9091
 
-LAUNCH_SCRIPT = os.path.join(os.path.dirname(__file__), "..", "launch_sub.sh")
+LAUNCH_SCRIPT = os.path.join(os.path.dirname(__file__), "..", "scripts", "launch_sub.sh")
+START_HARDWARE_SCRIPT = os.path.join(os.path.dirname(__file__), "..", "scripts", "start_hardware.sh")
 
 # Topics (edit to match your actual remapped topic names)
 TOPIC_IMU      = "/imu/data"          # sensor_msgs/Imu
@@ -107,6 +110,64 @@ _state = {
 _connected_ws: set = set()
 _cmd_pub = None   # set after node is ready
 _estop_pub = None
+_ws_loop = None   # asyncio event loop, set in _ws_thread
+_procs: dict = {}  # source -> subprocess.Popen
+
+
+def _kill_proc(source: str):
+    proc = _procs.get(source)
+    if proc and proc.poll() is None:
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+        except Exception:
+            pass
+    _procs.pop(source, None)
+
+
+def _kill_all_procs():
+    for source in list(_procs.keys()):
+        _kill_proc(source)
+
+
+atexit.register(_kill_all_procs)
+
+
+def _sigterm_handler(signum, frame):
+    _kill_all_procs()
+    raise SystemExit(0)
+
+
+signal.signal(signal.SIGTERM, _sigterm_handler)
+
+
+def _broadcast_log(source: str, text: str):
+    payload = json.dumps({"type": "log", "source": source, "text": text})
+    for ws in list(_connected_ws):
+        try:
+            asyncio.run_coroutine_threadsafe(ws.send(payload), _ws_loop)
+        except Exception:
+            pass
+
+
+def _stream_script(script: str, source: str):
+    """Kill any existing process for source, then start fresh and stream output."""
+    _kill_proc(source)
+    def _run():
+        try:
+            proc = subprocess.Popen(
+                ["bash", script],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, start_new_session=True,
+            )
+            _procs[source] = proc
+            for line in proc.stdout:
+                _broadcast_log(source, line.rstrip())
+            proc.wait()
+            _broadcast_log(source, f"[process exited with code {proc.returncode}]")
+            _procs.pop(source, None)
+        except Exception as e:
+            _broadcast_log(source, f"[error launching script: {e}]")
+    threading.Thread(target=_run, daemon=True).start()
 
 
 def _update_state(**kwargs):
@@ -209,7 +270,19 @@ async def _ws_handler(websocket):
             elif mtype == "launch":
                 script = os.path.realpath(LAUNCH_SCRIPT)
                 print(f"[LAUNCH] running {script}")
-                subprocess.Popen(["bash", script], start_new_session=True)
+                _stream_script(script, "launch")
+
+            # ── start hardware ────────────────────────────────────────
+            elif mtype == "start_hardware":
+                script = os.path.realpath(START_HARDWARE_SCRIPT)
+                print(f"[HARDWARE] running {script}")
+                _stream_script(script, "hardware")
+
+            # ── kill individual or all spawned processes ──────────────
+            elif mtype == "kill":
+                _kill_proc(msg.get("source", ""))
+            elif mtype == "kill_all":
+                _kill_all_procs()
 
             # ── e-stop ────────────────────────────────────────────────
             elif mtype == "estop" and _estop_pub is not None:
@@ -247,7 +320,10 @@ async def _ws_main():
 
 
 def _ws_thread():
-    asyncio.run(_ws_main())
+    global _ws_loop
+    _ws_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(_ws_loop)
+    _ws_loop.run_until_complete(_ws_main())
 
 
 # ── entry point ─────────────────────────────────────────────────────────────

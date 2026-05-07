@@ -59,6 +59,7 @@
     "CUDA_HOME": "/usr/local/cuda-12",
     "NVIDIA_VISIBLE_DEVICES": "all",
     "PYTHONNOUSERSITE": "1",
+    "PYTHONPATH": "/home/ros/env/lib/python3.12/site-packages",
     "PATH": "/usr/local/cuda-12/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
     "LD_LIBRARY_PATH": "/usr/local/cuda-12/lib64:/usr/lib/aarch64-linux-gnu/nvidia:/usr/lib/aarch64-linux-gnu/tegra:/usr/lib/aarch64-linux-gnu/host"
   },
@@ -84,5 +85,5 @@
       ]
     }
   },
-  "postCreateCommand": "/home/ros/env/bin/python3 -m pip install --no-cache-dir -r /workspaces/Robosub3/requirements.txt"
+  "postCreateCommand": "/home/ros/env/bin/python3 -m pip install --no-cache-dir -r /workspaces/Robosub/requirements.txt"
 }
