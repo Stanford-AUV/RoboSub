@@ -32,6 +32,7 @@ setup(
             "gate_localizer = perception.nodes.gate_localizer:main",
             "camera_viewer = perception.nodes.camera_viewer:main",
             "relay_detections = perception.nodes.relay_detections:main",
+	    "gate_detector = perception.nodes.gate_detector:main",
         ],
     },
 )

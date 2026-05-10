@@ -1,0 +1,30 @@
+# RoboSub Mission Definition
+# Each task is executed sequentially.
+#
+# Task types:
+#   gate      - wait for perception to publish gate pose, then navigate through it
+#   waypoint  - navigate to a fixed world-frame waypoint
+#
+# All distances in metres, angles in degrees.
+
+mission:
+  - task: gate
+    label: "qualifying_gate"
+    depth: -1.5                       # z to hold while approaching
+    approach_distance: 2.0            # metres in front of gate for approach waypoint
+    pass_distance: 2.0                # metres past gate center for exit waypoint
+    preferred_role: "survey_repair"   # "survey_repair" | "search_rescue"
+    style_roll: true                  # roll 90° while passing through for bonus points
+    style_roll_deg: 90.0              # degrees to roll (positive = starboard roll)
+    perception_topic: "/perception/gate/pose"
+    perception_side_topic: "/perception/gate/side"
+    perception_timeout: 30.0          # seconds to wait before giving up
+
+  - task: waypoint
+    label: "post_gate_station"
+    x: 0.0
+    y: 10.0
+    z: -1.5
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0

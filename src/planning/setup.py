@@ -25,6 +25,7 @@ setup(
             "dropper_task = planning.nodes.dropper_task:main",
             "torpedo_task = planning.nodes.torpedo_task:main",
             "track_object = planning.nodes.track_object:main",
+	    "mission_executor = planning.nodes.mission_executor:main",
         ],
     },
 )
