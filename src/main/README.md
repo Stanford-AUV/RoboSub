@@ -12,12 +12,12 @@
 
 | Launch file | Behavior |
 |-------------|----------|
-| `main.py` | Includes `hardware.py`, `localization.py`, `manual.py`. Autonomous `control` stack is commented out. |
+| `main.py` | Includes **`hardware.py`**, **`localization.py`**, **`control.py`**. **`manual.py` is commented out** — autonomy does **not** start keyboard/joystick. **`thrust_generator`** runs only inside **`hardware.py`**; **`main/launch/control.py`** runs **`controller`** + **`test_controller`** (no second thrust node). |
 | `hardware.py` | `xsens_mti_ros2_driver` + `hardware` nodes (`imu`, `dvl`, `thrusters`, `arduino`) + `control/thrust_generator`; optional `sensors_plot` via launch arg `plot`. Requires **xsens** package in workspace/overlay. |
 | `localization.py` | `hardware/sensors` + `robot_localization/ekf_node` + static TFs `base_link` → `imu_frame`, `dvl_frame`. |
 | `state.py` | Same EKF stack as `localization.py` without manual/hardware extras. |
-| `manual.py` | **`control/thrust_generator` only.** Run **`ros2 run manual keyboard`** in a separate interactive terminal for teleop (keyboard uses `stdin`; it is not launched here). |
-| `control.py` | `control/thrust_generator` + `control/controller` + `control/test_controller` (publishes sample `waypoint` odometry). |
+| `manual.py` | **`control/thrust_generator`** + **`manual/keyboard`** (NATS bridge). Requires **`nats-server`** and **`./keyboard_local.sh`**. Do **not** launch alongside **`hardware.py`** (duplicate **`thrust_generator`**). |
+| `control.py` | **`controller`** + **`test_controller`** only. **`thrust_generator`** is expected from **`hardware.py`** when using **`main.py`**. For **`ros2 launch main control.py`** without hardware, run **`ros2 run control thrust_generator`** (see comments in `control.py`) or use **`manual.py`** / **`wrench_to_pwm`**. |
 | `perception.py` | Single node: `perception/object_localizer`. |
 | `planning.py` | Empty `LaunchDescription` (placeholder). |
 | `simulation.py` | `simulation/thrusters`, `simulation/sensors`, `simulation/path_bridge` with `global.yaml`. |

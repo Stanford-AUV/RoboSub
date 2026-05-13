@@ -17,10 +17,11 @@
 
 **Stub (not usable as a node):** `nodes/execute_action.py` — `ExecuteAction` class does not call `super().__init__`; not in `setup.py`.
 
-## Launches (`share/control/launch/`)
+## Launches
 
-- `control.py` — same composition as `main/launch/control.py` (thrust_generator + controller + test_controller pattern in repo).
-- `wrench_to_pwm.py` — `thrust_generator` + `hardware/thrusters` with `global.yaml` from `main` (relative path `../../main/launch/params/global.yaml`).
+- **`main/launch/control.py`** (installed with package **`main`**): **`controller`** + **`test_controller`** only. **`thrust_generator`** is intentionally **not** started here so **`ros2 launch main main.py`** has a single thrust node from **`hardware.py`**. See file comments for running **`control.py` without** `hardware.py`.
+- **`share/control/launch/control.py`** (package **`control`**): currently runs **`pid_control`** only (paths point at `main`’s `global.yaml`).
+- **`wrench_to_pwm.py`** — `thrust_generator` + `hardware/thrusters` with `global.yaml` from `main`.
 
 ## Library code (`control/utils/`)
 
@@ -30,7 +31,7 @@ Includes PID (`pid.py`), wrench/thruster math (`thrust_generator.py`, `wrench.py
 
 1. Run your Gazebo / sim stack per [SIMULATION.md](../../SIMULATION.md).
 2. `ros2 launch main simulation.py` — sim sensors + thrusters + path bridge.
-3. `ros2 launch main control.py` or `ros2 launch control control.py` — control stack.
+3. Full autonomy-style stack: `ros2 launch main main.py`, or add **`thrust_generator`** when using **`main/launch/control.py`** alone (see that file’s header comment). Package launch: `ros2 launch control control.py`.
 
 ## Tests
 
