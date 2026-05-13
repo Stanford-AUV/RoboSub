@@ -17,9 +17,9 @@ import matplotlib.pyplot as plt
 correction = np.array([0, 0, 0])
 
 T = np.array([
-    [0, 0, 1],
     [1, 0, 0],
-    [0, -1, 0]
+    [0, 1, 0],
+    [0, 0, 1]
 ])
 
 class SensorsPlot(Node):

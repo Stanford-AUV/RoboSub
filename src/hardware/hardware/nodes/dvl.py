@@ -42,7 +42,9 @@ class DVL(GenericSensor):
     def autodetect_dvl_port(self, baudrate, timeout=2):
         """Scan available serial ports and attempt to connect to the DVL."""
         possible_ports = glob.glob("/dev/ttyUSB*") + glob.glob("/dev/ttyACM*")
+        print(possible_ports)
         for port in possible_ports:
+            print(f"Trying {port}")
             try:
                 with serial.Serial(port, baudrate, timeout=timeout) as ser:
                     if not ser.is_open:

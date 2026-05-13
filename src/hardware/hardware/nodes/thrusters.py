@@ -44,6 +44,7 @@ class Thrusters(Node):
         return np.mean(self.last_voltages)
 
     def thrusts_callback(self, msg: ThrustsStamped):
+        self.get_logger().info(f"HIIIII!!!!!! {msg}")
         try:
             # Initialize pwms array from first message if not already initialized
             if self.pwms is None:
@@ -55,9 +56,18 @@ class Thrusters(Node):
             self.get_logger().info(f"Voltage {voltage}")
             self.get_logger().info(f"Received thrusts {msg.thrusts}")
             self.pwms = np.array(
-                [thrust_to_pwm(thrust, voltage) for thrust in msg.thrusts],
+                [
+                    (
+                        1100 + 1900 - thrust_to_pwm(thrust * (0.9 if i <= 1 else 1), voltage) 
+                        if self._invert[i]
+                        else thrust_to_pwm(thrust, voltage)
+                    )
+                    for i, thrust in enumerate(msg.thrusts)
+                ],
                 dtype=np.int16,
             )
+            self.get_logger().info(f"Constructed pwms {self.pwms}")
+
         except ValueError as e:
             self.get_logger().error(f"Failed to convert thrusts to PWMs: {e}")
 

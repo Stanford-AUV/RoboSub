@@ -21,6 +21,7 @@ class ThrustGenerator(Node):
     def __init__(self, path):
         """Initialize the ThrustGenerator node."""
         super().__init__("thrust_generator")
+        # self.get_logger().info("SDKOFAJDSOFJAS")
 
         self.path = path
 
@@ -28,6 +29,19 @@ class ThrustGenerator(Node):
         self.TAM_inv = thruster_configs_to_TAM_inv(
             thruster_positions, thruster_orientations
         )
+
+        # # --- 2) build your ENU‐map matrix from the axis_map ---
+        # axis_map = {
+        #     'x': ('z', -1),   # ENU X = –raw Z
+        #     'y': ('x', -1),   # ENU Y = –raw X
+        #     'z': ('y', +1),   # ENU Z =  raw Y
+        # }
+        # # R_hw[i,j] = sign means ENU-axis i takes raw-axis j times sign
+        # self._R_hw = np.zeros((3,3))
+        # for i, axis in enumerate(('x','y','z')):
+        #     src, sgn = axis_map[axis]
+        #     j = ('x','y','z').index(src)
+        #     self._R_hw[i,j] = sgn
 
         self.wrench = Wrench()
 

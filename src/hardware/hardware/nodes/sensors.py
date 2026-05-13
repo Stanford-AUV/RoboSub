@@ -13,6 +13,7 @@ class Sensors(Node):
 
     def __init__(self):
         super().__init__("sensors")
+        self.get_logger().info("Starting [sensors]")
 
         self.declare_parameter("history_depth", Parameter.Type.INTEGER)
 
@@ -39,12 +40,12 @@ class Sensors(Node):
         dvl_twist_msg.header.frame_id = "dvl_frame"
         # fmt: off
         dvl_twist_msg.twist.covariance = [
-            0.1, 0.0, 0.0,  0.0, 0.0, 0.0,
-            0.0, 0.1, 0.0,  0.0, 0.0, 0.0,
-            0.0, 0.0, 0.1,  0.0, 0.0, 0.0,
-            0.0, 0.0, 0.0,  0.1, 0.0, 0.0,
-            0.0, 0.0, 0.0,  0.0, 0.1, 0.0,
-            0.0, 0.0, 0.0,  0.0, 0.0, 0.1
+            0.05, 0.0, 0.0,  0.0, 0.0, 0.0,
+            0.0, 0.05, 0.0,  0.0, 0.0, 0.0,
+            0.0, 0.0, 0.05,  0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0,  0.05, 0.0, 0.0,
+            0.0, 0.0, 0.0,  0.0, 0.05, 0.0,
+            0.0, 0.0, 0.0,  0.0, 0.0, 0.05
         ]
         self.sync_dvl_publisher_.publish(dvl_twist_msg)
 
