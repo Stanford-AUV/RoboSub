@@ -24,6 +24,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+src/xsens_mti_ros2_driver/*
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

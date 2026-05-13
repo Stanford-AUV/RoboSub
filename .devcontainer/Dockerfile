@@ -2,10 +2,10 @@ FROM althack/ros2:jazzy-full-2024-12-01
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Set CUDA environment variables
-ENV CUDA_HOME=/usr/local/cuda-12
-ENV PATH=/usr/local/cuda-12/bin:${PATH}
-ENV LD_LIBRARY_PATH=/usr/local/cuda-12/lib64:/usr/lib/aarch64-linux-gnu/nvidia:/usr/lib/aarch64-linux-gnu/tegra:${LD_LIBRARY_PATH}
+# # Set CUDA environment variables
+# ENV CUDA_HOME=/usr/local/cuda-12
+# ENV PATH=/usr/local/cuda-12/bin:${PATH}
+# ENV LD_LIBRARY_PATH=/usr/local/cuda-12/lib64:/usr/lib/aarch64-linux-gnu/nvidia:/usr/lib/aarch64-linux-gnu/tegra:${LD_LIBRARY_PATH}
 
 # Refresh ROS GPG key + source
 RUN rm -f /usr/share/keyrings/ros-archive-keyring.gpg /etc/apt/sources.list.d/ros2.list && \
@@ -75,36 +75,36 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Install cuDSS
-RUN wget -q https://developer.download.nvidia.com/compute/cudss/0.5.0/local_installers/cudss-local-repo-ubuntu2204-0.5.0_0.5.0-1_arm64.deb && \
-    dpkg -i cudss-local-repo-ubuntu2204-0.5.0_0.5.0-1_arm64.deb && \
-    cp /var/cudss-local-repo-ubuntu2204-0.5.0/cudss-*-keyring.gpg /usr/share/keyrings/ && \
-    apt-get update && \
-    apt-get install -y cudss && \
-    rm -f cudss-local-repo-ubuntu2204-0.5.0_0.5.0-1_arm64.deb && \
-    rm -rf /var/lib/apt/lists/*
+# # Install cuDSS
+# RUN wget -q https://developer.download.nvidia.com/compute/cudss/0.5.0/local_installers/cudss-local-repo-ubuntu2204-0.5.0_0.5.0-1_arm64.deb && \
+#     dpkg -i cudss-local-repo-ubuntu2204-0.5.0_0.5.0-1_arm64.deb && \
+#     cp /var/cudss-local-repo-ubuntu2204-0.5.0/cudss-*-keyring.gpg /usr/share/keyrings/ && \
+#     apt-get update && \
+#     apt-get install -y cudss && \
+#     rm -f cudss-local-repo-ubuntu2204-0.5.0_0.5.0-1_arm64.deb && \
+#     rm -rf /var/lib/apt/lists/*
 
 # Install cuSPARSELt
-RUN wget -q https://developer.download.nvidia.com/compute/cusparselt/0.8.1/local_installers/cusparselt-local-repo-ubuntu2204-0.8.1_0.8.1-1_arm64.deb && \
-    dpkg -i cusparselt-local-repo-ubuntu2204-0.8.1_0.8.1-1_arm64.deb && \
-    cp /var/cusparselt-local-repo-ubuntu2204-0.8.1/cusparselt-*-keyring.gpg /usr/share/keyrings/ && \
-    apt-get update && \
-    apt-get install -y cusparselt && \
-    rm -f cusparselt-local-repo-ubuntu2204-0.8.1_0.8.1-1_arm64.deb && \
-    rm -rf /var/lib/apt/lists/*
+# RUN wget -q https://developer.download.nvidia.com/compute/cusparselt/0.8.1/local_installers/cusparselt-local-repo-ubuntu2204-0.8.1_0.8.1-1_arm64.deb && \
+#     dpkg -i cusparselt-local-repo-ubuntu2204-0.8.1_0.8.1-1_arm64.deb && \
+#     cp /var/cusparselt-local-repo-ubuntu2204-0.8.1/cusparselt-*-keyring.gpg /usr/share/keyrings/ && \
+#     apt-get update && \
+#     apt-get install -y cusparselt && \
+#     rm -f cusparselt-local-repo-ubuntu2204-0.8.1_0.8.1-1_arm64.deb && \
+# #     rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libopenblas0 \
-    && rm -rf /var/lib/apt/lists/*
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+#     libopenblas0 \
+#     && rm -rf /var/lib/apt/lists/*
 
-# Set library path
-ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
+# # Set library path
+# # ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 
-RUN pip install --break-system-packages \
-    "https://pypi.jetson-ai-lab.io/jp6/cu129/+f/f36/0db283b1249b3/torch-2.8.0-cp312-cp312-linux_aarch64.whl" \
-    "https://pypi.jetson-ai-lab.io/jp6/cu129/+f/255/341cb5beb4673/torchvision-0.23.0-cp312-cp312-linux_aarch64.whl#sha256=255341cb5beb4673f0f1a26061105623f17a2b32188478c68b3f2e1a897d49a2"
-# Install ultralytics for system Python (allow dependency flexibility)
-RUN python3 -m pip install --break-system-packages --no-cache-dir --no-deps ultralytics
+# RUN pip install --break-system-packages \
+#     "https://pypi.jetson-ai-lab.io/jp6/cu129/+f/f36/0db283b1249b3/torch-2.8.0-cp312-cp312-linux_aarch64.whl" \
+#     "https://pypi.jetson-ai-lab.io/jp6/cu129/+f/255/341cb5beb4673/torchvision-0.23.0-cp312-cp312-linux_aarch64.whl#sha256=255341cb5beb4673f0f1a26061105623f17a2b32188478c68b3f2e1a897d49a2"
+# # Install ultralytics for system Python (allow dependency flexibility)
+RUN python3 -m pip install --break-system-packages --no-cache-dir --no-deps ultralytics spatialmath-python
 
 # Set up auto-source of workspace for ros user
 ARG WORKSPACE

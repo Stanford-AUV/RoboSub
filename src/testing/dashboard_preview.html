@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoboSub Live Monitor Dashboard - Preview</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .update-status {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .update-status h3 {
+            display: inline;
+        }
+        .update-status span {
+            color: #27ae60;
+        }
+        .section {
+            margin-bottom: 30px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section h2 {
+            color: #34495e;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .data-container {
+            text-align: center;
+        }
+        .data-box {
+            display: inline-block;
+            margin: 10px;
+            padding: 15px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            background-color: #ecf0f1;
+            vertical-align: top;
+        }
+        .data-box h4 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        table {
+            margin: 0 auto;
+        }
+        td {
+            padding: 5px 10px;
+        }
+        td:first-child {
+            text-align: right;
+            color: #7f8c8d;
+        }
+        td:last-child {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .detection-count {
+            font-size: 24px;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        .depth-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #3498db;
+        }
+        .detection-item {
+            margin: 5px;
+            padding: 5px;
+            background-color: #ecf0f1;
+            border-radius: 3px;
+        }
+        .no-data {
+            color: #95a5a6;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <h1>RoboSub Live Monitor Dashboard</h1>
+    
+    <div class="update-status">
+        <h3>Last Update: </h3>
+        <span id="last-update">Odometry</span>
+    </div>
+
+    <!-- Position & Orientation Section -->
+    <div class="section">
+        <h2>Position & Orientation</h2>
+        <div class="data-container">
+            <div class="data-box">
+                <h4>Position (m)</h4>
+                <table>
+                    <tr><td>X:</td><td id="pos-x">1.234</td></tr>
+                    <tr><td>Y:</td><td id="pos-y">-0.567</td></tr>
+                    <tr><td>Z:</td><td id="pos-z">2.890</td></tr>
+                </table>
+            </div>
+            
+            <div class="data-box">
+                <h4>Orientation (deg)</h4>
+                <table>
+                    <tr><td>Roll:</td><td id="roll">5.23</td></tr>
+                    <tr><td>Pitch:</td><td id="pitch">-2.45</td></tr>
+                    <tr><td>Yaw:</td><td id="yaw">87.65</td></tr>
+                </table>
+            </div>
+            
+            <div class="data-box">
+                <h4>Velocity (m/s)</h4>
+                <table>
+                    <tr><td>Vx:</td><td id="vel-x">0.123</td></tr>
+                    <tr><td>Vy:</td><td id="vel-y">-0.045</td></tr>
+                    <tr><td>Vz:</td><td id="vel-z">0.089</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- IMU Section -->
+    <div class="section">
+        <h2>IMU Sensors</h2>
+        <div class="data-container">
+            <div class="data-box">
+                <h4>Acceleration (m/s²)</h4>
+                <table>
+                    <tr><td>Ax:</td><td id="accel-x">0.234</td></tr>
+                    <tr><td>Ay:</td><td id="accel-y">-0.156</td></tr>
+                    <tr><td>Az:</td><td id="accel-z">9.812</td></tr>
+                </table>
+            </div>
+            
+            <div class="data-box">
+                <h4>Angular Velocity (rad/s)</h4>
+                <table>
+                    <tr><td>ωx:</td><td id="gyro-x">0.012</td></tr>
+                    <tr><td>ωy:</td><td id="gyro-y">-0.008</td></tr>
+                    <tr><td>ωz:</td><td id="gyro-z">0.034</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detections Section -->
+    <div class="section">
+        <h2>Object Detections</h2>
+        <div class="data-container">
+            <h4 style="display: inline;">Number of Detections: </h4>
+            <span class="detection-count" id="num-detections">3</span>
+        </div>
+        <div id="detection-list" style="text-align: center; margin-top: 10px;">
+            <div class="detection-item">Detection 1: pvc_pipe at 2.5m</div>
+            <div class="detection-item">Detection 2: gate at 4.2m</div>
+            <div class="detection-item">Detection 3: buoy at 3.8m</div>
+        </div>
+    </div>
+
+    <!-- Control Section -->
+    <div class="section">
+        <h2>Control Wrench</h2>
+        <div class="data-container">
+            <div class="data-box">
+                <h4>Force (N)</h4>
+                <table>
+                    <tr><td>Fx:</td><td id="force-x">12.345</td></tr>
+                    <tr><td>Fy:</td><td id="force-y">-5.678</td></tr>
+                    <tr><td>Fz:</td><td id="force-z">8.901</td></tr>
+                </table>
+            </div>
+            
+            <div class="data-box">
+                <h4>Torque (Nm)</h4>
+                <table>
+                    <tr><td>Tx:</td><td id="torque-x">2.345</td></tr>
+                    <tr><td>Ty:</td><td id="torque-y">-1.234</td></tr>
+                    <tr><td>Tz:</td><td id="torque-z">0.567</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Depth Section -->
+    <div class="section">
+        <h2>Depth Sensor</h2>
+        <div class="data-container">
+            <h4 style="display: inline;">Depth: </h4>
+            <span class="depth-value" id="depth">1.850</span>
+            <span style="font-size: 18px;"> m</span>
+        </div>
+    </div>
+
+    <script>
+        // Simulate live updates
+        function updateValues() {
+            // Simulate changing values
+            document.getElementById('pos-x').textContent = (Math.random() * 2 - 1).toFixed(3);
+            document.getElementById('pos-y').textContent = (Math.random() * 2 - 1).toFixed(3);
+            document.getElementById('vel-x').textContent = (Math.random() * 0.5 - 0.25).toFixed(3);
+            document.getElementById('depth').textContent = (1.5 + Math.random() * 0.5).toFixed(3);
+            
+            // Update timestamp
+            const now = new Date();
+            document.getElementById('last-update').textContent = now.toLocaleTimeString();
+        }
+
+        // Update every 500ms to simulate real-time
+        setInterval(updateValues, 500);
+    </script>
+</body>
+</html>
