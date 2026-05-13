@@ -4,7 +4,12 @@ from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
 from scipy.spatial.transform import Rotation
 
-import yaml, os
+import sys
+import yaml
+import os
+
+from rclpy.utilities import remove_ros_args
+
 
 class PathLoader(Node):
     def __init__(self, yaml_path):
@@ -84,9 +89,18 @@ class PathLoader(Node):
         return path_msg
 
 def main(args=None):
-    SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-    yaml_path = os.path.join(SCRIPT_DIR, "..", "sample_path.yaml")
-    yaml_path = os.path.abspath(yaml_path)
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    default_yaml = os.path.abspath(os.path.join(script_dir, "..", "sample_path.yaml"))
+
+    argv = remove_ros_args(args=sys.argv)
+    if len(argv) > 1:
+        yaml_path = os.path.abspath(os.path.expanduser(argv[1]))
+    else:
+        yaml_path = default_yaml
+
+    if not os.path.isfile(yaml_path):
+        print(f"Error: YAML file not found: {yaml_path}", file=sys.stderr)
+        sys.exit(1)
 
     rclpy.init(args=args)
     node = PathLoader(yaml_path)

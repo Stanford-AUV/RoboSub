@@ -1,10 +1,7 @@
-./build.sh && source install/setup.bash
+See README.md in this folder for full documentation.
 
-# In Terminal 1 — start the bridge
-ros2 run gui bridge
-
-# In Terminal 2 — launch manual joystick as normal
-ros2 launch main manual.py
-
-# Open auv_hud.html in your browser
-# It auto-connects to ws://localhost:9090
+Quick start:
+  ./build.sh && source install/setup.bash
+  ros2 run gui bridge
+  ros2 launch main manual.py   # if you need teleop / thrust stack
+  Open gui/auv_hud.html — WebSocket defaults to ws://localhost:9091 (see ros2_gui_bridge.py).

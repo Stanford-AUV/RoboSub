@@ -1,8 +1,6 @@
 import os
 from glob import glob
 from setuptools import find_packages, setup
-import os
-from glob import glob
 
 package_name = "control"
 
@@ -28,14 +26,12 @@ setup(
     entry_points={
         "console_scripts": [
             "thrust_generator = control.nodes.thrust_generator:main",
+            "controller = control.nodes.controller:main",
             "pid_control = control.nodes.pid_control:main",
             "path_tracker = control.nodes.path_tracker:main",
-            "test_path = control.nodes.test_path:main",
             "logger = control.nodes.logger:main",
             "test_controller = control.nodes.test_controller:main",
             "test_thrust = control.nodes.test_thrust:main",
-            "path_generator = control.nodes.path_generator:main",
-            "test_waypoints = control.nodes.test_waypoints:main",
         ]
     },
 )
