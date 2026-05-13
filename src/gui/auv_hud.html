@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stanford AUV — ROS2 HUD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --accent:     #00e5ff;
+  --accent2:    #ff4f4f;
+  --accent3:    #a3ff6a;
+  --amber:      #ffcc44;
+  --bg:         #040e1a;
+  --bg-card:    rgba(8, 22, 38, 0.92);
+  --border:     rgba(0, 229, 255, 0.15);
+  --border-s:   rgba(0, 229, 255, 0.4);
+  --dim:        rgba(0, 229, 255, 0.45);
+  --mono:       'Share Tech Mono', monospace;
+  --head:       'Rajdhani', sans-serif;
+}
+
+/* ─── high contrast mode ─── */
+body.hc {
+  --accent:     #ffffff;
+  --accent2:    #ff3333;
+  --accent3:    #00ff00;
+  --amber:      #ffdd00;
+  --bg:         #000000;
+  --bg-card:    #0a0a0a;
+  --border:     rgba(255, 255, 255, 0.35);
+  --border-s:   rgba(255, 255, 255, 0.7);
+  --dim:        rgba(255, 255, 255, 0.75);
+}
+body.hc { background: #000; }
+body.hc .panel { border-width: 2px; }
+body.hc .tele-table td:last-child { color: #ffffff; }
+body.hc .val-big { color: #ffffff; }
+body.hc .gauge-val { color: #ffffff; }
+body.hc .accel-cell .val { color: #ffffff; }
+body.hc .log-panel { border-width: 2px; color: #ffffff; }
+body.hc canvas#axisCanvas { border-width: 2px; }
+body.hc .ws-config { border-width: 2px; }
+body.hc .btn { border-width: 2.5px; font-weight: 700; }
+body.hc body::before { display: none; }
+
+.hc-btn {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px;
+  padding: 3px 10px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.4);
+  background: transparent; color: rgba(255,255,255,0.5); cursor: pointer;
+  transition: all 0.15s;
+}
+.hc-btn:hover { border-color: #fff; color: #fff; }
+body.hc .hc-btn { border-color: #fff; color: #000; background: #fff; font-weight: 700; }
+
+body {
+  background: var(--bg);
+  color: var(--accent);
+  font-family: var(--mono);
+  min-height: 100vh;
+  padding: 12px;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent, transparent 29px,
+    rgba(0,229,255,0.018) 29px, rgba(0,229,255,0.018) 30px
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.hud { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; }
+
+/* ─── top bar ─── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border-s);
+  padding-bottom: 10px; margin-bottom: 12px; gap: 12px; flex-wrap: wrap;
+}
+.topbar-title { font-family: var(--head); font-size: 20px; font-weight: 700; letter-spacing: 4px; }
+
+.ws-badge {
+  font-size: 10px; padding: 3px 10px; border-radius: 20px; border: 1px solid;
+  letter-spacing: 1.5px; cursor: pointer; transition: background 0.2s;
+}
+.ws-badge.connecting { border-color: var(--amber); color: var(--amber); }
+.ws-badge.connected  { border-color: var(--accent3); color: var(--accent3); }
+.ws-badge.error      { border-color: var(--accent2); color: var(--accent2); animation: blink 1s step-start infinite; }
+
+.status-pill {
+  font-size: 10px; padding: 3px 12px; border-radius: 20px; border: 1px solid;
+  letter-spacing: 1.5px;
+}
+.status-pill.ready   { border-color: var(--dim); color: var(--dim); }
+.status-pill.running { border-color: var(--accent); color: var(--accent); animation: blink 1s step-start infinite; }
+.status-pill.stopped { border-color: var(--accent2); color: var(--accent2); }
+
+@keyframes blink { 50% { opacity: 0.35; } }
+
+/* ─── ws config bar ─── */
+.ws-config {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  padding: 6px 10px; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: 6px; flex-wrap: wrap;
+}
+.ws-config label { font-size: 10px; color: var(--dim); letter-spacing: 1px; }
+.ws-config input {
+  background: transparent; border: 1px solid var(--border-s); color: var(--accent);
+  font-family: var(--mono); font-size: 12px; padding: 3px 8px; border-radius: 4px;
+  width: 260px; outline: none;
+}
+.ws-config input:focus { border-color: var(--accent); }
+.ws-btn {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 1px; padding: 4px 12px;
+  border: 1px solid var(--border-s); border-radius: 4px; background: transparent;
+  color: var(--accent); cursor: pointer; transition: background 0.15s;
+}
+.ws-btn:hover { background: rgba(0,229,255,0.1); }
+
+/* ─── grid layout ─── */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px; margin-bottom: 10px;
+}
+@media(max-width:700px) { .main-grid { grid-template-columns: 1fr; } }
+
+.mid-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;
+}
+@media(max-width:700px) { .mid-row { grid-template-columns: 1fr; } }
+
+.gauge-row {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;
+}
+@media(max-width:700px) { .gauge-row { grid-template-columns: 1fr; } }
+
+/* ─── panels ─── */
+.panel {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px;
+}
+.panel-label { font-size: 9px; letter-spacing: 2px; color: var(--dim); margin-bottom: 6px; }
+
+.val-big  { font-size: 24px; color: #fff; }
+.val-unit { font-size: 11px; color: var(--dim); margin-left: 3px; }
+
+.val-bar  { height: 3px; background: rgba(0,229,255,0.1); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.val-bar-fill { height: 100%; border-radius: 2px; transition: width 0.25s ease; }
+
+/* ─── 3D canvas ─── */
+.canvas-wrap { position: relative; }
+canvas#axisCanvas {
+  width: 100%; aspect-ratio: 1; display: block;
+  background: rgba(0,5,15,0.7); border: 1px solid var(--border); border-radius: 6px;
+}
+.axis-legend {
+  position: absolute; bottom: 8px; left: 10px; font-size: 10px; line-height: 1.7;
+}
+.ax { color: #ff4f70; } .ay { color: #a3ff6a; } .az { color: #4fb8ff; }
+
+/* ─── telemetry table ─── */
+.tele-table { width: 100%; font-size: 12px; border-collapse: collapse; }
+.tele-table td { padding: 5px 0; }
+.tele-table td:first-child { color: var(--dim); }
+.tele-table td:last-child { text-align: right; color: #fff; font-weight: 500; }
+.tele-table tr + tr td { border-top: 1px solid var(--border); }
+
+/* ─── gauges ─── */
+.gauge-wrap {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 12px 10px; display: flex; flex-direction: column; align-items: center;
+}
+.gauge-title { font-size: 9px; letter-spacing: 2px; color: var(--dim); margin-bottom: 5px; }
+canvas.gauge { display: block; }
+.gauge-val { font-size: 16px; color: #fff; margin-top: 3px; }
+.gauge-unit { font-size: 10px; color: var(--dim); }
+
+/* ─── controls ─── */
+.controls-row {
+  display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap;
+}
+.btn {
+  font-family: var(--mono); font-size: 13px; letter-spacing: 2px;
+  padding: 10px 22px; border-radius: 6px; border: 1.5px solid;
+  cursor: pointer; transition: all 0.15s; background: transparent; flex-shrink: 0;
+}
+.btn:active { transform: scale(0.96); }
+.btn-launch { border-color: var(--accent3); color: var(--accent3); }
+.btn-launch:hover { background: rgba(163,255,106,0.12); }
+.btn-stop   { border-color: var(--accent2); color: var(--accent2); }
+.btn-stop:hover { background: rgba(255,79,79,0.12); }
+.btn-graph  { border-color: var(--accent); color: var(--accent); }
+.btn-graph:hover { background: rgba(0,229,255,0.09); }
+
+.log-panel {
+  flex: 1; min-width: 200px;
+  background: rgba(0,5,15,0.7); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 10px; font-size: 11px; color: var(--dim);
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  display: flex; align-items: center;
+}
+
+/* ─── accel block ─── */
+.accel-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; margin-top: 6px; }
+.accel-cell { text-align: center; }
+.accel-cell .label { font-size: 9px; letter-spacing: 1px; color: var(--dim); }
+.accel-cell .val   { font-size: 15px; color: #fff; }
+
+/* ─── topic config ─── */
+.topic-cfg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+.topic-row { display: flex; align-items: center; gap: 6px; }
+.topic-row label { font-size: 9px; color: var(--dim); letter-spacing: 1px; min-width: 65px; }
+.topic-row input {
+  flex: 1; background: transparent; border: 1px solid var(--border);
+  color: var(--accent); font-family: var(--mono); font-size: 10px; padding: 3px 6px;
+  border-radius: 4px; outline: none;
+}
+.topic-row input:focus { border-color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="hud">
+
+  <!-- ── Top bar ── -->
+  <div class="topbar">
+    <div class="topbar-title">STANFORD AUV — ROS2 HUD</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <div id="wsBadge" class="ws-badge connecting" onclick="reconnectWS()" title="Click to reconnect">WS: CONNECTING…</div>
+      <button class="hc-btn" id="hcBtn" onclick="toggleHC()" title="Toggle high contrast mode">◐ HC</button>
+      <div id="statusPill" class="status-pill ready">READY</div>
+    </div>
+  </div>
+
+  <!-- ── WebSocket config ── -->
+  <div class="ws-config">
+    <label>WS HOST</label>
+    <input id="wsUrl" value="ws://localhost:9091" placeholder="ws://localhost:9091">
+    <button class="ws-btn" onclick="reconnectWS()">CONNECT</button>
+    <span style="font-size:10px;color:var(--dim);margin-left:auto;" id="wsLatency">—</span>
+  </div>
+
+  <!-- ── X / Y / Z position panels ── -->
+  <div class="main-grid">
+    <div class="panel">
+      <div class="panel-label">X — SURGE (m)</div>
+      <div><span class="val-big ax" id="vx">0.000</span></div>
+      <div class="val-bar"><div class="val-bar-fill" id="bx" style="background:#ff4f70;width:50%;"></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-label">Y — SWAY (m)</div>
+      <div><span class="val-big ay" id="vy">0.000</span></div>
+      <div class="val-bar"><div class="val-bar-fill" id="by" style="background:#a3ff6a;width:50%;"></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-label">Z — DEPTH (m)</div>
+      <div><span class="val-big az" id="vz">0.000</span></div>
+      <div class="val-bar"><div class="val-bar-fill" id="bz" style="background:#4fb8ff;width:50%;"></div></div>
+    </div>
+  </div>
+
+  <!-- ── Middle row: 3D axes + telemetry ── -->
+  <div class="mid-row">
+    <div class="canvas-wrap">
+      <canvas id="axisCanvas" width="400" height="400"></canvas>
+      <div class="axis-legend">
+        <div><span class="ax">■</span> X SURGE</div>
+        <div><span class="ay">■</span> Y SWAY</div>
+        <div><span class="az">■</span> Z DEPTH</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <!-- Orientation telemetry -->
+      <div class="panel" style="flex:1">
+        <div class="panel-label">ORIENTATION — IMU</div>
+        <table class="tele-table">
+          <tr><td>PITCH</td><td id="tPitch">0.00°</td></tr>
+          <tr><td>ROLL</td><td id="tRoll">0.00°</td></tr>
+          <tr><td>YAW</td><td id="tYaw">0.00°</td></tr>
+          <tr><td>ω PITCH</td><td id="twx">0.00°/s</td></tr>
+          <tr><td>ω ROLL</td><td id="twy">0.00°/s</td></tr>
+          <tr><td>ω YAW</td><td id="twz">0.00°/s</td></tr>
+        </table>
+      </div>
+      <!-- Velocity & accel -->
+      <div class="panel" style="flex:1">
+        <div class="panel-label">LINEAR VELOCITY (m/s)</div>
+        <div class="accel-grid">
+          <div class="accel-cell"><div class="label">VX</div><div class="val ax" id="velx">0.000</div></div>
+          <div class="accel-cell"><div class="label">VY</div><div class="val ay" id="vely">0.000</div></div>
+          <div class="accel-cell"><div class="label">VZ</div><div class="val az" id="velz">0.000</div></div>
+        </div>
+        <div class="panel-label" style="margin-top:10px;">LINEAR ACCELERATION (m/s²)</div>
+        <div class="accel-grid">
+          <div class="accel-cell"><div class="label">AX</div><div class="val ax" id="accx">0.000</div></div>
+          <div class="accel-cell"><div class="label">AY</div><div class="val ay" id="accy">0.000</div></div>
+          <div class="accel-cell"><div class="label">AZ</div><div class="val az" id="accz">0.000</div></div>
+        </div>
+      </div>
+      <!-- System status -->
+      <div class="panel">
+        <div class="panel-label">SYSTEM STATUS</div>
+        <table class="tele-table">
+          <tr><td>IMU</td><td id="imuStatus" style="color:var(--accent2)">OFFLINE</td></tr>
+          <tr><td>ODOM</td><td id="odomStatus" style="color:var(--accent2)">OFFLINE</td></tr>
+          <tr><td>WS BRIDGE</td><td id="wsStatus" style="color:var(--accent2)">OFFLINE</td></tr>
+          <tr><td>LAST MSG</td><td id="lastMsg">—</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Pitch / Roll / Yaw gauges ── -->
+  <div class="gauge-row">
+    <div class="gauge-wrap">
+      <div class="gauge-title">PITCH</div>
+      <canvas class="gauge" id="gaugePitch" width="140" height="74"></canvas>
+      <div class="gauge-val"><span id="gvPitch">0.0</span><span class="gauge-unit">°</span></div>
+    </div>
+    <div class="gauge-wrap">
+      <div class="gauge-title">ROLL</div>
+      <canvas class="gauge" id="gaugeRoll" width="140" height="74"></canvas>
+      <div class="gauge-val"><span id="gvRoll">0.0</span><span class="gauge-unit">°</span></div>
+    </div>
+    <div class="gauge-wrap">
+      <div class="gauge-title">YAW</div>
+      <canvas class="gauge" id="gaugeYaw" width="140" height="74"></canvas>
+      <div class="gauge-val"><span id="gvYaw">0.0</span><span class="gauge-unit">°</span></div>
+    </div>
+  </div>
+
+  <!-- ── Controls ── -->
+  <div class="controls-row">
+    <button class="btn btn-launch" onclick="launchSub()">▶ LAUNCH</button>
+    <button class="btn btn-stop"   onclick="stopSub()">■ E-STOP</button>
+    <div class="log-panel" id="logPanel">Awaiting ROS2 bridge connection on ws://localhost:9091</div>
+    <button class="btn btn-graph"  onclick="openGraph()">+ NEW GRAPH</button>
+  </div>
+
+</div><!-- .hud -->
+
+<script>
+/* ════════════════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════════════════ */
+var state = {
+  x:0,y:0,z:0, roll:0,pitch:0,yaw:0,
+  vx:0,vy:0,vz:0, wx:0,wy:0,wz:0,
+  ax:0,ay:0,az:0,
+  imu_ok:false, odom_ok:false,
+};
+var running = false;
+var simT = 0, simRaf = null;
+var ws = null;
+var wsOk = false;
+var graphWins = [];
+var lastMsgTime = null;
+
+/* ════════════════════════════════════════════════════════
+   WEBSOCKET
+════════════════════════════════════════════════════════ */
+function connectWS(url) {
+  if (ws) { try { ws.close(); } catch(e) {} }
+  setBadge('connecting', 'WS: CONNECTING…');
+  setEl('wsStatus', 'CONNECTING', 'color:var(--amber)');
+
+  ws = new WebSocket(url);
+
+  ws.onopen = function() {
+    wsOk = true;
+    setBadge('connected', 'WS: LIVE');
+    setEl('wsStatus', 'ONLINE', 'color:var(--accent3)');
+    log('ROS2 bridge connected — ' + url);
+  };
+
+  ws.onmessage = function(e) {
+    try {
+      var msg = JSON.parse(e.data);
+      if (msg.type === 'state') {
+        applyState(msg);
+        lastMsgTime = Date.now();
+        var t = new Date().toLocaleTimeString('en-US', {hour12:false});
+        setEl('lastMsg', t, 'color:var(--accent3)');
+        setEl('imuStatus',  msg.imu_ok  ? 'ONLINE' : 'OFFLINE', 'color:' + (msg.imu_ok  ? 'var(--accent3)' : 'var(--accent2)'));
+        setEl('odomStatus', msg.odom_ok ? 'ONLINE' : 'OFFLINE', 'color:' + (msg.odom_ok ? 'var(--accent3)' : 'var(--accent2)'));
+      }
+    } catch(err) {}
+  };
+
+  ws.onerror = function() {
+    wsOk = false;
+    setBadge('error', 'WS: ERROR');
+    setEl('wsStatus', 'ERROR', 'color:var(--accent2)');
+    log('Bridge connection error. Running in SIM mode.');
+    if (!running) { running = true; simLoop(); }
+  };
+
+  ws.onclose = function() {
+    wsOk = false;
+    setBadge('error', 'WS: OFFLINE');
+    setEl('wsStatus', 'OFFLINE', 'color:var(--accent2)');
+    log('Bridge disconnected. Auto-reconnect in 5s…');
+    setTimeout(function() { connectWS(document.getElementById('wsUrl').value); }, 5000);
+  };
+}
+
+function reconnectWS() {
+  var url = document.getElementById('wsUrl').value.trim();
+  log('Connecting to ' + url + '…');
+  connectWS(url);
+}
+
+function sendWS(obj) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(obj));
+  }
+}
+
+/* ════════════════════════════════════════════════════════
+   STATE APPLICATION
+════════════════════════════════════════════════════════ */
+function applyState(s) {
+  Object.assign(state, s);
+  updateUI();
+  pushToGraphs();
+}
+
+/* ════════════════════════════════════════════════════════
+   UI UPDATE
+════════════════════════════════════════════════════════ */
+function updateUI() {
+  // Position
+  var s = state;
+  setText('vx', fmt(s.x,3)); setText('vy', fmt(s.y,3)); setText('vz', fmt(s.z,3));
+  setBar('bx', clamp(s.x, -5, 5)); setBar('by', clamp(s.y, -5, 5)); setBar('bz', clamp(s.z, -5, 5));
+  // Orientation
+  setText('tPitch', fmt(s.pitch,2)+'°'); setText('tRoll', fmt(s.roll,2)+'°'); setText('tYaw', fmt(s.yaw,2)+'°');
+  setText('twx', fmt(s.wx,2)+'°/s'); setText('twy', fmt(s.wy,2)+'°/s'); setText('twz', fmt(s.wz,2)+'°/s');
+  // Velocity
+  setText('velx', fmt(s.vx,3)); setText('vely', fmt(s.vy,3)); setText('velz', fmt(s.vz,3));
+  // Acceleration
+  setText('accx', fmt(s.ax,3)); setText('accy', fmt(s.ay,3)); setText('accz', fmt(s.az,3));
+  // Gauge text
+  setText('gvPitch', fmt(s.pitch,1)); setText('gvRoll', fmt(s.roll,1)); setText('gvYaw', fmt(s.yaw,1));
+  // Canvases
+  draw3D(s.x, s.y, s.z);
+  drawGauge('gaugePitch', s.pitch, 90, '#4fb8ff');
+  drawGauge('gaugeRoll',  s.roll,  90, '#a3ff6a');
+  drawGauge('gaugeYaw',   s.yaw,  180, '#ffcc44');
+}
+
+function setBar(id, norm) {
+  document.getElementById(id).style.width = clamp(50 + norm * 8, 0, 100) + '%';
+}
+
+function fmt(v, d) { return (v >= 0 ? ' ' : '') + Number(v).toFixed(d); }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function setText(id, v) { document.getElementById(id).textContent = v; }
+function setEl(id, v, style) { var el = document.getElementById(id); if(el){ el.textContent = v; if(style) el.setAttribute('style', style); } }
+function setBadge(cls, txt) { var b = document.getElementById('wsBadge'); b.className = 'ws-badge ' + cls; b.textContent = txt; }
+
+/* ════════════════════════════════════════════════════════
+   3D AXIS CANVAS
+════════════════════════════════════════════════════════ */
+var axAngle = 0;
+function draw3D(x, y, z) {
+  var c = document.getElementById('axisCanvas');
+  var ctx = c.getContext('2d');
+  var W = c.width, H = c.height, cx = W/2, cy = H/2;
+  ctx.clearRect(0,0,W,H);
+
+  // Slowly rotate so it feels 3D even when data is static
+  axAngle += 0.008;
+  var cosA = Math.cos(axAngle), sinA = Math.sin(axAngle);
+  var cosB = Math.cos(0.35),    sinB = Math.sin(0.35); // fixed tilt
+
+  function proj(px, py, pz) {
+    var rx = px*cosA - pz*sinA;
+    var rz = px*sinA + pz*cosA;
+    var ry = py*cosB - rz*sinB;
+    var rz2 = py*sinB + rz*cosB;
+    var scale = 110 / (6 + rz2 + 2);
+    return { sx: cx + rx*scale, sy: cy - ry*scale };
+  }
+
+  // Grid dots
+  ctx.fillStyle = 'rgba(0,229,255,0.06)';
+  for (var gi = -2; gi <= 2; gi++) {
+    for (var gj = -2; gj <= 2; gj++) {
+      var gp = proj(gi*1.5, 0, gj*1.5);
+      ctx.beginPath(); ctx.arc(gp.sx, gp.sy, 1, 0, Math.PI*2); ctx.fill();
+    }
+  }
+
+  var o = proj(0,0,0);
+  var scale = 35;
+  var axes = [
+    { v:[x*scale,0,0],      color:'#ff4f70', label:'X' },
+    { v:[0,y*scale,0],      color:'#a3ff6a', label:'Y' },
+    { v:[0,0,z*scale],      color:'#4fb8ff', label:'Z' },
+  ];
+
+  // Draw base axes (dim)
+  var baseAxes = [[scale,0,0],[0,scale,0],[0,0,scale]];
+  baseAxes.forEach(function(bv, i) {
+    var tip = proj(bv[0], bv[1], bv[2]);
+    ctx.beginPath(); ctx.moveTo(o.sx,o.sy); ctx.lineTo(tip.sx, tip.sy);
+    ctx.strokeStyle = ['rgba(255,79,112,0.15)','rgba(163,255,106,0.15)','rgba(79,184,255,0.15)'][i];
+    ctx.lineWidth = 1; ctx.stroke();
+  });
+
+  // Draw data vectors
+  axes.forEach(function(a) {
+    var tip = proj(a.v[0], a.v[1], a.v[2]);
+    // Line
+    ctx.beginPath(); ctx.moveTo(o.sx, o.sy); ctx.lineTo(tip.sx, tip.sy);
+    ctx.strokeStyle = a.color; ctx.lineWidth = 2.5;
+    ctx.shadowColor = a.color; ctx.shadowBlur = 8; ctx.stroke();
+    ctx.shadowBlur = 0;
+    // Dot
+    ctx.beginPath(); ctx.arc(tip.sx, tip.sy, 5, 0, Math.PI*2);
+    ctx.fillStyle = a.color; ctx.fill();
+    // Label
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 11px "Share Tech Mono", monospace';
+    ctx.fillText(a.label, tip.sx + 7, tip.sy + 4);
+  });
+
+  // Origin dot
+  ctx.beginPath(); ctx.arc(o.sx, o.sy, 4, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fill();
+
+  // Corner label
+  ctx.fillStyle = 'rgba(0,229,255,0.2)'; ctx.font = '10px "Share Tech Mono", monospace';
+  ctx.fillText('3D POSITION', 8, 18);
+}
+
+/* ════════════════════════════════════════════════════════
+   GAUGE CANVAS
+════════════════════════════════════════════════════════ */
+function drawGauge(id, val, maxVal, color) {
+  var c = document.getElementById(id);
+  var ctx = c.getContext('2d');
+  var W = c.width, H = c.height;
+  ctx.clearRect(0,0,W,H);
+  var cx = W/2, cy = H - 6, r = H - 14;
+  var startA = Math.PI, endA = Math.PI*2;
+  // Track
+  ctx.beginPath(); ctx.arc(cx, cy, r, startA, endA);
+  ctx.strokeStyle = 'rgba(0,229,255,0.1)'; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.stroke();
+  // Fill
+  var norm = clamp(val / maxVal, -1, 1);
+  var fillEnd = startA + (norm + 1) / 2 * Math.PI;
+  ctx.beginPath(); ctx.arc(cx, cy, r, startA, fillEnd);
+  ctx.strokeStyle = color; ctx.lineWidth = 10; ctx.lineCap = 'round';
+  ctx.shadowColor = color; ctx.shadowBlur = 10; ctx.stroke(); ctx.shadowBlur = 0;
+  // Center label
+  ctx.fillStyle = 'rgba(0,229,255,0.25)'; ctx.font = '9px "Share Tech Mono", monospace';
+  ctx.textAlign = 'center'; ctx.fillText('+/-'+maxVal+'°', cx, cy - 4); ctx.textAlign = 'left';
+}
+
+/* ════════════════════════════════════════════════════════
+   SIM FALLBACK (runs when WS is offline)
+════════════════════════════════════════════════════════ */
+function simLoop() {
+  if (!running) return;
+  simT += 0.016;
+  applyState({
+    x: parseFloat((3.2 * Math.sin(simT * 0.3)).toFixed(3)),
+    y: parseFloat((1.8 * Math.cos(simT * 0.22)).toFixed(3)),
+    z: parseFloat((-2.1 + 0.9 * Math.sin(simT * 0.15)).toFixed(3)),
+    pitch: parseFloat((18 * Math.sin(simT * 0.4)).toFixed(2)),
+    roll:  parseFloat((12 * Math.sin(simT * 0.27 + 0.5)).toFixed(2)),
+    yaw:   parseFloat(((simT * 14) % 360 - 180).toFixed(2)),
+    vx: parseFloat((0.5 * Math.cos(simT * 0.3)).toFixed(3)),
+    vy: parseFloat((0.3 * Math.sin(simT * 0.22)).toFixed(3)),
+    vz: parseFloat((0.1 * Math.cos(simT * 0.15)).toFixed(3)),
+    wx: parseFloat((5 * Math.cos(simT * 0.4)).toFixed(2)),
+    wy: parseFloat((3 * Math.cos(simT * 0.27)).toFixed(2)),
+    wz: parseFloat((8 * Math.sin(simT * 0.1)).toFixed(2)),
+    ax: parseFloat((0.2 * Math.sin(simT)).toFixed(3)),
+    ay: parseFloat((0.1 * Math.cos(simT)).toFixed(3)),
+    az: parseFloat((9.81 + 0.05 * Math.sin(simT * 2)).toFixed(3)),
+    imu_ok: true, odom_ok: true,
+  });
+  simRaf = requestAnimationFrame(simLoop);
+}
+
+/* ════════════════════════════════════════════════════════
+   LAUNCH / STOP
+════════════════════════════════════════════════════════ */
+function launchSub() {
+  running = true;
+  document.getElementById('statusPill').className = 'status-pill running';
+  document.getElementById('statusPill').textContent = 'RUNNING';
+  sendWS({ type: 'launch' });
+  sendWS({ type: 'estop', active: false });
+  log('Launch sequence initiated — running launch_sub.sh');
+  if (!wsOk) { simLoop(); }  // fall back to sim
+}
+
+function stopSub() {
+  running = false;
+  cancelAnimationFrame(simRaf); simRaf = null;
+  document.getElementById('statusPill').className = 'status-pill stopped';
+  document.getElementById('statusPill').textContent = 'E-STOPPED';
+  sendWS({ type: 'estop', active: true });
+  sendWS({ type: 'cmd_vel', lx:0,ly:0,lz:0,ax:0,ay:0,az:0 });
+  log('E-STOP issued. /estop published. All thrusters commanded to zero.');
+}
+
+/* ════════════════════════════════════════════════════════
+   GRAPH WINDOWS
+════════════════════════════════════════════════════════ */
+function pushToGraphs() {
+  graphWins.forEach(function(gw) {
+    if (gw && !gw.closed) {
+      try {
+        gw.postMessage({
+          pitch: state.pitch, roll: state.roll, yaw: state.yaw,
+          x: state.x, y: state.y, z: state.z,
+          vx: state.vx, vy: state.vy, vz: state.vz,
+          ax: state.ax, ay: state.ay, az: state.az,
+        }, '*');
+      } catch(e) {}
+    }
+  });
+}
+
+function openGraph() {
+  var html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>AUV Telemetry Graph</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#040e1a;color:#00e5ff;font-family:'Share Tech Mono',monospace;padding:12px;min-height:100vh}
+.title{font-size:13px;letter-spacing:3px;color:rgba(0,229,255,0.5);margin-bottom:10px}
+.controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
+.toggle{display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;padding:3px 8px;border:1px solid rgba(0,229,255,0.2);border-radius:4px;transition:background 0.15s}
+.toggle:hover{background:rgba(0,229,255,0.06)}
+.toggle input{accent-color:currentColor}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:3px}
+canvas{background:rgba(0,5,15,0.7);border:1px solid rgba(0,229,255,0.15);border-radius:6px;display:block;width:100%;margin-bottom:8px}
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:6px;margin-bottom:10px}
+.stat{background:rgba(8,22,38,0.9);border:1px solid rgba(0,229,255,0.12);border-radius:6px;padding:6px 10px;text-align:center}
+.stat .k{font-size:9px;letter-spacing:1px;color:rgba(0,229,255,0.4);margin-bottom:3px}
+.stat .v{font-size:16px;color:#fff}
+</style></head><body>
+<div class="title">AUV LIVE TELEMETRY</div>
+<div class="stat-row" id="stats"></div>
+<div class="controls" id="toggles"></div>
+<canvas id="graph" height="260"></canvas>
+<script>
+var series=[
+  {k:'pitch',label:'Pitch',col:'#4fb8ff',range:180},
+  {k:'roll', label:'Roll', col:'#a3ff6a',range:90},
+  {k:'yaw',  label:'Yaw',  col:'#ffcc44',range:360},
+  {k:'x',    label:'X',    col:'#ff4f70',range:10},
+  {k:'y',    label:'Y',    col:'#bfff6a',range:10},
+  {k:'z',    label:'Z',    col:'#4fc8ff',range:10},
+  {k:'vx',   label:'VX',   col:'#ff8080',range:3},
+  {k:'vy',   label:'VY',   col:'#80ff80',range:3},
+  {k:'vz',   label:'VZ',   col:'#80c8ff',range:3},
+  {k:'ax',   label:'AX',   col:'#ffaacc',range:2},
+  {k:'ay',   label:'AY',   col:'#aaffaa',range:2},
+  {k:'az',   label:'AZ',   col:'#aaccff',range:15},
+];
+var data={};
+var enabled={};
+series.forEach(function(s){data[s.k]=[];enabled[s.k]=s.k==='pitch'||s.k==='roll'||s.k==='yaw'||s.k==='x'||s.k==='y'||s.k==='z';});
+var MAX=300;
+
+var tc=document.getElementById('toggles');
+series.forEach(function(s){
+  var label=document.createElement('label');
+  label.className='toggle'; label.style.color=s.col;
+  label.innerHTML='<input type="checkbox" '+(enabled[s.k]?'checked':'')+' onchange="toggle(\''+s.k+'\',this.checked)"><span class="dot" style="background:'+s.col+'"></span>'+s.label;
+  tc.appendChild(label);
+});
+
+var sc=document.getElementById('stats');
+series.forEach(function(s){
+  var d=document.createElement('div');
+  d.className='stat';
+  d.innerHTML='<div class="k">'+s.label+'</div><div class="v" id="sv_'+s.k+'" style="color:'+s.col+'">—</div>';
+  sc.appendChild(d);
+});
+
+function toggle(k,on){enabled[k]=on;redraw();}
+
+window.addEventListener('message',function(e){
+  var d=e.data; if(!d)return;
+  series.forEach(function(s){
+    if(d[s.k]!==undefined){
+      data[s.k].push(d[s.k]);
+      if(data[s.k].length>MAX)data[s.k].shift();
+      var el=document.getElementById('sv_'+s.k);
+      if(el)el.textContent=Number(d[s.k]).toFixed(2);
+    }
+  });
+  redraw();
+});
+
+function redraw(){
+  var c=document.getElementById('graph');
+  var ctx=c.getContext('2d');
+  c.width=c.offsetWidth||window.innerWidth-24;
+  var W=c.width,H=260;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='rgba(0,5,15,0.7)';ctx.fillRect(0,0,W,H);
+  // Grid
+  ctx.strokeStyle='rgba(0,229,255,0.06)';ctx.lineWidth=1;
+  for(var g=0;g<=4;g++){var gy=g/4*H;ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();}
+  // Zero line
+  ctx.strokeStyle='rgba(0,229,255,0.15)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,H/2);ctx.lineTo(W,H/2);ctx.stroke();
+  // Series
+  series.forEach(function(s){
+    if(!enabled[s.k])return;
+    var arr=data[s.k]; if(!arr.length)return;
+    ctx.beginPath();ctx.strokeStyle=s.col;ctx.lineWidth=1.5;ctx.lineJoin='round';
+    arr.forEach(function(v,i){
+      var sx=i/MAX*W;
+      var norm=(v+s.range/2)/s.range;
+      var sy=H-clamp(norm,0,1)*H;
+      i===0?ctx.moveTo(sx,sy):ctx.lineTo(sx,sy);
+    });
+    ctx.shadowColor=s.col;ctx.shadowBlur=4;ctx.stroke();ctx.shadowBlur=0;
+  });
+}
+function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
+redraw();
+<\/script></body></html>`;
+
+  var blob = new Blob([html], {type:'text/html'});
+  var url  = URL.createObjectURL(blob);
+  var win  = window.open(url, '_blank', 'width=900,height=480,resizable=yes');
+  graphWins.push(win);
+  log('Telemetry graph opened in new window.');
+}
+
+/* ════════════════════════════════════════════════════════
+   LOG
+════════════════════════════════════════════════════════ */
+function log(msg) {
+  var ts = new Date().toLocaleTimeString('en-US',{hour12:false});
+  document.getElementById('logPanel').textContent = '[' + ts + '] ' + msg;
+}
+
+/* ════════════════════════════════════════════════════════
+   RENDER LOOP (for the 3D canvas rotation)
+════════════════════════════════════════════════════════ */
+function renderLoop() {
+  if (!wsOk && !running) {
+    draw3D(state.x, state.y, state.z);
+    drawGauge('gaugePitch', state.pitch, 90, '#4fb8ff');
+    drawGauge('gaugeRoll',  state.roll,  90, '#a3ff6a');
+    drawGauge('gaugeYaw',   state.yaw,  180, '#ffcc44');
+  }
+  requestAnimationFrame(renderLoop);
+}
+
+/* ════════════════════════════════════════════════════════
+   HIGH CONTRAST MODE
+════════════════════════════════════════════════════════ */
+function toggleHC() {
+  var hc = document.body.classList.toggle('hc');
+  document.getElementById('hcBtn').textContent = hc ? '◑ HC ON' : '◐ HC';
+  localStorage.setItem('auv_hc', hc ? '1' : '');
+  log(hc ? 'High contrast mode ON.' : 'High contrast mode OFF.');
+}
+
+/* ════════════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════════════ */
+draw3D(0,0,0);
+drawGauge('gaugePitch',0,90,'#4fb8ff');
+drawGauge('gaugeRoll',0,90,'#a3ff6a');
+drawGauge('gaugeYaw',0,180,'#ffcc44');
+if (localStorage.getItem('auv_hc')) {
+  document.body.classList.add('hc');
+  document.getElementById('hcBtn').textContent = '◑ HC ON';
+}
+requestAnimationFrame(renderLoop);
+connectWS(document.getElementById('wsUrl').value);
+</script>
+</body>
+</html>

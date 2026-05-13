@@ -1,8 +1,12 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import List
 from dataclasses_json import dataclass_json
+import json
+
 
 @dataclass_json
 @dataclass
+# condense real life joystick controller read into data
 class JoystickState:
     lx: float = 0.0  # Left joystick X
     ly: float = 0.0  # Left joystick Y

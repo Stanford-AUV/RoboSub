@@ -13,7 +13,9 @@ class JoystickNode(Node):
     def __init__(self):
         super().__init__("joystick_node")
 
-        self.wrench_publisher = self.create_publisher(WrenchStamped, "wrench", 10)
+        self.wrench_publisher = self.create_publisher(
+            WrenchStamped, "wrench", 10
+        )  # thrusters
         self.light_publisher = self.create_publisher(Int16, "light", 10)
         self.get_logger().info("Joystick node initialized")
 
