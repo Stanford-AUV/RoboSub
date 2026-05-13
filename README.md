@@ -31,6 +31,9 @@ RoboSub/                          # colcon workspace root (run build.sh here)
 ├── test.sh                        # workspace tests
 ├── requirements.txt               # Python deps (often used by devcontainer post-create)
 ├── DEPENDENCY_MANAGEMENT.md       # apt / venv / GPU / PyTorch layers
+├── keyboard_local.sh              # Host keyboard → NATS (uses .local_venv + local_requirements.txt)
+├── joystick_local.sh
+├── local_requirements.txt         # pynput, etc. for host teleop scripts
 ├── onboarding/                  # New-member tutorials (path YAML walkthrough)
 ├── SIMULATION.md                  # Gazebo Harmonic + host bridge
 ├── README.md                      # this file
@@ -41,7 +44,7 @@ RoboSub/                          # colcon workspace root (run build.sh here)
     ├── control/                   # Wrench ↔ thrust allocation, PID controller, path tracking helpers
     ├── planning/                  # Path YAML loading, path streaming utilities
     ├── perception/                # Cameras, aligned depth, object detection / localizer
-    ├── manual/                    # Joystick & keyboard teleop
+    ├── manual/                    # NATS keyboard + joystick ROS nodes; keyboard_local / joystick_local
     ├── simulation/                # Gazebo-oriented bridge nodes (sensors, thrusters, path)
     └── gui/                       # Web HUD ↔ ROS bridge
 ```
@@ -77,7 +80,7 @@ flowchart TB
     end
 
     subgraph human [manual and gui]
-        MAN[manual\nkeyboard + optional joystick]
+        MAN[manual\nNATS keyboard + joystick]
         GUI[gui bridge]
     end
 
@@ -160,13 +163,13 @@ flowchart LR
 
 | Package | Role |
 |---------|------|
-| **main** | Aggregates subsystems: `main.py` (hardware + localization + manual), `control.py`, `hardware.py`, `manual.py`, `perception.py`, `state.py`, `localization.py`. Installs `launch/` and `launch/params/global.yaml`. |
+| **main** | Aggregates subsystems: `main.py` (hardware + localization + **control**; `manual.py` is commented out), plus standalone `control.py`, `hardware.py`, `manual.py`, etc. Installs `launch/` and `launch/params/global.yaml`. |
 | **msgs** | All custom interfaces; any new cross-package types should live here. |
 | **hardware** | `thrusters`, `imu`, `dvl`, `sensors` (sync/publish for EKF), `arduino`, plotting utilities. Depends on messages in `msgs`. |
 | **control** | `thrust_generator` (`/wrench` → `/thrusts`), `controller` (`/odometry/filtered` + `waypoint` → `wrench`), `path_tracker`, PID and trajectory helpers. See [src/control/README.md](src/control/README.md). |
 | **planning** | `path_loader`, `path_streamer`, `path_generator` — YAML paths and streaming (see `planning/sample_path.yaml`). |
 | **perception** | RealSense / OAK pipelines, `AlignedDepthImage`, object detection and `object_local`. See [src/perception/README.md](src/perception/README.md). |
-| **manual** | **`keyboard`** (interactive TTY) and optional **`joystick`** (NATS). |
+| **manual** | **`keyboard`** and **`joystick`** nodes (NATS → `wrench`); host scripts **`keyboard_local.sh`** / **`joystick_local.sh`**. |
 | **simulation** | Nodes to talk to Gazebo / sim bridges (`sensors`, `thrusters`, `path_bridge`). See [SIMULATION.md](SIMULATION.md). |
 | **gui** | `ros2 run gui bridge` — web HUD plumbing (`gui/auv_hud.html`, `gui/gui/ros2_gui_bridge.py`). |
 
@@ -250,7 +253,7 @@ ros2 launch control control.py
 
 ### `main.py` composition
 
-`main/launch/main.py` includes **hardware**, **localization**, and **manual** stacks. **`manual.py` only starts `thrust_generator`**; run **`ros2 run manual keyboard`** in a separate interactive terminal for teleop (keyboard reads stdin). The autonomous **`control`** include is commented out — enable only after resolving duplicate `thrust_generator` vs `hardware.py` (see [onboarding README](onboarding/README.md#robot-bring-up-hardware-keyboard-teleop-autonomy)).
+`main/launch/main.py` includes **hardware** (sensors + actuation + **`thrust_generator`**), **localization**, and **`control.py`** ( **`controller`** + **`test_controller`** only — **`thrust_generator` is not duplicated** here; it comes from `hardware.py`). **`manual.py` is commented out**, so **autonomy does not start keyboard or joystick**. For teleop, use a separate session with **`hardware.py`** + **`ros2 run manual keyboard`** + **`keyboard_local.sh`** (or **`manual.py`** for bench thrust + keyboard), and **stop teleop before** switching to **`main.py`** if you share the same machine. See [onboarding README](onboarding/README.md#robot-bring-up-hardware-keyboard-teleop-autonomy).
 
 ### Hardware launch and Xsens
 
@@ -283,39 +286,38 @@ Simulation is GUI-heavy; teams often run Gazebo on a host or VM and bridge into 
 
 ---
 
-## Optional: Joystick over NATS (not used for default onboarding)
+## Optional: Joystick over NATS
 
-Joystick teleop uses **`manual/joystick`**, which listens on **NATS** `nats://localhost:4222`, subject **`joystick`**, and still expects **`control/thrust_generator`** for `/wrench` → `/thrusts`. Typical split:
+**`manual/joystick`** uses **`nats://localhost:4222`**, subject **`joystick`**. Run **`control/thrust_generator`** once (e.g. from **`hardware.py`** or **`manual.py`**), then **`ros2 run manual joystick`** and **`./joystick_local.sh`**. Do **not** run joystick/keyboard together with the **`main.py`** autonomy stack on the same bring-up if you want only controller wrenches on **`/wrench`**.
 
-### Container / ROS side
+---
+
+## Manual keyboard control (default)
+
+**Stack:** **`nats-server`** → ROS **`manual/keyboard`** (subscribe **`keyboard`**) → **`/wrench`** → **`thrust_generator`** → **`/thrusts`** → thrusters / Arduino.
+
+**Vehicle teleop** (not the same process tree as **`main.py`** autonomy — stop teleop when running full autonomy):
+
+```bash
+nats-server
+ros2 launch main hardware.py
+ros2 run manual keyboard
+./keyboard_local.sh
+```
+
+**Bench** (`manual.py` starts **`thrust_generator`** + **`keyboard`**):
 
 ```bash
 nats-server
 ros2 launch main manual.py
-ros2 run manual joystick
+./keyboard_local.sh
 ```
 
-### Host side
+Do **not** launch **`manual.py`** together with **`hardware.py`** — both start **`thrust_generator`**. Use **`hardware.py`** + **`ros2 run manual keyboard`** on the vehicle instead.
 
-From a **host** terminal, in the repo root (after venv setup per team docs):
+Host script **`keyboard_local.sh`** uses **`.local_venv`** and **`pynput`** (see **`local_requirements.txt`**). NATS must be reachable from both the ROS container/host and the machine running **`keyboard_local`**.
 
-```bash
-./joystick_local.sh
-```
-
----
-
-## Manual keyboard control (default for pool / vehicle)
-
-**Vehicle / full stack:** start **`ros2 launch main hardware.py`** (includes `thrust_generator`, thrusters, Arduino, IMU path, etc.), then in a **second interactive** terminal:
-
-```bash
-ros2 run manual keyboard
-```
-
-**Thrust-only test (no `hardware.py`):** Terminal 1: `ros2 launch main manual.py` (only `thrust_generator`). Terminal 2: same `ros2 run manual keyboard` as above. This does **not** drive ESCs unless something else is publishing `PWMsStamped` and talking to the vehicle.
-
-Do not embed `keyboard` inside `ros2 launch`; it needs a real TTY. Full steps, EKF notes, and autonomy: [onboarding/README.md](onboarding/README.md#robot-bring-up-hardware-keyboard-teleop-autonomy).
+Full procedure: [onboarding/README.md](onboarding/README.md#robot-bring-up-hardware-keyboard-teleop-autonomy).
 
 ---
 

@@ -6,6 +6,9 @@ global_params = os.path.join(os.path.dirname(__file__), "params", "global.yaml")
 
 
 def generate_launch_description():
+    # When included from main.py, hardware.py already runs thrust_generator.
+    # For `ros2 launch main control.py` without hardware, add thrust_generator here
+    # or run: ros2 run control thrust_generator --ros-args --params-file <global.yaml>
     return LaunchDescription(
         [
 
@@ -23,11 +26,6 @@ def generate_launch_description():
                 #     "base_link", "imu_link",
                 # ],
             # ),
-            Node(
-                package="control",
-                executable="thrust_generator",
-                parameters=[global_params],
-            ),
             Node(
                 package="control",
                 executable="controller",
