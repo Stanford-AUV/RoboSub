@@ -14,42 +14,46 @@
   },
   "remoteUser": "ros",
   "runArgs": [
-    "--network=host",
-    "--ipc=host",
-    "--privileged",
+    // GPU support: Jetson requires --runtime=nvidia (--gpus all is not supported). On x86 with nvidia-container-toolkit you may use "--gpus", "all" instead.
+    // COMMENTED OUT FOR MAC DEVELOPMENT - UNCOMMENT ON ORIN
+    // "--runtime=nvidia",
+    "--publish=4222:4222",
     "--cap-add=SYS_PTRACE",
     "--security-opt=seccomp:unconfined",
     "--security-opt=apparmor:unconfined",
-    "--device=/dev/ttyUSB0",      // your DVL’s FTDI port
-    "--device=/dev/ttyUSB1",      // your DVL’s FTDI port
-    "--device=/dev/ttyUSB2",      // your DVL’s FTDI port
-    "--device=/dev/ttyUSB3",      // your DVL’s FTDI port
-    "--device=/dev/ttyUSB4",      // your DVL’s FTDI port
-    "--device=/dev/ttyUSB5",      // your DVL’s FTDI port
-    "--device=/dev/ttyACM0",       // any other serial port you need
-    "--device=/dev/ttyACM1",       // any other serial port you need
-    "--device=/dev/ttyACM2",       // any other serial port you need
-    "--device=/dev/ttyACM3",       // any other serial port you need
-    "--device=/dev/ttyACM4",       // any other serial port you need
-    "--device=/dev/ttyACM5",       // any other serial port you need
-    // "--volume=/tmp/.X11-unix:/tmp/.X11-unix",
-    // "--mount=type=bind,source=${env:HOME},target=/host_home,readonly",
-    // "--device=/dev/bus/usb:/dev/bus/usb",
-    // "--device=/dev/ttyACM0:/dev/ttyACM0",
-    // "--device=/dev/ttyACM1:/dev/ttyACM1",
-    // "--device=/dev/ttyACM2:/dev/ttyACM2",
-    // "--device=/dev/ttyACM3:/dev/ttyACM3",
-    // "--device=/dev/ttyACM4:/dev/ttyACM4",
-    // "--device=/dev/ttyACM5:/dev/ttyACM5",
-    // "--device=/dev/ttyUSB_teensy:/dev/ttyUSB_teensy",
-    // "--device=/dev/ttyUSB0:/dev/ttyUSB0",
-    // "--device=/dev/ttyUSB1:/dev/ttyUSB1",
-    // "--device=/dev/ttyUSB2:/dev/ttyUSB2",
-    // "--device=/dev/ttyUSB3:/dev/ttyUSB3",
-    // "--device=/dev/ttyUSB4:/dev/ttyUSB4",
-    // "--device=/dev/ttyUSB5:/dev/ttyUSB5",
-    // "--device-cgroup-rule=c 189:* rmw",
-    "--mount=type=bind,source=/dev,target=/dev"
+    "--ipc=host",
+    "--net=host",
+    "--privileged",
+    "--volume=/tmp/.X11-unix:/tmp/.X11-unix",
+    "--mount=type=bind,source=${env:HOME},target=/host_home,readonly",
+    "--volume=/dev/bus/usb:/dev/bus/usb",
+    "--volume=/dev/ttyACM0:/dev/ttyACM0",
+    "--volume=/dev/ttyACM1:/dev/ttyACM1",
+    "--volume=/dev/ttyACM2:/dev/ttyACM2",
+    "--volume=/dev/ttyACM3:/dev/ttyACM3",
+    "--volume=/dev/ttyACM4:/dev/ttyACM4",
+    "--volume=/dev/ttyACM5:/dev/ttyACM5",
+    "--volume=/dev/ttyUSB_teensy:/dev/ttyUSB_teensy",
+    "--volume=/dev/ttyUSB0:/dev/ttyUSB0",
+    "--volume=/dev/ttyUSB1:/dev/ttyUSB1",
+    "--volume=/dev/ttyUSB2:/dev/ttyUSB2",
+    "--volume=/dev/ttyUSB3:/dev/ttyUSB3",
+    "--volume=/dev/ttyUSB4:/dev/ttyUSB4",
+    "--volume=/dev/ttyUSB5:/dev/ttyUSB5",
+    "--device-cgroup-rule=c 189:* rmw",
+    // Add NVIDIA library mounts:
+    "--volume=/usr/local/cuda-12:/usr/local/cuda-12:ro",
+    "--volume=/usr/local/cuda-12:/usr/local/cuda:ro", // Symlink for compatibility
+    "--volume=/usr/lib/aarch64-linux-gnu/nvidia:/usr/lib/aarch64-linux-gnu/nvidia:ro",
+    "--volume=/usr/lib/aarch64-linux-gnu/tegra:/usr/lib/aarch64-linux-gnu/tegra:ro",
+    "--volume=/usr/lib/aarch64-linux-gnu/libcudnn.so.9:/usr/lib/aarch64-linux-gnu/libcudnn.so.9:ro",
+    "--volume=/usr/lib/aarch64-linux-gnu/libcudnn_adv.so.9:/usr/lib/aarch64-linux-gnu/libcudnn_adv.so.9:ro",
+    "--volume=/usr/lib/aarch64-linux-gnu/libcudnn_cnn.so.9:/usr/lib/aarch64-linux-gnu/libcudnn_cnn.so.9:ro",
+    "--volume=/usr/lib/aarch64-linux-gnu/libcudnn_engines_precompiled.so.9:/usr/lib/aarch64-linux-gnu/libcudnn_engines_precompiled.so.9:ro",
+    "--volume=/usr/lib/aarch64-linux-gnu/libcudnn_engines_runtime_compiled.so.9:/usr/lib/aarch64-linux-gnu/libcudnn_engines_runtime_compiled.so.9:ro",
+    "--volume=/usr/lib/aarch64-linux-gnu/libcudnn_graph.so.9:/usr/lib/aarch64-linux-gnu/libcudnn_graph.so.9:ro",
+    "--volume=/usr/lib/aarch64-linux-gnu/libcudnn_heuristic.so.9:/usr/lib/aarch64-linux-gnu/libcudnn_heuristic.so.9:ro",
+    "--volume=/usr/lib/aarch64-linux-gnu/libcudnn_ops.so.9:/usr/lib/aarch64-linux-gnu/libcudnn_ops.so.9:ro"
     // uncomment to use intel iGPU
     // "--device=/dev/dri"
   ],
@@ -63,7 +67,12 @@
     "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
     "XDG_RUNTIME_DIR": "${localEnv:XDG_RUNTIME_DIR}",
     "PULSE_SERVER": "${localEnv:PULSE_SERVER}",
-    "LIBGL_ALWAYS_SOFTWARE": "1"
+    "LIBGL_ALWAYS_SOFTWARE": "1",
+    "CUDA_HOME": "/usr/local/cuda-12",
+    "NVIDIA_VISIBLE_DEVICES": "all",
+    "PYTHONNOUSERSITE": "1",
+    "PATH": "/usr/local/cuda-12/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    "LD_LIBRARY_PATH": "/usr/local/cuda-12/lib64:/usr/lib/aarch64-linux-gnu/nvidia:/usr/lib/aarch64-linux-gnu/tegra:/usr/lib/aarch64-linux-gnu/host"
   },
   // Set *default* container specific settings.json values on container create.
   "customizations": {
@@ -86,5 +95,6 @@
         "njpwerner.autodocstring"
       ]
     }
-  }
+  },
+  "postCreateCommand": "/home/ros/env/bin/python3 -m pip install --no-cache-dir -r /workspaces/Robosub3/requirements.txt"
 }

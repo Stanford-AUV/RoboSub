@@ -7,5 +7,4 @@ colcon build \
         --cmake-args \
                 -DCMAKE_BUILD_TYPE=RelWithDebInfo \
                 -Wall -Wextra -Wpedantic \
-        --paths src/simulation/simulation/custom_gz_plugins \
         --base-paths .

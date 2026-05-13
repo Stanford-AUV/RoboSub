@@ -13,7 +13,9 @@ class JoystickNode(Node):
     def __init__(self):
         super().__init__("joystick_node")
 
-        self.wrench_publisher = self.create_publisher(WrenchStamped, "wrench", 10)
+        self.wrench_publisher = self.create_publisher(
+            WrenchStamped, "wrench", 10
+        )  # thrusters
         self.light_publisher = self.create_publisher(Int16, "light", 10)
         self.torpedo_publisher = self.create_publisher(Int16, "torpedo", 10)
         self.dropper_publisher = self.create_publisher(Int16, "dropper", 10)
@@ -40,10 +42,62 @@ class JoystickNode(Node):
             loop.close()
 
     async def set_state(self, state: JoystickState):
-        pass
-        ############################################################
-        #           TODO: Process joystick state                   #
-        ############################################################
+        wrench_msg = WrenchStamped()
+        wrench_msg.header.stamp = self.get_clock().now().to_msg()
+        wrench_msg.header.frame_id = "base_link"
+
+        if state.enabled:
+            wrench_msg.wrench.force.x = state.ly * 0.5
+            wrench_msg.wrench.force.y = -state.lx * 0.5
+
+            # Handle depth control
+            z_input = state.ry
+            if abs(z_input) > 0.05:  # User wants to move up/down
+                self.desired_depth = self.depth + z_input  # Move in increments
+            elif self.desired_depth is None:
+                self.desired_depth = self.depth
+
+            # PD Controller
+            error = self.desired_depth - self.depth
+            d_error = -self.depth_rate
+            force_z = self.kp * error + self.kd * d_error
+
+            self.get_logger().info(
+                f"Desired depth: {self.desired_depth}, Current depth: {self.depth}, {force_z}"
+            )
+
+            wrench_msg.wrench.force.z = force_z
+
+            wrench_msg.wrench.torque.x = 0.0
+            wrench_msg.wrench.torque.y = 0.0
+            wrench_msg.wrench.torque.z = -state.rx * 0.1
+        else:
+            wrench_msg.wrench.force.x = 0.0
+            wrench_msg.wrench.force.y = 0.0
+            wrench_msg.wrench.force.z = 0.0
+            wrench_msg.wrench.torque.x = 0.0
+            wrench_msg.wrench.torque.y = 0.0
+            wrench_msg.wrench.torque.z = 0.0
+
+        # self.get_logger().info(f"Publishing wrench: {wrench_msg.wrench}")
+        self.get_logger().info(f"{wrench_msg}")
+
+        fac = 2
+        wrench_msg.wrench.force.x = wrench_msg.wrench.force.x  * fac
+        wrench_msg.wrench.force.y = wrench_msg.wrench.force.y  * fac
+        wrench_msg.wrench.force.z = wrench_msg.wrench.force.z  * fac
+        wrench_msg.wrench.torque.x = wrench_msg.wrench.torque.x  * fac
+        wrench_msg.wrench.torque.y = wrench_msg.wrench.torque.y  * fac
+        wrench_msg.wrench.torque.z = wrench_msg.wrench.torque.z  * fac
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, self.publish_wrench, wrench_msg)
+
+        light_msg = Int16()
+        light_msg.data = int(1100 + state.light_power * (1900 - 1100))
+        self.light_publisher.publish(light_msg)
+
+    def publish_wrench(self, wrench_msg):
+        self.wrench_publisher.publish(wrench_msg)
 
     async def run_server(self):
         self.nc = await nats.connect("nats://localhost:4222")

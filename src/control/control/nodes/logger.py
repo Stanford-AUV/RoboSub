@@ -5,6 +5,7 @@ from rclpy.node import Node
 import time
 from spatialmath.quaternion import UnitQuaternion
 
+""""""""""""""""""""""''DEPRECATED"""""""""""""""
 
 class Logger(Node):
     def __init__(self):

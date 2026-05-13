@@ -3,6 +3,10 @@ import os
 import json
 import time
 
+import numpy as np
+""""""""""""""""""""""''DEPRECATED"""""""""""""""
+
+from control.utils.state import State, Magnitude
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Path, Odometry
@@ -14,16 +18,26 @@ from std_msgs.msg import Bool
 
 from control.utils.state import State, Magnitude
 
+# class AngleVec(np.ndarray):
+#     AXIS = {"roll": 0, "pitch":0, "yaw":0}
+
+
 ERROR_THRESHOLD = Magnitude(
-    distance=0.1,        # m
-    speed=0.1,           # m/s
-    angle=0.32,           # rad
-    angular_speed=0.1,   # rad/s
+    distance=0.1,  # m
+    speed=0.1,  # m/s
+    # angle=0.1,  # radians
+    # angle=(0.2, 0.2, 0.05),
+    angle=0.0,
+    angular_speed=0.1,  # radians/s
 )
+
+ANGLE_ERROR_THRESHOLD = {"pitch": 0.2, "roll": 0.2, "yaw": 0.05}
+
 
 class PathTracker(Node):
     def __init__(self):
-        super().__init__('path_tracker')
+        super().__init__("path_tracker")
+        self.get_logger().info("he")
 
         # allow user to override JSON file on the command line
         self.declare_parameter(
@@ -62,67 +76,54 @@ class PathTracker(Node):
             Odometry, '/odometry/filtered', self._odom_cb, 10
         )
 
-        self.declare_parameter("stable_dwell_sec", 1.0)  # seconds inside band to be stable
-        self.stable_dwell_sec = float(self.get_parameter("stable_dwell_sec").value)
+        self.msg_cnt = 0
 
-        self.stable_start_ns = None   # when we entered the band
-        self.stable_published = False # whether we've already sent True
+    def set_waypoints(self):
+        req = GetWaypoints.Request()
+        future = self.waypoints_cli.call_async(req)
+        rclpy.spin_until_future_complete(self, future)
+        self.path = future.result().waypoints
+        self.get_logger().info(f"Got {len(self.path.poses)} waypoints")
 
-        self.count = 0
-        self.advance_timer = None
+    def odometry_callback(self, robot: Odometry):
+        self.get_logger().info("whee")
+        robot_odom = State.from_odometry_msg(robot)
+        error = self.last_waypoint - robot_odom
+        error_magnitude = error.magnitude()
+        import tf_transformations
 
-    def _advance_to_next(self):
-        self.index += 1
-        if self.index < len(self.wp_meta):
-            self.get_logger().info("Advancing to next waypoint")
-            self._publish_current_waypoint()
+        if self.msg_cnt >= 20:
+            self.get_logger().info(f"Odom pos is {robot.pose.pose.position}")
+            self.get_logger().info(
+                f"Odom ori (r,p,y) is {tf_transformations.euler_from_quaternion([robot.pose.pose.orientation.x, robot.pose.pose.orientation.y, robot.pose.pose.orientation.z, robot.pose.pose.orientation.w])}"
+            )
+            self.get_logger().info(f"Error is {error_magnitude}")
+            self.msg_cnt = 0
         else:
-            self.get_logger().info("All waypoints reached!")
-            rclpy.shutdown()
+            self.msg_cnt += 1
 
-    def _load_path_from_json(self, json_path: str):
-        path = Path()
-        path.header.frame_id = 'map'
-        path.header.stamp = self.get_clock().now().to_msg()
+        err_angle = error_magnitude.angle
+        # self.get_logger().info(f"rioguh7f {ERROR_THRESHOLD.angle["roll"]}")
+        # roll_err = err_angle[0]
+        # pitch_err = err_angle[1]
+        # yaw_err = err_angle[2]
+        roll_err, pitch_err, yaw_err = error.orientation.rpy(order='xyz')
+        # self.get_logger().info(f"error: {roll_err}, {pitch_err}")
 
-        wp_meta = []  # NEW
-
-        try:
-            with open(json_path, 'r') as f:
-                data = json.load(f)
-        except Exception as e:
-            self.get_logger().error(f"Failed to open {json_path}: {e}")
-            return path, wp_meta  # CHANGED
-
-        for wp in data.get('waypoints', []):
-            purpose = (wp.get('purpose') or 'target').lower()
-            subject = wp.get('subject', '')
-            hold = float(wp.get('hold_time', 0.0))
-
-            has_pose = 'position' in wp and 'orientation' in wp
-
-            if has_pose:
-                ps = PoseStamped()
-                ps.header.frame_id = 'map'
-                ps.header.stamp = self.get_clock().now().to_msg()
-
-                pos = wp['position']
-                ps.pose.position.x = pos['x']
-                ps.pose.position.y = pos['y']
-                ps.pose.position.z = pos['z']
-
-                ori = wp['orientation']
-                quat = R.from_euler('xyz', [ori['roll'], ori['pitch'], ori['yaw']], degrees=True).as_quat()
-                ps.pose.orientation.x, ps.pose.orientation.y, ps.pose.orientation.z, ps.pose.orientation.w = quat
-                path.poses.append(ps)
-
-                wp_meta.append({
-                    'purpose': purpose,
-                    'subject': subject,
-                    'hold_time': hold,
-                    'has_pose': True,
-                    'path_index': len(path.poses) - 1
-                })
+        if (
+            error_magnitude.distance < ERROR_THRESHOLD.distance
+            and error_magnitude.speed < ERROR_THRESHOLD.speed
+            # and abs(roll_err) < ERROR_THRESHOLD.angle["roll"]
+            # and abs(pitch_err) < ERROR_THRESHOLD.angle["pitch"]
+            # and abs(yaw_err) < ERROR_THRESHOLD.angle["yaw"]
+            and roll_err < ANGLE_ERROR_THRESHOLD["roll"]
+            and pitch_err < ANGLE_ERROR_THRESHOLD["pitch"]
+            and yaw_err < ANGLE_ERROR_THRESHOLD["yaw"]
+            and error_magnitude.angular_speed < ERROR_THRESHOLD.angular_speed
+        ):
+            self.path_index += 1
+            if self.path_index >= len(self.path.poses):
+                self.get_logger().info("Reached end of path")
             else:
                 # Waypoint with no pose (e.g., "follow")
                 wp_meta.append({
@@ -266,6 +267,7 @@ class PathTracker(Node):
 
 
 def main(args=None):
+    print(";;;;", flush=True)
     rclpy.init(args=args)
     node = PathTracker()
     rclpy.spin(node)

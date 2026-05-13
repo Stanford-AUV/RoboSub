@@ -301,17 +301,14 @@ def main(args=None):
     rclpy.init(args=args)
 
     pid = PID(
-        kP_position=np.array([1.0, 1.0, 2.0]),
-        kI_position=np.array([0.1, 0.1, 0.1]),
-        kD_position=np.array([0.05, 0.05, 1.0]),
-        kP_orientation=np.array([0.0, 0.0, 0.025]),
-        kI_orientation=np.array([0.00, 0.00, 0.00]),
-        kD_orientation=np.array([0.0, 0.0, 0.05]),
-        max_signal_force=np.array([0.3, 0.3, 0.2]),
-        max_signal_torque=np.array([0.3, 0.3, 0.3]),
-        max_integral_position=np.array([0.2, 0.2, 0.2]),
-        max_integral_orientation=np.array([5.0, 5.0, 5.0]),
-        z_offset=-0.005
+        kP_position=np.array([1, 1, 1]),
+        kD_position=np.array([1.1, 1.1, 1.1]),
+        kI_position=np.array([0, 0, 0.2]),
+        kP_orientation=np.array([0.1, 0.1, 0.2]),
+        kD_orientation=np.array([0.05, 0.05, 0.05]),
+        kI_orientation=np.array([0.00, 0.00, 0]),
+        max_integral_position=np.array([1, 1, 1]),
+        max_integral_orientation=np.array([1, 1, 1]),
     )
 
     node = Controller(pid)

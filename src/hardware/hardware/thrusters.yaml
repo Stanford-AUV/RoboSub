@@ -1,0 +1,71 @@
+thruster_0:
+# Top front left (CCW from back)
+  x: +0.2025
+  y: +0.1825
+  z: +0.0925
+  dx: -1
+  dy: +1
+  dz: 0
+
+thruster_1:
+# Top front right (CCW from back)
+  x: +0.2025
+  y: -0.1825
+  z: +0.0925
+  dx: -1
+  dy: -1
+  dz: 0
+
+thruster_2:
+# Top back left (CW viewed from back)
+  x: -0.2025
+  y: +0.1825
+  z: +0.0925
+  dx: +1
+  dy: +1
+  dz: 0
+
+thruster_3:
+# Top back right (CW back)
+  x: -0.2025
+  y: -0.1825
+  z: +0.0925
+  dx: +1
+  dy: -1
+  dz: 0
+
+thruster_4:
+# Bottom front left (CCW from top)
+  x: +0.115
+  y: +0.165
+  z: -0.0925
+  dx: 0
+  dy: 0
+  dz: +1
+
+thruster_5:
+# Bottom front right (CCW from top)
+  x: +0.115
+  y: -0.165
+  z: -0.0925
+  dx: 0
+  dy: 0
+  dz: +1
+
+thruster_6:
+# Bottom back left (CW from top)
+  x: -0.115
+  y: +0.165
+  z: -0.0925
+  dx: 0
+  dy: 0
+  dz: -1
+
+thruster_7:
+# Bottom back right (CCW from top)
+  x: -0.115
+  y: -0.165
+  z: -0.0925
+  dx: 0
+  dy: 0
+  dz: +1

@@ -40,6 +40,7 @@ async def main():
                 print("Failed to send:", e)
 
             await asyncio.sleep(SEND_INTERVAL_MS / 1000.0)
+
     finally:
         print("Closing NATS connection.")
         await nc.close()

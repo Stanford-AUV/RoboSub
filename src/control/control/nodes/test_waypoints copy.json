@@ -1,21 +1,52 @@
 {
-    "waypoints": [
-        {
-            "position": {"x": 0.0, "y": 0.0, "z": -1.0},
-            "orientation": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
-        },
-        {
-            "position": {"x": 0.0, "y": 0.0, "z": -1.0},
-            "orientation": {"roll": 90.0, "pitch": 0.0, "yaw": 0.0}
-        },
-        {
-            "position": {"x": 0.0, "y": 0.0, "z": -1.0},
-            "orientation": {"roll": 180.0, "pitch": 0.0, "yaw": 0.0}
-        },
-        {
-            "position": {"x": 0.0, "y": 0.0, "z": -1.0},
-            "orientation": {"roll": 270.0, "pitch": 0.0, "yaw": 0.0}
-        }
-        
-    ]
+  "waypoints": [
+    {
+      "position": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": -0.5
+      },
+      "orientation": {
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+      }
+    },
+    {
+      "position": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": -0.5
+      },
+      "orientation": {
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 90.0
+      }
+    },
+    {
+      "position": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": -0.5
+      },
+      "orientation": {
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": -90.0
+      }
+    },
+    {
+      "position": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": -0.5
+      },
+      "orientation": {
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+      }
+    }
+  ]
 }
