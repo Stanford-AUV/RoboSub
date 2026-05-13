@@ -1,3 +1,4 @@
+
 FROM althack/ros2:jazzy-full-2024-12-01
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -23,7 +24,6 @@ RUN wget -q https://packages.osrfoundation.org/gazebo.gpg -O /usr/share/keyrings
 
 ENV DEBIAN_FRONTEND=
 
-ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get -y install --no-install-recommends python3.12-venv python3-gz-transport13 ros-jazzy-robot-localization ros-jazzy-depthai-ros ros-jazzy-tf-transformations ros-jazzy-nmea-msgs ros-jazzy-mavros-msgs \
     && apt-get autoremove -y \
@@ -38,7 +38,7 @@ RUN apt-get update && apt-get install -y kmod \
     sharutils \
     file \
     libusb-1.0-0-dev \
-    udev \ 
+    udev \
     usbutils
 
 # Setup logging utils
@@ -51,7 +51,12 @@ RUN apt-get update && apt-get install -y nats-server
 RUN apt-get update && apt-get install -y xauth x11-apps
 
 # symbolic link .Xauthority
-RUN ln -sf /host_home/.Xauthority /home/ros/.Xauthority
+# RUN ln -sf /host_home/.Xauthority /home/ros/.Xauthority
+
+#ros-jazzy-mavros-msgs
+
+RUN apt update && apt install -y python3-serial
+
 
 # Setup SSH server
 RUN apt update && apt install -y openssh-server

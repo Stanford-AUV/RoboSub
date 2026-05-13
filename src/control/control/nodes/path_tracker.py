@@ -1,6 +1,6 @@
-from nav_msgs.msg import Odometry
-from nav_msgs.msg import Path
-from msgs.srv import GetWaypoints
+#!/usr/bin/env python3
+import os
+import json
 import time
 
 import numpy as np
@@ -9,6 +9,14 @@ import numpy as np
 from control.utils.state import State, Magnitude
 import rclpy
 from rclpy.node import Node
+from nav_msgs.msg import Path, Odometry
+from geometry_msgs.msg import PoseStamped
+from scipy.spatial.transform import Rotation as R
+from rclpy.qos import QoSProfile, QoSDurabilityPolicy, QoSReliabilityPolicy
+from msgs.msg import Waypoint
+from std_msgs.msg import Bool
+
+from control.utils.state import State, Magnitude
 
 # class AngleVec(np.ndarray):
 #     AXIS = {"roll": 0, "pitch":0, "yaw":0}
@@ -27,34 +35,45 @@ ANGLE_ERROR_THRESHOLD = {"pitch": 0.2, "roll": 0.2, "yaw": 0.05}
 
 
 class PathTracker(Node):
-    """
-    Node that determines the next waypoint on the path to follow for the controller node.
-    """
-
     def __init__(self):
         super().__init__("path_tracker")
         self.get_logger().info("he")
 
-        self.waypoint_publisher = self.create_publisher(Odometry, "waypoint", 10)
+        # allow user to override JSON file on the command line
+        self.declare_parameter(
+            'waypoints_file',
+            os.path.join(os.path.dirname(__file__), 'test_waypoints.json')
+        )
+        wp_file = self.get_parameter('waypoints_file').get_parameter_value().string_value
 
-        self.path_index = 0
-        self.path: Path | None = None
-        self.last_waypoint: Odometry | None = None
-
-        self.waypoints_cli = self.create_client(GetWaypoints, "get_waypoints")
-        while not self.waypoints_cli.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info("Waiting for waypoints service...")
-
-        self.set_waypoints()
-        if len(self.path.poses) == 0:
-            self.get_logger().error("No waypoints found")
+        # load the JSON into a nav_msgs/Path
+        self.path, self.wp_meta = self._load_path_from_json(wp_file)
+        n = len(self.wp_meta)
+        if n == 0:
+            self.get_logger().error(f"No waypoints loaded from {wp_file}!")
             return
+        self.get_logger().info(f"Loaded {n} waypoints from {wp_file}")
 
-        time.sleep(1)
-        self.publish_waypoint()
+        # publisher for one‐by‐one Odometry‐waypoints
+        qos = QoSProfile(depth=1)
+        qos.durability = QoSDurabilityPolicy.TRANSIENT_LOCAL   # latch last msg
+        qos.reliability = QoSReliabilityPolicy.RELIABLE
 
-        self.odometry_subscription = self.create_subscription(
-            Odometry, "/odometry/filtered", self.odometry_callback, 10
+        self.waypoint_pub = self.create_publisher(Waypoint, 'waypoint', qos)
+        self.object_reached = self.create_publisher(Bool, 'waypoint/object_reached', qos)
+
+        # tracking state
+        self.index = 0
+        self.last_wp_state = None
+
+        # give time for connections, then publish first
+        # time.sleep(0.5)
+        self._publish_current_waypoint()
+        # self.create_timer(0.5, lambda: (self._publish_current_waypoint(), None))[0:0]
+
+        # now subscribe to odometry and drive the tracker
+        self.create_subscription(
+            Odometry, '/odometry/filtered', self._odom_cb, 10
         )
 
         self.msg_cnt = 0
@@ -106,34 +125,154 @@ class PathTracker(Node):
             if self.path_index >= len(self.path.poses):
                 self.get_logger().info("Reached end of path")
             else:
-                self.get_logger().info("Next waypoint")
-                self.publish_waypoint()
+                # Waypoint with no pose (e.g., "follow")
+                wp_meta.append({
+                    'purpose': purpose,
+                    'subject': subject,
+                    'hold_time': hold,
+                    'has_pose': False,
+                    'path_index': None
+                })
 
-    def publish_waypoint(self):
-        assert self.path is not None, "Path is not set"
-        assert self.path_index < len(
-            self.path.poses
-        ), f"Path index {self.path_index} is out of bounds for path length {len(self.path.poses)}"
+        return path, wp_meta  # CHANGED
 
-        waypoint = Odometry()
-        waypoint.header = self.path.header
-        waypoint.pose.pose = self.path.poses[self.path_index].pose
-        # waypoint.twist.twist = self.path.twists[self.path_index]
 
-        self.get_logger().info(f"Publishing waypoint for {self.path_index}")
-        self.waypoint_publisher.publish(waypoint)
+    def _publish_current_waypoint(self):
+        # --- meta for this logical waypoint ---
+        meta = self.wp_meta[self.index] if hasattr(self, 'wp_meta') else {
+            'purpose': 'target',
+            'subject': 'N/A',
+            'hold_time': 0.0,
+            'has_pose': True,
+            'path_index': self.index
+        }
 
-        self.last_waypoint = State.from_odometry_msg(waypoint)
+        # Build outgoing message
+        wp = Waypoint()
+        wp.purpose = meta['purpose']
+        wp.subject = meta.get('subject', '')
+        wp.hold_time = float(meta.get('hold_time', 0.0))
+
+        self.stable_start_ns = None
+        self.stable_published = False
+        self._pub_object_reached(False)
+
+        # Warn if a FOLLOW waypoint is missing its subject
+        if meta.get('purpose') == 'follow' and not wp.subject:
+            self.get_logger().warn("FOLLOW waypoint missing 'subject'")
+
+        # Default: no proximity gating unless we decide otherwise below
+        self.last_wp_state = None
+
+        if meta.get('has_pose', False):
+            # Build an Odometry target from the corresponding pose in self.path
+            pi = int(meta['path_index'])
+            if pi < 0 or pi >= len(self.path.poses):
+                self.get_logger().error(
+                    f"Invalid path_index {pi} for waypoint {self.index}"
+                )
+                return
+            odom_target = Odometry()
+            odom_target.header = self.path.header
+            odom_target.header.stamp = self.get_clock().now().to_msg()
+            odom_target.pose.pose = self.path.poses[pi].pose
+            wp.target = odom_target
+
+            # Only "target" waypoints use proximity checks
+            if wp.purpose.lower() == 'target':
+                self.last_wp_state = State.from_odometry_msg(odom_target)
+
+        # Publish the waypoint
+        self.waypoint_pub.publish(wp)
+        self.get_logger().info(
+            f"Published waypoint {self.index} "
+            f"(purpose={wp.purpose}, subject='{wp.subject}', has_pose={meta.get('has_pose', False)}, "
+            f"hold_time={wp.hold_time:.2f}s)"
+        )
+
+        # --- Auto-advance handling ---
+        # Cancel any prior timer
+        if getattr(self, 'advance_timer', None) is not None:
+            try:
+                self.advance_timer.cancel()
+            except Exception:
+                pass
+            self.advance_timer = None
+
+        # If this waypoint has NO pose (e.g., "follow"), there's nothing to "reach".
+        # Auto-advance after hold_time (or immediately if 0).
+        if not meta.get('has_pose', False):
+            delay = max(float(meta.get('hold_time', 0.0)), 0.01)
+            def _on_timer():
+                # one-shot
+                if self.advance_timer is not None:
+                    self.advance_timer.cancel()
+                    self.advance_timer = None
+                self._advance_to_next()
+            self.advance_timer = self.create_timer(delay, _on_timer)
+
+    
+    def _pub_object_reached(self, value: bool):
+        msg = Bool()
+        msg.data = value
+        self.object_reached.publish(msg)
+
+
+    def _odom_cb(self, odom: Odometry):
+        if self.last_wp_state is None:
+            return
+
+        current = State.from_odometry_msg(odom)
+        err = self.last_wp_state - current
+        # err = current
+
+        if self.count >= 10:
+            self.get_logger().info(f"Current error: {err.magnitude()}")
+            self.get_logger().info(f"Position {err.position}")
+            self.get_logger().info(f"Velocity {err.velocity}")
+            self.get_logger().info(f"Orientation {err.orientation}")
+            self.get_logger().info(f"Angular Velocity {err.angular_velocity}")
+            self.count = 0
+        else:
+            self.count += 1
+
+        # if err.magnitude() < ERROR_THRESHOLD:
+        #     self.count = 10
+        #     self.get_logger().info("Reached waypoint, advancing to next")
+        #     self._advance_to_next()
+
+        inside = err.magnitude() < ERROR_THRESHOLD
+        now_ns = self.get_clock().now().nanoseconds
+
+        if inside:
+            if self.stable_start_ns is None:
+                # Just entered band
+                self.stable_start_ns = now_ns
+            else:
+                elapsed_s = (now_ns - self.stable_start_ns) * 1e-9
+                if (not self.stable_published) and elapsed_s >= self.stable_dwell_sec:
+                    # Stable for long enough
+                    self.stable_published = True
+                    self._pub_object_reached(True)
+                    self.get_logger().info(
+                        f"Reached waypoint and stable for {self.stable_dwell_sec:.2f}s — advancing"
+                    )
+                    self._advance_to_next()
+        else:
+            # Outside band: reset timer and publish False if previously True
+            if self.stable_published:
+                self._pub_object_reached(False)
+            self.stable_start_ns = None
+            self.stable_published = False
 
 
 def main(args=None):
     print(";;;;", flush=True)
     rclpy.init(args=args)
-    path_tracker = PathTracker()
-    rclpy.spin(path_tracker)
-    path_tracker.destroy_node()
+    node = PathTracker()
+    rclpy.spin(node)
+    node.destroy_node()
     rclpy.shutdown()
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

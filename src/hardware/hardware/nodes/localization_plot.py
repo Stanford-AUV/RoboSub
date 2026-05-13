@@ -167,20 +167,18 @@ class LocalizationPlot(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = LocalizationPlot()
-
     try:
-        rclpy.spin(node)
+        while rclpy.ok():
+            # Process any callbacks (with up to 0.1 s wait for new messages)
+            rclpy.spin_once(node, timeout_sec=0.1)
+            # Always service the GUI event loop, even if no new data
+            plt.pause(0.001)
     except KeyboardInterrupt:
         pass
     finally:
-        # Clean up
         node.destroy_node()
-        try:
-            rclpy.shutdown()
-        except Exception:
-            pass
+        rclpy.shutdown()
         plt.close("all")
-
 
 if __name__ == "__main__":
     main()

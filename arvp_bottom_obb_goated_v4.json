@@ -1,0 +1,33 @@
+{
+    "model": {
+        "xml": "arvp_bottom_obb_goated_v4.xml",
+        "bin": "arvp_bottom_obb_goated_v4.bin"
+    },
+    "nn_config": {
+        "output_format": "detection",
+        "NN_family": "YOLO",
+        "input_size": "416x416",
+        "NN_specific_metadata": {
+            "classes": 9,
+            "coordinates": 4,
+            "anchors": [],
+            "anchor_masks": {},
+            "iou_threshold": 0.5,
+            "confidence_threshold": 0.5
+        }
+    },
+    "mappings": {
+        "labels": [
+            "basket_pink",
+            "basket_yellow",
+            "bin_all",
+            "bin_sawfish",
+            "bin_shark",
+            "table_bottle_knocked",
+            "table_bottle_upright",
+            "table_ladle",
+            "table_whole"
+        ]
+    },
+    "version": 1
+}

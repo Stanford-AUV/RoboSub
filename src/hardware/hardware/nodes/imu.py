@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+import numpy as np
+from scipy.spatial.transform import Rotation as R
+
 import rclpy
 from sensor_msgs.msg import Imu
 from geometry_msgs.msg import PoseWithCovarianceStamped, TwistWithCovarianceStamped
@@ -145,13 +149,30 @@ class IMU(GenericSensor):
             self.sensor_publishers["accel"].publish(accel_msg)
 
 
-def main(args=None):
-    rclpy.init(args=args)
-    imu = IMU()
-    rclpy.spin(imu)
-    imu.destroy_node()
+        # publish the “zeroed” ENU IMU
+        out = Imu()
+        out.header = msg.header
+        out.orientation.x, out.orientation.y, out.orientation.z, out.orientation.w = q_out
+        out.angular_velocity.x, out.angular_velocity.y, out.angular_velocity.z = av_out
+        out.linear_acceleration.x, out.linear_acceleration.y, out.linear_acceleration.z = la_out
+        self._pub.publish(out)
+
+    def _finish_calibration(self):
+        # average_quaternions expects rows=[w,x,y,z]
+        avg_w, avg_x, avg_y, avg_z = average_quaternions(self._buf)
+        # convert to SciPy’s [x,y,z,w]
+        q_ref = [avg_x, avg_y, avg_z, avg_w]
+        r_ref = R.from_quat(q_ref)
+        # invert so reference pose → identity
+        self._q_ref_inv = r_ref.inv()
+        self.get_logger().info(f"Zero-pose calibration done; q_ref = {q_ref}")
+
+def main():
+    rclpy.init()
+    node = IMUZeroed()
+    rclpy.spin(node)
+    node.destroy_node()
     rclpy.shutdown()
 
-
-if __name__ == "__main__":
+if __name__=='__main__':
     main()
