@@ -1,127 +1,34 @@
-# Perception
+# Package: `perception`
 
-This package handles all computer vision and sensor processing for the AUV, including camera input, object detection, 3D localization, and depth estimation.
+**Build type:** `ament_python`  
+**Role:** Cameras (OAK, RealSense), aligned RGB–depth publishing, YOLO-based object localization, recording helpers. Camera keys and parameters come from `perception/cameras.yaml` (installed to share) and `main/launch/params/global.yaml` when launched from `main`.
 
----
+## Executables (`ros2 run perception <name>`)
 
-## Architecture
+| Executable | Module | Summary |
+|------------|--------|---------|
+| `oak_node` | `nodes/oak.py` | DepthAI / OAK camera pipeline. |
+| `realsense_node` | `nodes/realsense.py` | Intel RealSense pipeline. |
+| `aligned_depth_publisher` | `nodes/aligned_depth_publisher.py` | Publishes `msgs/AlignedDepthImage` for a configured `camera_type` / `camera_key`. |
+| `object_localizer` | `nodes/object_localizer.py` | Subscribes to aligned depth stream; runs detector (Ultralytics YOLO); publishes 3D detections (`vision_msgs` / custom points per implementation). |
+| `object_detection` | `nodes/object_detections.py` | Detection pipeline entry (module name `object_detections`). |
+| `camera_viewer` | `nodes/camera_viewer.py` | CLI arg: camera name(s). Viewer for debugging. |
+| `photographer` | `nodes/photographer.py` | Periodic disk capture; parameters `output_dir`, `capture_period_s`. |
 
-The perception stack is built around an **AlignedDepthImage** abstraction that decouples camera-specific hardware from downstream vision processing.
+## Launches (`share/perception/launch/`)
 
-```mermaid
-flowchart LR
-  subgraph producers [AlignedDepthImage Producers]
-    OAK[OAK Backend]
-    RS[RealSense Backend]
-  end
-  subgraph transport [Transport]
-    MsgA[AlignedDepthImage.msg\nrgb + depth + camera_info]
-  end
-  subgraph consumer [Consumer]
-    OL[Object Localizer]
-  end
-  OAK --> MsgA
-  RS --> MsgA
-  MsgA --> OL
-```
+- **`camera.py`** — Starts **`oak_node`** and **`realsense_node`** together; optional `camera_viewer` and `photographer` via launch arguments (`camera_viewer`, `camera_names`, `photographer`, etc.). Uses `global.yaml` from `main`.
+- **`aligned_depth_localizer.py`** — **`aligned_depth_publisher`** + **`object_localizer`**, with `prefix="/home/ros/env/bin/python3 -u "` for venv Python (GPU stack). Declares args: `camera_type`, `camera_key`, `model_name`, `object_id`, visualization flags.
 
-- **Producers**: One node per camera family. Each implements the same interface — publish `AlignedDepthImage` — but uses DepthAI (OAK) or pyrealsense2 (RealSense) under the hood.
-- **Transport**: A single custom `AlignedDepthImage.msg` carrying aligned RGB, aligned depth, and RGB camera intrinsics atomically.
-- **Consumer**: A camera-agnostic Object Localizer that subscribes to `AlignedDepthImage` and outputs `Detection3DArray`.
+## Architecture (as implemented)
 
----
+Producers (OAK / RealSense / aligned publisher) output **`msgs/AlignedDepthImage`** on per-camera topics. **`object_localizer`** consumes that message type and runs YOLO; **torch / ultralytics** are expected system-wide (see root [DEPENDENCY_MANAGEMENT.md](../../DEPENDENCY_MANAGEMENT.md)), not pinned in `setup.py` install_requires.
 
-## Nodes
+## Other files
 
-### `aligned_publisher`
+- `perception/app.py`, `stream_over_ethernet.py` — auxiliary / experimental scripts.
+- `perception/utils/` — bounding boxes, calibration JSON, tests.
 
-Publishes `AlignedDepthImage` messages from either an OAK-D or RealSense camera. Configured via the `camera_type` parameter (`oak` or `realsense`).
+## Tests
 
-**Publishes**: `/camera/{key}/aligned` (`msgs/AlignedDepthImage`)
-
-**OAK backend**: Uses `stereo.setDepthAlign(dai.CameraBoardSocket.CAM_A)` to align depth to the RGB frame. Intrinsics are read from `calibData.getCameraIntrinsics(CAM_A, W, H)`.
-
-**RealSense backend**: Uses `rs.align(rs.stream.color)` on each frameset. Intrinsics are read from `color_frame.get_profile().as_video_stream_profile().get_intrinsics()`.
-
----
-
-### `object_localizer`
-
-Camera-agnostic 3D object detector. Subscribes to `AlignedDepthImage`, runs ultralytics YOLO on the RGB image, looks up depth at each detection bounding box center, and deprojects to 3D using the intrinsics embedded in the message.
-
-**Subscribes**: `/camera/{key}/aligned` (`msgs/AlignedDepthImage`)  
-**Publishes**: `detections3d` (`vision_msgs/Detection3DArray`)
-
-**Detection pipeline**:
-1. Run YOLO on `msg.rgb` to get 2D bounding boxes.
-2. For each bbox, sample depth from `msg.depth` at the center pixel (or median over a small region); discard zero/invalid readings.
-3. Deproject pixel `(u, v)` + depth `z` using RGB intrinsics `K` from `msg.camera_info`:
-   ```
-   x = (u - cx) * z / fx
-   y = (v - cy) * z / fy
-   ```
-4. Fill `Detection3D.bbox.center` and publish as `Detection3DArray`.
-
-**Configuration** (ROS2 parameters):
-- `model_path` — path to `.pt` YOLO weights file.
-- `target_classes` — optional list of class names to filter detections.
-- Input topic remapped via launch or `--ros-args -r`.
-
----
-
-### `oak` / `realsense` (legacy)
-
-Original camera nodes that publish **unaligned** raw RGB and depth streams. Still used for raw data recording and OAK-only on-device YOLO workflows. See `nodes/oak.py` and `nodes/realsense.py`.
-
----
-
-### `objects_localizer` (legacy, OAK-only)
-
-Original OAK-only 3D localizer using on-device YOLO. Kept as-is for OAK-specific workflows. The new camera-agnostic `object_localizer` is the preferred node for ultralytics-based detection.
-
----
-
-## Custom Messages
-
-### `AlignedDepthImage.msg` (`src/msgs/msg/AlignedDepthImage.msg`)
-
-| Field | Type | Description |
-|---|---|---|
-| `rgb` | `sensor_msgs/Image` | RGB image from the color camera |
-| `depth` | `sensor_msgs/Image` | Depth image aligned to the RGB frame |
-| `camera_info` | `sensor_msgs/CameraInfo` | RGB camera intrinsics (K matrix, distortion) required for deprojection |
-| `hardware_stamp` | `builtin_interfaces/Time` | Optional hardware timestamp for multi-sensor synchronization |
-
-One `AlignedDepthImage` message = one atomically aligned (RGB, depth, intrinsics) tuple.
-
----
-
-## Topics Summary
-
-| Topic | Type | Direction | Description |
-|---|---|---|---|
-| `/camera/{key}/aligned` | `msgs/AlignedDepthImage` | Published | Aligned RGB + depth + intrinsics |
-| `detections3d` | `vision_msgs/Detection3DArray` | Published | 3D object detections in camera frame |
-
----
-
-## Launch
-
-```bash
-# Launch aligned publisher + object localizer (OAK camera)
-ros2 launch perception camera_localizer.py camera_type:=oak
-
-# Launch with RealSense
-ros2 launch perception camera_localizer.py camera_type:=realsense
-
-# View 3D detections
-ros2 run perception view_detections_3d
-```
-
----
-
-## Development Notes
-
-- Camera-specific details (alignment, hardware timestamps, intrinsics) live entirely inside the `aligned_publisher` node. The `object_localizer` has no camera-specific code.
-- Do not add `torch` or `ultralytics` to `setup.py`'s `install_requires`. These must be installed as system Python packages to ensure GPU support. See [DEPENDENCY_MANAGEMENT.md](/DEPENDENCY_MANAGEMENT.md).
-- When adding a new camera backend, implement the aligned producer interface and publish the same `AlignedDepthImage` topic — no changes required in `object_localizer`.
+`perception/test/` — copyright/lint stubs and `utils/test/` unit tests.

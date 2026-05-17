@@ -7,7 +7,7 @@ def generate_launch_description():
         [
             Node(
                 package="perception",
-                executable="objects_localizer",
+                executable="object_localizer",
                 output="screen",
                 parameters=[],
             ),

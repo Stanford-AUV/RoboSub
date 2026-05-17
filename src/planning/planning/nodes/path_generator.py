@@ -2,34 +2,30 @@ import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped, Twist
+from nav_msgs.msg import Odometry
 from msgs.msg import GeneratedPath  # Custom message import
 from rclpy import Parameter
 
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from control.utils.create_path import create_path
-""""""""""""""""""""""''DEPRECATED"""""""""""""""
-
+from planning.utils.create_path import create_path
 
 class PathGenerator(Node):
     def __init__(self):
         super().__init__("path_generator")
 
-        self.declare_parameter("waypoints_topic", "waypoints")
-        self.declare_parameter("history_depth", Parameter.Type.INTEGER)
-
-        history_depth = (
-            self.get_parameter("history_depth").get_parameter_value().integer_value
-        )
 
         self.waypoints_subscriber = self.create_subscription(
-            Path, "waypoints", self.waypoints_callback, history_depth
-        )  # Create test waypoints node
-
-        self.generated_path_publisher = self.create_publisher(
-            GeneratedPath, "generated_path", history_depth
+            Path, "/waypoints", self.waypoints_callback, 10
         )
+
+        self.publish_desired = self.create_publisher(Odometry, "/desired/pose", 10)
+
+        self.generated_path = None
+        self.path_start_time = None
+
+        self.create_timer(1.0 / 60.0, self.publish_pose) 
 
         self.get_logger().info("PathGenerator node has been started.")
 
@@ -43,14 +39,12 @@ class PathGenerator(Node):
         pitch_angles = []
         yaw_angles = []
 
-        # Loop through each pose in the Path message
+        
         for pose_stamped in msg.poses:
-            # Extract positions
             x_positions.append(pose_stamped.pose.position.x)
             y_positions.append(pose_stamped.pose.position.y)
             z_positions.append(pose_stamped.pose.position.z)
 
-            # Extract orientations in quaternion form
             orientation_q = pose_stamped.pose.orientation
             quaternion = [
                 orientation_q.x,
@@ -59,13 +53,11 @@ class PathGenerator(Node):
                 orientation_q.w,
             ]
 
-            # Convert quaternion to Euler angles
             euler = Rotation.from_quat(quaternion).as_euler("xyz", degrees=True)
-            roll_angles.append(euler[0])  # x Euler angle (roll)
-            pitch_angles.append(euler[1])  # y Euler angle (pitch)
-            yaw_angles.append(euler[2])  # z Euler angle (yaw)
+            roll_angles.append(euler[0]) 
+            pitch_angles.append(euler[1])
+            yaw_angles.append(euler[2]) 
 
-        # Convert lists to numpy arrays for easier manipulation
         x_positions = np.array(x_positions)
         y_positions = np.array(y_positions)
         z_positions = np.array(z_positions)
@@ -73,27 +65,33 @@ class PathGenerator(Node):
         pitch_angles = np.array(pitch_angles)
         yaw_angles = np.array(yaw_angles)
 
-        (
+        try:
+            (
+                positions,
+                velocities,
+                accelerations,
+                orientations,
+                angular_velocities,
+                angular_accelerations,
+                duration,
+            ) = create_path(
+                x_positions, y_positions, z_positions, roll_angles, pitch_angles, yaw_angles
+            )
+        except Exception as exc:
+            self.get_logger().error(f"Failed to generate path from waypoints: {exc}")
+            return
+
+        self.make_generated_path(
             positions,
             velocities,
             accelerations,
             orientations,
             angular_velocities,
             angular_accelerations,
-        ) = create_path(
-            x_positions, y_positions, z_positions, roll_angles, pitch_angles, yaw_angles
+            duration,
         )
 
-        self.publish_generated_path(
-            positions,
-            velocities,
-            accelerations,
-            orientations,
-            angular_velocities,
-            angular_accelerations,
-        )
-
-    def publish_generated_path(
+    def make_generated_path(
         self,
         positions,
         velocities,
@@ -101,17 +99,18 @@ class PathGenerator(Node):
         orientations,
         angular_velocities,
         angular_accelerations,
+        duration,
     ):
-        # NOTE: Positional shapes are n by 3, rotational shapes are 3 by n
+        
         self.get_logger().info("Generated path, sending back...")
 
-        generated_path = GeneratedPath()  # Initialize the custom message
+        generated_path = GeneratedPath() 
         generated_path.header.stamp = self.get_clock().now().to_msg()
-        generated_path.header.frame_id = "map"  # Set the frame ID appropriately
+        generated_path.header.frame_id = "map"
+        generated_path.duration = duration
 
-        # Loop through each position and orientation to populate PoseStamped and Twist messages
+
         for i in range(len(positions[0])):
-            # Create and fill PoseStamped for position and orientation
             pose_stamped = PoseStamped()
             pose_stamped.header.stamp = generated_path.header.stamp
             pose_stamped.header.frame_id = generated_path.header.frame_id
@@ -120,7 +119,6 @@ class PathGenerator(Node):
             pose_stamped.pose.position.y = positions[1][i]
             pose_stamped.pose.position.z = positions[2][i]
 
-            # Convert orientation (roll, pitch, yaw) back to quaternion for the Pose message
             orientation_quat = Rotation.from_euler(
                 "xyz", orientations[i], degrees=True
             ).as_quat()
@@ -129,10 +127,8 @@ class PathGenerator(Node):
             pose_stamped.pose.orientation.z = orientation_quat[2]
             pose_stamped.pose.orientation.w = orientation_quat[3]
 
-            # Append pose to generated_path.poses
             generated_path.poses.append(pose_stamped)
 
-            # Create and fill Twist for velocity and angular velocity
             twist = Twist()
             twist.linear.x = velocities[0][i]
             twist.linear.y = velocities[1][i]
@@ -141,12 +137,32 @@ class PathGenerator(Node):
             twist.angular.y = angular_velocities[i][1]
             twist.angular.z = angular_velocities[i][2]
 
-            # Append twist to generated_path.twists
             generated_path.twists.append(twist)
 
-        # Publish the generated path
-        self.generated_path_publisher.publish(generated_path)
-        self.get_logger().info("Published generated path with poses and twists.")
+        self.generated_path = generated_path
+        self.path_start_time = self.get_clock().now()
+        self.get_logger().info("Generated path with poses and twists.")
+    
+    def publish_pose(self):
+        if self.generated_path is None or self.path_start_time is None:
+            return
+
+        elapsed = (self.get_clock().now() - self.path_start_time).nanoseconds / 1e9
+        duration = self.generated_path.duration
+        n = len(self.generated_path.poses)
+
+        if duration <= 0.0 or n == 0:
+            return
+
+        t = min(max(elapsed, 0.0), duration)
+        index = int(t / duration * (n - 1))
+        index = min(index, n - 1)
+
+        odom = Odometry()
+        odom.header = self.generated_path.poses[index].header
+        odom.pose.pose = self.generated_path.poses[index].pose
+        odom.twist.twist = self.generated_path.twists[index]
+        self.publish_desired.publish(odom)
 
 
 def main(args=None):
