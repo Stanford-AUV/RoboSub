@@ -5,6 +5,7 @@ DEVICES=(
     "/dev/ttyUSB_teensy"
     "/dev/ttyUSB0" "/dev/ttyUSB1" "/dev/ttyUSB2" "/dev/ttyUSB3" "/dev/ttyUSB4" "/dev/ttyUSB5"
     "/dev/ttyACM0" "/dev/ttyACM1" "/dev/ttyACM2" "/dev/ttyACM3" "/dev/ttyACM4" "/dev/ttyACM5"
+    "/dev/ttyUSB_dvl" "/dev/ttyUSB_imu" "/dev/ttyACM_teensy"
 )
 
 # Loop through each device and apply chmod if it exists
