@@ -17,18 +17,39 @@ class JoystickNode(Node):
             WrenchStamped, "wrench", 10
         )  # thrusters
         self.light_publisher = self.create_publisher(Int16, "light", 10)
-        self.torpedo_publisher = self.create_publisher(Int16, "torpedo", 10)
-        self.dropper_publisher = self.create_publisher(Int16, "dropper", 10)
         self.get_logger().info("Joystick node initialized")
 
-        ############################################################
-        #           TODO: Any additional definitions               #
-        ############################################################
+        # Flag to control the async server
+        self.running = True
+
+        self.depth = 0.0
+        self.last_depth = None
+        self.depth_rate = 0.0
+        self.last_depth_time = None
+        self.desired_depth = None
+        self.kp = 3  # Proportional gain
+        self.kd = 1  # Derivative gain
+
+        self.depth_subscription = self.create_subscription(
+            Float32Stamped, "depth", self.depth_callback, 10
+        )
 
         # Start the async server in a separate thread
         self.async_thread = threading.Thread(target=self._run_async_server, daemon=True)
         self.async_thread.start()
-        self.running = True
+
+    def depth_callback(self, msg: Float32Stamped):
+        current_depth = -msg.data
+        now = self.get_clock().now()
+
+        if self.last_depth is not None and self.last_depth_time is not None:
+            delta_t = (now.nanoseconds - self.last_depth_time.nanoseconds) * 1e-9
+            if delta_t > 0:
+                self.depth_rate = (current_depth - self.last_depth) / delta_t
+
+        self.last_depth_time = now
+        self.last_depth = current_depth
+        self.depth = current_depth
 
     def _run_async_server(self):
         """Run the async server in a separate thread"""
