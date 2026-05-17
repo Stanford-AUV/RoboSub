@@ -36,14 +36,6 @@ class Arduino(Node):
             Int16, "light", self.light_callback, history_depth
         )
 
-        self._torpedo_sub = self.create_subscription(
-            Int16, "torpedo", self.torpedo_callback, history_depth
-        )
-
-        self._torpedo_sub = self.create_subscription(
-            Int16, "dropper", self.dropper_callback, history_depth
-        )
-
         self._sensors_pub = self.create_publisher(
             SensorsStamped, "/arduino/sensors", history_depth
         )
@@ -51,7 +43,7 @@ class Arduino(Node):
         try:
             # NOTE: If this fails, run the following command:
             # sudo chmod a+rw /dev/ttyACM0
-            port = "/dev/ttyACM0"
+            port = "/dev/ttyACM_teensy"
             self.portName = serial.Serial(port, baudrate=9600, timeout=1)
             self.get_logger().info(f"Serial port {port} opened successfully.")
         except serial.SerialException as e:
@@ -59,12 +51,6 @@ class Arduino(Node):
             raise e
 
         self.timer = self.create_timer(0.01, self.update)
-
-        self.left_torpedo = False
-        self.right_torpedo = False
-
-        self.left_dropper = False
-        self.right_dropper = False
 
     def get_servo_command(self, index: int, pwm: int):
         if pwm == 0:
@@ -82,51 +68,6 @@ class Arduino(Node):
             self.light_changed = True
             self.light = light
 
-    def torpedo_callback(self, msg: Int16):
-        # light = msg.data
-        # if light != self.light:
-        #     self.light_changed = True
-        #     self.light = light
-        if msg.data >= 0.5 and not self.left_torpedo:
-            command = "nagasaki"
-            self.left_torpedo = True
-        elif msg.data <= -0.5 and not self.right_torpedo:
-            command = "hiroshima"
-            self.right_torpedo = True
-        else:
-            command = None
-
-        if command is not None:
-            self.get_logger().info("boom")
-            try:
-                self.portName.write((command + "\n").encode())
-            except serial.SerialException as e:
-                self.get_logger().error(f"Failed to write to serial port: {e}")
-            self.portName.readline().decode().strip()
-
-    def dropper_callback(self, msg: Int16):
-        # light = msg.data
-        # if light != self.light:
-        #     self.light_changed = True
-        #     self.light = light
-        if msg.data >= 0.5:# and not self.left_dropper:
-            command = "pearl-harbor"
-            self.left_dropper = True
-        elif msg.data <= -0.5:# and not self.right_dropper:
-            command = "iwo-jima"
-            self.right_dropper = True
-        else:
-            command = "dropperPosition 0"
-
-        if command is not None:
-            if msg.data >= 0.5 or msg.data <= -0.5:
-                self.get_logger().info("boom dropper")
-            try:
-                self.portName.write((command + "\n").encode())
-            except serial.SerialException as e:
-                self.get_logger().error(f"Failed to write to serial port: {e}")
-            self.portName.readline().decode().strip()
-
     def send_light(self):
         light = max(1100, min(self.light, 1900))  # 1100 to 1900
         command = f"light {light}"
@@ -137,49 +78,48 @@ class Arduino(Node):
         self.portName.readline().decode().strip()
 
     def send_pwms(self):
-        # self.get_logger().info("I am born!!!")
         commands = [
             self.get_servo_command(index=i, pwm=pwm) for i, pwm in enumerate(self.pwms)
         ]
-        # self.get_logger().info("I am servoed!!!")
         message = " ".join(commands)
         try:
-            # self.get_logger().info(f":DdDDDDDDD YAY! {message}")
-            # message = "1500 " * 8
-            # message = message[:-1]
-            temp = (message + "\n").encode()
-            # self.get_logger().info("Gonna write bruh")
-            self.portName.write(temp)
-            # self.get_logger().info("Got wrote bruh")
+            self.portName.write((message + "\n").encode())
         except serial.SerialException as e:
             self.get_logger().error(f"Failed to write to serial port: {e}")
 
     def update(self):
-        # self.get_logger().error(f"Enter update loop!")
-        if self.light_changed:
-            self.send_light()
-            self.light_changed = False
-        # self.get_logger().error(f"Checkpoint A!")
-        self.send_pwms()
-        # self.get_logger().error(f"Checkpoint B!")
-        response = self.portName.readline().decode().strip()
-        tokens = response.split()
-        data = {tokens[i].rstrip(':'): float(tokens[i+1]) for i in range(0, len(tokens), 2)}
+        try:
+            if self.light_changed:
+                self.send_light()
+                self.light_changed = False
+            self.send_pwms()
+            response = self.portName.readline().decode().strip().split("> ")[1]
+            if (response[0] == " "):
+                response = response[1:]
+            # self.get_logger().info(f"{response} is the response")
+            tokens = response.split()
+            data = {tokens[i].rstrip(':'): float(tokens[i+1]) for i in range(0, len(tokens), 2)}
 
-        msg = SensorsStamped()
-        msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = "sensor"
+            msg = SensorsStamped()
+            msg.header.stamp = self.get_clock().now().to_msg()
+            msg.header.frame_id = "sensor"
 
-        msg.pressure = data["pressure"]
-        msg.depth = data["depth"]
-        msg.external_temperature = data["external_temperature"]
-        msg.internal_temperature1 = data["internal_temperature1"]
-        msg.internal_temperature2 = data["internal_temperature2"]
-        msg.humidity = data["humidity"]
-        msg.current = data["current"]
-        msg.voltage = data["voltage"]
+            # self.get_logger().info(f"{data} is the data")
+            if data == {}:
+                self.get_logger().warning("No data received from Arduino.")
+                return
+            msg.pressure = data["pressure"]
+            msg.depth = data["depth"]
+            msg.external_temperature = data["external_temperature"]
+            msg.internal_temperature1 = data["internal_temperature1"]
+            msg.internal_temperature2 = data["internal_temperatur2"]
+            msg.humidity = data["humidity"]
+            msg.current = data["current"]
+            msg.voltage = data["voltage"]
 
-        self._sensors_pub.publish(msg)
+            self._sensors_pub.publish(msg)
+        except:
+            return
 
     def kill_motors(self):
         self.pwms = [self.zero_thrust] * self.thruster_count

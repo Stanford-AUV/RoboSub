@@ -40,6 +40,9 @@
     "--volume=/dev/ttyUSB3:/dev/ttyUSB3",
     "--volume=/dev/ttyUSB4:/dev/ttyUSB4",
     "--volume=/dev/ttyUSB5:/dev/ttyUSB5",
+    "--volume=/dev/ttyUSB_dvl:/dev/ttyUSB_dvl",
+    "--volume=/dev/ttyUSB_imu:/dev/ttyUSB_imu",
+    "--volume=/dev/ttyACM_teensy:/dev/ttyACM_teensy",
     "--device-cgroup-rule=c 189:* rmw",
     // Add NVIDIA library mounts:
     "--volume=/usr/local/cuda-12:/usr/local/cuda-12:ro",
@@ -71,6 +74,7 @@
     "CUDA_HOME": "/usr/local/cuda-12",
     "NVIDIA_VISIBLE_DEVICES": "all",
     "PYTHONNOUSERSITE": "1",
+    "PYTHONPATH": "/home/ros/env/lib/python3.12/site-packages",
     "PATH": "/usr/local/cuda-12/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
     "LD_LIBRARY_PATH": "/usr/local/cuda-12/lib64:/usr/lib/aarch64-linux-gnu/nvidia:/usr/lib/aarch64-linux-gnu/tegra:/usr/lib/aarch64-linux-gnu/host"
   },
@@ -96,5 +100,5 @@
       ]
     }
   },
-  "postCreateCommand": "/home/ros/env/bin/python3 -m pip install --no-cache-dir -r /workspaces/Robosub3/requirements.txt"
+  "postCreateCommand": "/home/ros/env/bin/python3 -m pip install --no-cache-dir -r /workspaces/Robosub/requirements.txt"
 }
