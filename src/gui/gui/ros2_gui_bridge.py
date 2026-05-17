@@ -30,7 +30,7 @@ import time
 import rclpy
 from rclpy.node import Node
 
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, TwistWithCovarianceStamped
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Bool
@@ -63,6 +63,7 @@ TOPIC_IMU      = "/imu/data"          # sensor_msgs/Imu
 TOPIC_ODOM     = "/odometry/filtered" # nav_msgs/Odometry
 TOPIC_CMD_VEL  = "/cmd_vel"           # geometry_msgs/Twist  (publish)
 TOPIC_ESTOP    = "/estop"             # std_msgs/Bool        (publish)
+TOPIC_VELOCITY = "/velocity"
 
 # ── helpers ────────────────────────────────────────────────────────────────
 
@@ -190,6 +191,7 @@ class HudBridgeNode(Node):
 
         self.create_subscription(Imu,      TOPIC_IMU,   self._cb_imu,  10)
         self.create_subscription(Odometry, TOPIC_ODOM,  self._cb_odom, 10)
+        self.create_subscription(TwistWithCovarianceStamped, TOPIC_VELOCITY, self._cb_velocity, 10)
 
         global _cmd_pub, _estop_pub
         _cmd_pub   = self.create_publisher(Twist, TOPIC_CMD_VEL, 10)
@@ -235,6 +237,13 @@ class HudBridgeNode(Node):
             odom_ok=True,
         )
 
+    def _cb_velocity(self, msg: TwistWithCovarianceStamped):
+        v = msg.twist.twist.linear
+        _update_state(
+            vx=round(v.x, 3),
+            vy=round(v.y, 3),
+            vz=round(v.z, 3),
+        )
 
 # ── WebSocket server ────────────────────────────────────────────────────────
 

@@ -43,7 +43,7 @@ class Arduino(Node):
         try:
             # NOTE: If this fails, run the following command:
             # sudo chmod a+rw /dev/ttyACM0
-            port = "/dev/ttyACM0"
+            port = "/dev/ttyACM_teensy"
             self.portName = serial.Serial(port, baudrate=9600, timeout=1)
             self.get_logger().info(f"Serial port {port} opened successfully.")
         except serial.SerialException as e:
@@ -88,28 +88,38 @@ class Arduino(Node):
             self.get_logger().error(f"Failed to write to serial port: {e}")
 
     def update(self):
-        if self.light_changed:
-            self.send_light()
-            self.light_changed = False
-        self.send_pwms()
-        response = self.portName.readline().decode().strip()
-        tokens = response.split()
-        data = {tokens[i].rstrip(':'): float(tokens[i+1]) for i in range(0, len(tokens), 2)}
+        try:
+            if self.light_changed:
+                self.send_light()
+                self.light_changed = False
+            self.send_pwms()
+            response = self.portName.readline().decode().strip().split("> ")[1]
+            if (response[0] == " "):
+                response = response[1:]
+            # self.get_logger().info(f"{response} is the response")
+            tokens = response.split()
+            data = {tokens[i].rstrip(':'): float(tokens[i+1]) for i in range(0, len(tokens), 2)}
 
-        msg = SensorsStamped()
-        msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = "sensor"
+            msg = SensorsStamped()
+            msg.header.stamp = self.get_clock().now().to_msg()
+            msg.header.frame_id = "sensor"
 
-        msg.pressure = data["pressure"]
-        msg.depth = data["depth"]
-        msg.external_temperature = data["external_temperature"]
-        msg.internal_temperature1 = data["internal_temperature1"]
-        msg.internal_temperature2 = data["internal_temperature2"]
-        msg.humidity = data["humidity"]
-        msg.current = data["current"]
-        msg.voltage = data["voltage"]
+            # self.get_logger().info(f"{data} is the data")
+            if data == {}:
+                self.get_logger().warning("No data received from Arduino.")
+                return
+            msg.pressure = data["pressure"]
+            msg.depth = data["depth"]
+            msg.external_temperature = data["external_temperature"]
+            msg.internal_temperature1 = data["internal_temperature1"]
+            msg.internal_temperature2 = data["internal_temperatur2"]
+            msg.humidity = data["humidity"]
+            msg.current = data["current"]
+            msg.voltage = data["voltage"]
 
-        self._sensors_pub.publish(msg)
+            self._sensors_pub.publish(msg)
+        except:
+            return
 
     def kill_motors(self):
         self.pwms = [self.zero_thrust] * self.thruster_count

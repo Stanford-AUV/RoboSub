@@ -17,8 +17,8 @@ from dataclasses import dataclass, field
 import numpy as np
 
 
-DEFAULT_OUTPUT_DIR = "real/wet_data"
-DEFAULT_CAPTURE_PERIOD_S = 0.25
+DEFAULT_OUTPUT_DIR = "real/wet_data_test"
+DEFAULT_CAPTURE_PERIOD_S = 0.8
 DEFAULT_IMAGE_EXT = "jpg"
 
 
