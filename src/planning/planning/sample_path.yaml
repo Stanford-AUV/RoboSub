@@ -12,10 +12,10 @@ segment_0:
   with_timeout_s: 10
   exit_on_reach: True
 
-segment_1:
-  waypoints:
-    - position: {x: 0.0, y: 0.0, z: 0.0}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 180.0}
-  concurrent_action: "shoot"
-  with_timeout_s: 10
-  exit_on_reach: False
+# segment_1:
+#   waypoints:
+#     - position: {x: 0.0, y: 0.0, z: 0.0}
+#       orientation: {roll: 0.0, pitch: 0.0, yaw: 180.0}
+#   concurrent_action: "shoot"
+#   with_timeout_s: 10
+#   exit_on_reach: False

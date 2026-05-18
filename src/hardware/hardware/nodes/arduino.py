@@ -2,7 +2,7 @@ import serial
 import rclpy
 from rclpy.node import Node
 from msgs.msg import PWMsStamped, SensorsStamped, Float32Stamped
-from std_msgs.msg import Int16
+from std_msgs.msg import Int16, String
 from typing import List
 from rclpy import Parameter
 import numpy as np
@@ -78,10 +78,19 @@ class Arduino(Node):
         self.portName.readline().decode().strip()
 
     def send_pwms(self):
-        commands = [
-            self.get_servo_command(index=i, pwm=pwm) for i, pwm in enumerate(self.pwms)
-        ]
+        commands = []
+        for i, pwm in enumerate(self.pwms):
+            if i == 0:
+                pwm += (pwm - 1497) * 0.05
+                pwm = int(pwm)
+            commands.append(self.get_servo_command(index=i, pwm=pwm))
+        # commands = [
+        #     self.get_servo_command(index=i, pwm=pwm) for i, pwm in enumerate(self.pwms)
+        # ]
         message = " ".join(commands)
+        # message = "1497 1550 1550 1550 1550 1550 1550 1550"
+        # self._pwms_out.publish(message)
+        # self.get_logger().info(f"{message}")
         try:
             self.portName.write((message + "\n").encode())
         except serial.SerialException as e:
@@ -94,11 +103,14 @@ class Arduino(Node):
                 self.light_changed = False
             self.send_pwms()
             response = self.portName.readline().decode().strip().split("> ")[1]
-            if (response[0] == " "):
+            if response[0] == " ":
                 response = response[1:]
             # self.get_logger().info(f"{response} is the response")
             tokens = response.split()
-            data = {tokens[i].rstrip(':'): float(tokens[i+1]) for i in range(0, len(tokens), 2)}
+            data = {
+                tokens[i].rstrip(":"): float(tokens[i + 1])
+                for i in range(0, len(tokens), 2)
+            }
 
             msg = SensorsStamped()
             msg.header.stamp = self.get_clock().now().to_msg()

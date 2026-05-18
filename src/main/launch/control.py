@@ -13,16 +13,16 @@ def generate_launch_description():
         [
             Node(
                 package="control",
-                executable="controller",
+                executable="pid_control",
                 parameters=[global_params, {"velocity_only": False}],
             ),
             # Publishes sample waypoints on topic `waypoint` for the controller.
-            # Swap for path_tracker + a get_waypoints server when running full missions.
-            Node(
-                package="control",
-                executable="test_controller",
-                parameters=[global_params],
-            ),
+            # # Swap for path_tracker + a get_waypoints server when running full missions.
+            # Node(
+            #     package="control",
+            #     executable="test_controller",
+            #     parameters=[global_params],
+            # ),
             # START B — path following via service (needs a get_waypoints server; see README)
             # Node(
             #     package="control",
@@ -30,10 +30,10 @@ def generate_launch_description():
             #     parameters=[global_params],
             # ),
             # END B
-            # Node(
-            #     package="control",
-            #     executable="logger",
-            #     parameters=[global_params],
-            # ),
+            Node(
+                package="control",
+                executable="logger",
+                parameters=[global_params],
+            ),
         ]
     )

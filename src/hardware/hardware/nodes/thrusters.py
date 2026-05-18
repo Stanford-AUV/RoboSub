@@ -58,6 +58,7 @@ class Thrusters(Node):
                 [thrust_to_pwm(thrust, voltage) for thrust in msg.thrusts],
                 dtype=np.int16,
             )
+            print(self.pwms)
         except ValueError as e:
             self.get_logger().error(f"Failed to convert thrusts to PWMs: {e}")
 

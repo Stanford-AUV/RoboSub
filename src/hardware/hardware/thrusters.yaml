@@ -4,7 +4,7 @@ thruster_0:
   y: +0.1825
   z: +0.0925
   dx: -1
-  dy: +1
+  dy: -1
   dz: 0
 
 thruster_1:
@@ -12,7 +12,7 @@ thruster_1:
   x: +0.2025
   y: -0.1825
   z: +0.0925
-  dx: -1
+  dx: +1
   dy: -1
   dz: 0
 
@@ -21,7 +21,7 @@ thruster_2:
   x: -0.2025
   y: +0.1825
   z: +0.0925
-  dx: +1
+  dx: -1
   dy: +1
   dz: 0
 
@@ -30,7 +30,7 @@ thruster_3:
   x: -0.2025
   y: -0.1825
   z: +0.0925
-  dx: +1
+  dx: -1
   dy: -1
   dz: 0
 
@@ -41,7 +41,7 @@ thruster_4:
   z: -0.0925
   dx: 0
   dy: 0
-  dz: +1
+  dz: -1
 
 thruster_5:
 # Bottom front right (CCW from top)
@@ -50,7 +50,7 @@ thruster_5:
   z: -0.0925
   dx: 0
   dy: 0
-  dz: +1
+  dz: -1
 
 thruster_6:
 # Bottom back left (CW from top)

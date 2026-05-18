@@ -5,19 +5,25 @@ from geometry_msgs.msg import PoseStamped, Twist
 from nav_msgs.msg import Odometry
 from msgs.msg import GeneratedPath  # Custom message import
 from rclpy import Parameter
+from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
 
 import numpy as np
 from scipy.spatial.transform import Rotation
 
 from planning.utils.create_path import create_path
 
+
 class PathGenerator(Node):
     def __init__(self):
         super().__init__("path_generator")
 
-
+        latched_qos = QoSProfile(
+            depth=1,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+            reliability=ReliabilityPolicy.RELIABLE,
+        )
         self.waypoints_subscriber = self.create_subscription(
-            Path, "/waypoints", self.waypoints_callback, 10
+            Path, "/waypoints", self.waypoints_callback, latched_qos
         )
 
         self.publish_desired = self.create_publisher(Odometry, "/desired/pose", 10)
@@ -25,7 +31,7 @@ class PathGenerator(Node):
         self.generated_path = None
         self.path_start_time = None
 
-        self.create_timer(1.0 / 60.0, self.publish_pose) 
+        self.create_timer(1.0 / 60.0, self.publish_pose)
 
         self.get_logger().info("PathGenerator node has been started.")
 
@@ -39,7 +45,6 @@ class PathGenerator(Node):
         pitch_angles = []
         yaw_angles = []
 
-        
         for pose_stamped in msg.poses:
             x_positions.append(pose_stamped.pose.position.x)
             y_positions.append(pose_stamped.pose.position.y)
@@ -54,9 +59,9 @@ class PathGenerator(Node):
             ]
 
             euler = Rotation.from_quat(quaternion).as_euler("xyz", degrees=True)
-            roll_angles.append(euler[0]) 
+            roll_angles.append(euler[0])
             pitch_angles.append(euler[1])
-            yaw_angles.append(euler[2]) 
+            yaw_angles.append(euler[2])
 
         x_positions = np.array(x_positions)
         y_positions = np.array(y_positions)
@@ -75,7 +80,12 @@ class PathGenerator(Node):
                 angular_accelerations,
                 duration,
             ) = create_path(
-                x_positions, y_positions, z_positions, roll_angles, pitch_angles, yaw_angles
+                x_positions,
+                y_positions,
+                z_positions,
+                roll_angles,
+                pitch_angles,
+                yaw_angles,
             )
         except Exception as exc:
             self.get_logger().error(f"Failed to generate path from waypoints: {exc}")
@@ -101,14 +111,13 @@ class PathGenerator(Node):
         angular_accelerations,
         duration,
     ):
-        
+
         self.get_logger().info("Generated path, sending back...")
 
-        generated_path = GeneratedPath() 
+        generated_path = GeneratedPath()
         generated_path.header.stamp = self.get_clock().now().to_msg()
         generated_path.header.frame_id = "map"
         generated_path.duration = duration
-
 
         for i in range(len(positions[0])):
             pose_stamped = PoseStamped()
@@ -142,7 +151,7 @@ class PathGenerator(Node):
         self.generated_path = generated_path
         self.path_start_time = self.get_clock().now()
         self.get_logger().info("Generated path with poses and twists.")
-    
+
     def publish_pose(self):
         if self.generated_path is None or self.path_start_time is None:
             return

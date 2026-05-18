@@ -8,39 +8,53 @@ import os
 import yaml
 import numpy as np
 
+
 class PIDControl(Node):
     def __init__(self, path):
-
+        super().__init__("pid_control")
         self.path = path
-        
-        kP_pos, kI_pos, kD_pos, kP_orie, kI_orie, \
-            kD_orie, max_integral_pos, max_integral_orie = self.get_yaml_params(self.path)
 
-        self.PID = PID(kP_position=kP_pos, kI_position=kI_pos, kD_position=kD_pos,
-                       kP_orientation=kP_orie, kI_orientation=kI_orie, kD_orientation=kD_orie,
-                       max_integral_position=max_integral_pos, max_integral_orientation=max_integral_orie)
-        
+        (
+            kP_pos,
+            kI_pos,
+            kD_pos,
+            kP_orie,
+            kI_orie,
+            kD_orie,
+            max_integral_pos,
+            max_integral_orie,
+        ) = self.get_yaml_params(self.path)
+
+        self.PID = PID(
+            kP_position=kP_pos,
+            kI_position=kI_pos,
+            kD_position=kD_pos,
+            kP_orientation=kP_orie,
+            kI_orientation=kI_orie,
+            kD_orientation=kD_orie,
+            max_integral_position=max_integral_pos,
+            max_integral_orientation=max_integral_orie,
+        )
+
         self.curr_state = None
         self.desired_state = None
 
         self.current_state_subscriber = self.create_subscription(
-            Odometry, "/world/pose", self.update_curr_state, 10
+            Odometry, "/odometry/filtered", self.update_curr_state, 10
         )
 
         self.desired_state_subscriber = self.create_subscription(
             Odometry, "/desired/pose", self.update_des_state, 10
         )
 
-        self.wrench_publisher = self.create_publisher(
-            WrenchStamped, "/wrench", 10
-        )
+        self.wrench_publisher = self.create_publisher(WrenchStamped, "/wrench", 10)
 
-        self.dt = 1.0 / 60.0 # 60 FPS
-        self.create_timer(self.dt, self.publish_pid)  
-    
+        self.dt = 1.0 / 60.0  # 60 FPS
+        self.create_timer(self.dt, self.pid_loop)
+
     def reset(self):
         self.PID.reset()
-    
+
     def get_yaml_params(self, path):
         if not os.path.exists(path):
             raise FileNotFoundError("Noooooo! No yaml path exists :(")
@@ -57,19 +71,33 @@ class PIDControl(Node):
         max_integral_position = np.array(data["max_integral_position"])
         max_integral_orientation = np.array(data["max_integral_orientation"])
 
-        return kP_position, kI_position, kD_position, kP_orientation, kI_orientation, kD_orientation, max_integral_position, max_integral_orientation     
+        return (
+            kP_position,
+            kI_position,
+            kD_position,
+            kP_orientation,
+            kI_orientation,
+            kD_orientation,
+            max_integral_position,
+            max_integral_orientation,
+        )
 
     def update_curr_state(self, msg: Odometry):
         self.curr_state = State.from_odometry_msg(msg)
+        # self.get_logger().info(f"sending desired state {self.curr_state}")
 
     def update_des_state(self, msg: Odometry):
         self.desired_state = State.from_odometry_msg(msg)
-    
+        # self.get_logger().info(f"sending desired state {self.desired_state}")
+
     def pid_loop(self):
+        # self.get_logger().info(f"Curr State is None? {self.curr_state is None}")
         if self.curr_state is None or self.desired_state is None:
             return
         wrench_msg = self.PID.update(self.curr_state, self.desired_state, self.dt)
         self.wrench_publisher.publish(wrench_msg)
+        # self.get_logger().info(f"Wrench x {wrench_msg.x}")
+
 
 def main(args=None):
     SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))

@@ -18,8 +18,12 @@ class DVL(GenericSensor):
         super().__init__("dvl_ros_bridge", "dvl_0")
 
         self.sensor_publishers = {
-            "position": self.create_publisher(PoseWithCovarianceStamped, "/position", 10),
-            "velocity": self.create_publisher(TwistWithCovarianceStamped, "/velocity", 10),
+            "position": self.create_publisher(
+                PoseWithCovarianceStamped, "/position", 10
+            ),
+            "velocity": self.create_publisher(
+                TwistWithCovarianceStamped, "/velocity", 10
+            ),
         }
 
         self._latest_data = None
@@ -40,8 +44,10 @@ class DVL(GenericSensor):
             self.get_logger().error("Failed to start pinging")
 
     def autodetect_dvl_port(self, baudrate, timeout=2):
-        """Scan available serial ports and attempt to connect to the DVL."""
-        possible_ports = glob.glob("/dev/ttyUSB*") + glob.glob("/dev/ttyACM*")
+        preferred = ["/dev/ttyUSB_dvl"]
+        fallback = glob.glob("/dev/ttyUSB[0-9]*") + glob.glob("/dev/ttyACM[0-9]*")
+        possible_ports = preferred + [p for p in fallback if p not in preferred]
+
         for port in possible_ports:
             try:
                 with serial.Serial(port, baudrate, timeout=timeout) as ser:
@@ -73,7 +79,6 @@ class DVL(GenericSensor):
         self._latest_data = data_dict
         self.publish_sensor_data()
 
-    
     def _build_twist_cov(self, velocity_error=None):
         cov = np.zeros(36)
         vel_axes = self.get_axes("velocity")
@@ -84,7 +89,7 @@ class DVL(GenericSensor):
 
         if vel_axes:
             if velocity_error is not None:
-                var = velocity_error ** 2
+                var = velocity_error**2
                 for axis in vel_axes:
                     idx = axis - 1
                     cov[idx * 6 + idx] = var
