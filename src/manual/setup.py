@@ -23,6 +23,7 @@ setup(
         "console_scripts": [
             "keyboard = manual.nodes.keyboard:main",
             "joystick = manual.nodes.joystick:main",
+            "prequal = manual.nodes.prequal:main",
         ]
     },
 )

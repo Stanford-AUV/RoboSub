@@ -1,0 +1,6 @@
+1: ["f", 1.0, 1.0] #submerge 
+2: ["w", 4.0, 1.0] # go forward
+3: ["d", 0.5, 1.0]# go right
+4: ["s", 3.0, 1.0] # go backward
+5: ["a", 1.0, 1.0] # go left (correction to drift)
+6: ["s", 1.0, 1.0] # go backward
