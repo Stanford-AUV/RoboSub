@@ -10,6 +10,7 @@ from std_msgs.msg import Int16
 from geometry_msgs.msg import WrenchStamped
 from manual.utils.keyboard import KeyboardState
 from manual.keyboard_local import isKeyPressed, keysToState
+from rclpy.duration import Duration  # add this import at the top
 
 MAX_FORCE = 1.0
 MAX_TORQUE = 1.0
@@ -44,7 +45,7 @@ class PrequalNode(Node):
         finally:
             loop.close()
 
-    async def set_state(self, state: KeyboardState):
+    async def set_state(self, state: KeyboardState, kill=False):
         wrench_stamped = WrenchStamped()
         wrench = wrench_stamped.wrench
 
@@ -65,7 +66,9 @@ class PrequalNode(Node):
             th = -1
         elif state.turnCCW:
             th = 1
-
+        if not kill:
+            z = min(z, -0.65)
+            y = min(y, -0.4)
         if state.decreaseLinVel or state.decreaseVel:
             self.force *= 0.9
         elif state.increaseLinVel or state.increaseVel:
@@ -93,18 +96,36 @@ class PrequalNode(Node):
 
     async def run_server(self):
         data = self.load_path_yaml()
+        # long delay at start
+        self.start_time = self.get_clock().now()
+        end_time = self.start_time + Duration(seconds=5)
+        state = KeyboardState()
+        while self.get_clock().now() < end_time:
+            await self.set_state(state, True)
         for idx, value in data.items():
             print(idx, value)
             self.start_time = self.get_clock().now()
-            movement, time, force = value
+            movement, duration, force = value
             state = KeyboardState()
             for key in keysToState:
                 state.setState(keysToState[key], 0)
                 if isKeyPressed(key, movement):
                     state.setState(keysToState[key], 1)
             self.force = force
-            while self.get_clock().now() < self.start_time + time:
-                self.set_state(state)
+            end_time = self.start_time + Duration(seconds=duration)
+            while self.get_clock().now() < end_time:
+                shouldKill = False
+                if idx == 3:
+                    shouldKill = True
+                await self.set_state(state, shouldKill)
+            # built in delay
+            emptyState = KeyboardState()
+            self.start_time = self.get_clock().now()
+            end_time = self.start_time + Duration(seconds=3.0)
+            while self.get_clock().now() < end_time:
+                await self.set_state(emptyState)
+        emptyState = KeyboardState()
+        await self.set_state(emptyState, True)
 
     def destroy_node(self):
         """Clean up resources when the node is destroyed"""

@@ -32,8 +32,8 @@ keysToState = {
     "s": "moveBackward",
     "r": "moveUp",
     "f": "moveDown",
-    "q": "turnCCW",
-    "e": "turnCW",
+    "q": "turnCCW",  # turnCW
+    "e": "turnCW",  # turnCCW
     "t": "increaseVel",
     "g": "decreaseVel",
     "y": "increaseLinVel",

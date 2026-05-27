@@ -60,9 +60,9 @@ class KeyboardNode(Node):
         elif state.moveUp:
             z = 1
         if state.turnCW:
-            th = -1
+            th = -0.2
         elif state.turnCCW:
-            th = 1
+            th = 0.2
 
         if state.decreaseLinVel or state.decreaseVel:
             self.force *= 0.9

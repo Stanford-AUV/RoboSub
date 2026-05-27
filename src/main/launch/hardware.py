@@ -16,7 +16,11 @@ parameters_file_path = Path(
 def generate_launch_description():
     return LaunchDescription(
         [
-            DeclareLaunchArgument("plot", default_value="false", description="Run sensors_plot for IMU/DVL visualization"),
+            DeclareLaunchArgument(
+                "plot",
+                default_value="false",
+                description="Run sensors_plot for IMU/DVL visualization",
+            ),
             Node(
                 package="xsens_mti_ros2_driver",
                 executable="xsens_mti_node",
