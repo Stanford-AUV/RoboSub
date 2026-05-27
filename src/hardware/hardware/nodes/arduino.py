@@ -79,18 +79,18 @@ class Arduino(Node):
 
     def send_pwms(self):
         commands = []
-        for i, pwm in enumerate(self.pwms):
-            if i == 0:
-                pwm += (pwm - 1497) * 0.05
-                pwm = int(pwm)
-            commands.append(self.get_servo_command(index=i, pwm=pwm))
-        # commands = [
-        #     self.get_servo_command(index=i, pwm=pwm) for i, pwm in enumerate(self.pwms)
-        # ]
+        # for i, pwm in enumerate(self.pwms):
+        #     if i == 0:
+        #         pwm += (pwm - 1497) * 0.05
+        #         pwm = int(pwm)
+        #     commands.append(self.get_servo_command(index=i, pwm=pwm))
+        commands = [
+            self.get_servo_command(index=i, pwm=pwm) for i, pwm in enumerate(self.pwms)
+        ]
         message = " ".join(commands)
         # message = "1497 1550 1550 1550 1550 1550 1550 1550"
         # self._pwms_out.publish(message)
-        # self.get_logger().info(f"{message}")
+        self.get_logger().info(f"{message}")
         try:
             self.portName.write((message + "\n").encode())
         except serial.SerialException as e:

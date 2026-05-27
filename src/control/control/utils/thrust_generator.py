@@ -26,6 +26,8 @@ def thruster_configs_to_TAM_inv(
 
     """
     thruster_count = len(thruster_orientations)
+    norms = np.linalg.norm(thruster_orientations, axis=1, keepdims=True)
+    thruster_orientations = thruster_orientations / norms
     TAM = np.empty(shape=(6, thruster_count))
     TAM[:3, :] = thruster_orientations.T
     TAM[3:, :] = np.cross(thruster_positions, thruster_orientations).T
