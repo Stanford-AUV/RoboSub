@@ -52,9 +52,9 @@ class KeyboardNode(Node):
         elif state.moveForward:
             x = 1
         if state.moveLeft:
-            y = -1
-        elif state.moveRight:
             y = 1
+        elif state.moveRight:
+            y = -1
         if state.moveDown:
             z = -1
         elif state.moveUp:

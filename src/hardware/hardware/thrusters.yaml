@@ -30,8 +30,8 @@ thruster_3:
   x: -0.2025
   y: -0.1825
   z: +0.0925
-  dx: -1
-  dy: -1
+  dx: +1
+  dy: +1
   dz: 0
 
 thruster_4:
@@ -68,4 +68,4 @@ thruster_7:
   z: -0.0925
   dx: 0
   dy: 0
-  dz: +1
+  dz: -1
