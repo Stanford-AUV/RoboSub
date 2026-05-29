@@ -75,7 +75,7 @@ def thrust_to_pwm(thrust: float, voltage=14.8):
         low = 10
         high = 12
 
-    weight = (thrust - low) / 2
+    weight = (voltage - low) / 2
     low_pwm: float = inverse_quadratic_model(
         thrust, *BATTERY_VOLTAGES_TO_PWM_COEFFICIENTS[low]
     )
