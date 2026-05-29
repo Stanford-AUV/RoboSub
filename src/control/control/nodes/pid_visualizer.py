@@ -69,11 +69,13 @@ class PIDVisualizer(Node):
 
     def _curr_cb(self, msg: Odometry):
         t = self._now()
-        pos = np.array([
-            msg.pose.pose.position.x,
-            msg.pose.pose.position.y,
-            msg.pose.pose.position.z,
-        ])
+        pos = np.array(
+            [
+                msg.pose.pose.position.x,
+                msg.pose.pose.position.y,
+                msg.pose.pose.position.z,
+            ]
+        )
         with self.lock:
             self.t_curr.append(t)
             self.curr_x.append(pos[0])
@@ -84,11 +86,13 @@ class PIDVisualizer(Node):
 
     def _des_cb(self, msg: Odometry):
         t = self._now()
-        pos = np.array([
-            msg.pose.pose.position.x,
-            msg.pose.pose.position.y,
-            msg.pose.pose.position.z,
-        ])
+        pos = np.array(
+            [
+                msg.pose.pose.position.x,
+                msg.pose.pose.position.y,
+                msg.pose.pose.position.z,
+            ]
+        )
         with self.lock:
             self.t_des.append(t)
             self.des_x.append(pos[0])
@@ -191,7 +195,9 @@ def main(args=None):
         if tc:
             ax_x.plot(tc, cx, color="tab:blue", label="current", lw=1.5)
         if td:
-            ax_x.plot(td, dx, color="tab:orange", linestyle="--", label="desired", lw=1.2)
+            ax_x.plot(
+                td, dx, color="tab:orange", linestyle="--", label="desired", lw=1.2
+            )
         ax_x.legend(fontsize=7)
 
         # Position Y
