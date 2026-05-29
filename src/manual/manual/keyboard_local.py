@@ -44,37 +44,38 @@ keysToState = {
 
 
 async def main():
-    pass
-    # # Connect to NATS
-    # nc = await nats.connect("nats://localhost:4222")
-    # print("✅ Connected to NATS server")
-    # # Track key state
-    # pressed_keys = set()
-    # # Start the listener in background
-    # listener = keyboard.Listener(
-    #     on_press=lambda key: on_press(key, pressed_keys),
-    #     on_release=lambda key: on_release(key, pressed_keys),
-    # )
-    # listener.start()
+    from pynput import keyboard
 
-    # try:
-    #     while True:
-    #         state = KeyboardState()
-    #         for key in keysToState:
-    #             state.setState(keysToState[key], 0)
-    #             if isKeyPressed(key, pressed_keys):
-    #                 state.setState(keysToState[key], 1)
-    #         try:
-    #             await nc.publish("keyboard", state.to_json().encode("utf-8"))
-    #             print(f"Sent:{state}")
-    #         except Exception as e:
-    #             print("Failed to send:", e)
+    # Connect to NATS
+    nc = await nats.connect("nats://localhost:4222")
+    print("✅ Connected to NATS server")
+    # Track key state
+    pressed_keys = set()
+    # Start the listener in background
+    listener = keyboard.Listener(
+        on_press=lambda key: on_press(key, pressed_keys),
+        on_release=lambda key: on_release(key, pressed_keys),
+    )
+    listener.start()
 
-    #         await asyncio.sleep(SEND_INTERVAL_MS / 1000.0)
+    try:
+        while True:
+            state = KeyboardState()
+            for key in keysToState:
+                state.setState(keysToState[key], 0)
+                if isKeyPressed(key, pressed_keys):
+                    state.setState(keysToState[key], 1)
+            try:
+                await nc.publish("keyboard", state.to_json().encode("utf-8"))
+                print(f"Sent:{state}")
+            except Exception as e:
+                print("Failed to send:", e)
 
-    # finally:
-    #     print("Closing NATS connection.")
-    #     await nc.close()
+            await asyncio.sleep(SEND_INTERVAL_MS / 1000.0)
+
+    finally:
+        print("Closing NATS connection.")
+        await nc.close()
 
 
 if __name__ == "__main__":
