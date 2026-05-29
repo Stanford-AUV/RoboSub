@@ -32,6 +32,7 @@ setup(
             "logger = control.nodes.logger:main",
             "test_controller = control.nodes.test_controller:main",
             "test_thrust = control.nodes.test_thrust:main",
+            "fake_localizer = control.nodes.fake_localizer:main",
         ]
     },
 )
