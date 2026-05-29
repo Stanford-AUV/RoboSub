@@ -13,7 +13,6 @@ from rclpy.utilities import remove_ros_args
 class PathLoader(Node):
     def __init__(self, yaml_path):
         super().__init__("path_loader")
-        self.yaml_path = yaml_path
         latched_qos = QoSProfile(
             depth=1,
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
@@ -22,79 +21,45 @@ class PathLoader(Node):
         self.waypoints_publisher = self.create_publisher(
             Path, "/waypoints", latched_qos
         )
-        self.path_index = 0
-        self.segment_index = -1
-        self.path: Path | None = None
-        self.cycle_seconds = 10.0
-        self.segments = self.read_yaml_path(self.yaml_path)
-        self.advance_timer = self.create_timer(
-            self.cycle_seconds, self.advance_waypoint
+        segments = self.read_yaml_path(yaml_path)
+        path_msg = self.build_path(segments)
+        self.waypoints_publisher.publish(path_msg)
+        self.get_logger().info(
+            f"Published {len(path_msg.poses)} waypoints from {len(segments)} segment(s)."
         )
-        self._initial_advance_done = False
-        self.create_timer(0.5, self._initial_advance)
-
-    def _initial_advance(self):
-        if not self._initial_advance_done:
-            self._initial_advance_done = True
-            self.advance_waypoint()
 
     def read_yaml_path(self, yaml_path):
         with open(yaml_path, "r") as f:
             data = yaml.safe_load(f)
-        segments = []
-        for segment in data:
-            segments.append(data.get(segment))
-        return segments
+        return [data[key] for key in data]
 
-    def advance_waypoint(self):
-        if self.segment_index == -1 or self.path_index == len(
-            self.segments[self.segment_index]
-        ):
-            if self.segment_index == len(self.segments) - 1:
-                self.get_logger().info("All path segments have been streamed.")
-                return
-            self.segment_index += 1
-            self.path_index = 0
-            self.path = self.get_waypoint_data(self.segments[self.segment_index])
-            self.waypoints_publisher.publish(self.path)
-            self.get_logger().info(
-                f"Published segment {self.segment_index}; advancing every {self.cycle_seconds:.0f}s."
-            )
-        if self.path is not None and self.path_index < len(self.path.poses):
-            self.path_index += 1
-            self.get_logger().info(
-                f"Advancing to waypoint {self.path_index} in segment {self.segment_index}"
-            )
-
-    def get_waypoint_data(self, segment):
+    def build_path(self, segments):
         path_msg = Path()
         path_msg.header.frame_id = "map"
         path_msg.header.stamp = self.get_clock().now().to_msg()
-        for waypoint in segment["waypoints"]:
-            pose_stamped = PoseStamped()
-            pose_stamped.header.frame_id = "map"
-            pose_stamped.header.stamp = self.get_clock().now().to_msg()
-            pose_stamped.pose.position.x = waypoint["position"]["x"]
-            pose_stamped.pose.position.y = waypoint["position"]["y"]
-            pose_stamped.pose.position.z = waypoint["position"]["z"]
-            roll = waypoint["orientation"]["roll"]
-            pitch = waypoint["orientation"]["pitch"]
-            yaw = waypoint["orientation"]["yaw"]
-            orientation_quat = Rotation.from_euler(
-                "xyz", [roll, pitch, yaw], degrees=True
-            ).as_quat()
-            pose_stamped.pose.orientation.x = orientation_quat[0]
-            pose_stamped.pose.orientation.y = orientation_quat[1]
-            pose_stamped.pose.orientation.z = orientation_quat[2]
-            pose_stamped.pose.orientation.w = orientation_quat[3]
-            path_msg.poses.append(pose_stamped)
-        self.get_logger().info(f"Got waypoints for segment_{self.segment_index}.")
+        for segment in segments:
+            for waypoint in segment["waypoints"]:
+                pose_stamped = PoseStamped()
+                pose_stamped.header.frame_id = "map"
+                pose_stamped.header.stamp = path_msg.header.stamp
+                pose_stamped.pose.position.x = waypoint["position"]["x"]
+                pose_stamped.pose.position.y = waypoint["position"]["y"]
+                pose_stamped.pose.position.z = waypoint["position"]["z"]
+                roll = waypoint["orientation"]["roll"]
+                pitch = waypoint["orientation"]["pitch"]
+                yaw = waypoint["orientation"]["yaw"]
+                q = Rotation.from_euler("xyz", [roll, pitch, yaw], degrees=True).as_quat()
+                pose_stamped.pose.orientation.x = q[0]
+                pose_stamped.pose.orientation.y = q[1]
+                pose_stamped.pose.orientation.z = q[2]
+                pose_stamped.pose.orientation.w = q[3]
+                path_msg.poses.append(pose_stamped)
         return path_msg
 
 
 def main(args=None):
     script_dir = os.path.dirname(os.path.realpath(__file__))
-    default_yaml = os.path.abspath(os.path.join(script_dir, "..", "sample_path.yaml"))
+    default_yaml = os.path.abspath(os.path.join(script_dir, "..", "prequal.yaml"))
     argv = remove_ros_args(args=sys.argv)
     if len(argv) > 1:
         yaml_path = os.path.abspath(os.path.expanduser(argv[1]))
