@@ -110,7 +110,9 @@ class PID:
         self.integral_position = np.zeros(3)
         self.integral_orientation = np.zeros(3)
 
-    def update(self, state: State, reference: State, dt: float, velocity_only=False) -> WrenchStamped:
+    def update(
+        self, state: State, reference: State, dt: float, velocity_only=False
+    ) -> WrenchStamped:
         """
         Compute the control signal.
 
@@ -134,10 +136,10 @@ class PID:
             The control signal, constrained by the maximum output limit (ceil).
         """
         error = reference - state
-        
+
         # Orientation error in axis-angle form
         angle, axis = error.orientation.angvec()
-        
+
         # Only apply control if angle is above dead zone
         if abs(angle) < 0.05:
             error_q_W = np.zeros(3)
@@ -150,7 +152,7 @@ class PID:
                 axis = axis / np.linalg.norm(axis)
                 # angvec() returns angle in [0, π] — no wrapping needed
                 error_q_W = axis * angle
-        
+
         # Calculate force in the world frame
         if velocity_only:
             force_world = error.velocity * self.kD_position
@@ -188,6 +190,13 @@ class PID:
 
         # Convert force to body frame
         force_body = state.orientation.inv().R @ force_world
+
+        # force_body = np.clip(force_body, -1.0, 1.0)
+        # torque_body = np.clip(torque_body, -1.0, 1.0)
+
+        print(f"P term: {error.position * self.kP_position}")
+        print(f"D term: {error.velocity * self.kD_position}")
+        print(f"Total force_world: {force_world}")
 
         wrench = AbstractWrench(force_body, torque_body)
 

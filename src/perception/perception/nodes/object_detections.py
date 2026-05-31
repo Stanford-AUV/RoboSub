@@ -102,8 +102,8 @@ def main(args=None):
     rclpy.init(args=args)
 
     script_dir = Path(__file__).resolve().parent
-    
-    node = ObjectDetections(f"{script_dir}/../underwater_images.pt", "blood", "oak_0")
+
+    node = ObjectDetections(f"{script_dir}/../underwater_images.pt", "bolt", "oak_0")
 
     rclpy.spin(node)
     node.destroy_node()

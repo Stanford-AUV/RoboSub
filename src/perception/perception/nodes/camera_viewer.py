@@ -42,7 +42,7 @@ class CameraViewerNode(Node):
         # Subscribe to topics
         rgb_topic = f"/camera/{self.camera.name}/rgb"
         depth_topic = f"/camera/{self.camera.name}/depth"
-        yolo_topic = f"/person/{self.camera.name}/box_coords"
+        yolo_topic = f"/yolo/{self.camera.name}/box_coords"
 
         self.camera.subscribers.append(
             self.create_subscription(
@@ -62,7 +62,9 @@ class CameraViewerNode(Node):
             )
         )
 
-        self.get_logger().info(f"Subscribed to {rgb_topic} and {depth_topic} and {yolo_topic}")
+        self.get_logger().info(
+            f"Subscribed to {rgb_topic} and {depth_topic} and {yolo_topic}"
+        )
 
         # Window name
         self.window_name = f"Camera {self.camera.name} View"
@@ -107,18 +109,20 @@ class CameraViewerNode(Node):
         YOLO_TIMEOUT = 1.0  # seconds
         DOWNSAMPLE_FACTOR = camera.downsample_factor
 
-        def clear_detections():                         
+        def clear_detections():
             if camera.rgb is not None:
                 camera.yolo_rgb = camera.rgb.copy()
 
         def callback(msg):
             try:
                 if camera.rgb is None:
-                    self.get_logger().warn(f"No RGB image available for {camera.name}, skipping YOLO overlay")
+                    self.get_logger().warn(
+                        f"No RGB image available for {camera.name}, skipping YOLO overlay"
+                    )
                     return
 
                 # Reset the stale timer on every new message   # <-- ADD THIS
-                if hasattr(camera, '_yolo_timer') and camera._yolo_timer is not None:
+                if hasattr(camera, "_yolo_timer") and camera._yolo_timer is not None:
                     camera._yolo_timer.cancel()
                 camera._yolo_timer = self.create_timer(YOLO_TIMEOUT, clear_detections)
 
@@ -139,10 +143,17 @@ class CameraViewerNode(Node):
 
                     if detection.results:
                         best = max(detection.results, key=lambda r: r.hypothesis.score)
-                        label = f"{best.hypothesis.class_id}: {best.hypothesis.score:.2f}"
+                        label = (
+                            f"{best.hypothesis.class_id}: {best.hypothesis.score:.2f}"
+                        )
                         cv2.putText(
-                            img, label, (x1, max(y1 - 10, 0)),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2
+                            img,
+                            label,
+                            (x1, max(y1 - 10, 0)),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.5,
+                            (0, 255, 0),
+                            2,
                         )
 
                 camera.yolo_rgb = img
@@ -158,7 +169,7 @@ class CameraViewerNode(Node):
     def process_camera_view(self, rgb_img, depth_img, camera_name, yolo_rgb=None):
         """Process a single camera's view (RGB + Depth side by side)."""
         display_rgb = rgb_img
-        if(yolo_rgb is not None):
+        if yolo_rgb is not None:
             display_rgb = yolo_rgb
 
         if display_rgb is not None and depth_img is not None:
@@ -224,13 +235,14 @@ class CameraViewerNode(Node):
 
 
 def load_cameras_yaml(path):
-        if not os.path.exists(path):
-            raise FileNotFoundError("Noooooo! No yaml path exists :(")
+    if not os.path.exists(path):
+        raise FileNotFoundError("Noooooo! No yaml path exists :(")
 
-        with open(path, "r") as f:
-            data = yaml.safe_load(f)
+    with open(path, "r") as f:
+        data = yaml.safe_load(f)
 
-        return data
+    return data
+
 
 def main(args=None):
     rclpy.init(args=args)

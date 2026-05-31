@@ -4,11 +4,16 @@ from geometry_msgs.msg import PoseWithCovarianceStamped, TwistWithCovarianceStam
 import numpy as np
 from hardware.nodes.generic_sensor import GenericSensor
 
-GYRO_BIAS = np.array([
-    -0.006099891562248375,
-    -0.0034746338098969654,
-    0.00273246756079096,
-], dtype=float)
+from scipy.spatial.transform import Rotation as R
+
+GYRO_BIAS = np.array(
+    [
+        -0.006099891562248375,
+        -0.0034746338098969654,
+        0.00273246756079096,
+    ],
+    dtype=float,
+)
 
 _BIG = 1e9
 
@@ -40,24 +45,38 @@ class IMU(GenericSensor):
             dtype=float,
         )
         w -= GYRO_BIAS
+        w_base = self.R_sensor_to_base @ w
         msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z = (
-            w.tolist()
+            w_base.tolist()
         )
 
-        msg.header.frame_id = "imu_frame"
+        msg.header.frame_id = "base_link"
 
-        q = np.array(
-            [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w],
+        q_raw = np.array(
+            [
+                msg.orientation.x,
+                msg.orientation.y,
+                msg.orientation.z,
+                msg.orientation.w,
+            ],
             dtype=float,
         )
-        if (not np.all(np.isfinite(q))) or (np.linalg.norm(q) < 1e-6):
+        if (not np.all(np.isfinite(q_raw))) or (np.linalg.norm(q_raw) < 1e-6):
             self.get_logger().warn("Invalid IMU quaternion; dropping msg")
             return
 
-        q /= np.linalg.norm(q)
-        msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w = (
-            q.tolist()
-        )
+        q_raw /= np.linalg.norm(q_raw)
+
+        rot_sensor = R.from_quat(q_raw)
+        rot_transform = R.from_matrix(self.R_sensor_to_base)
+
+        rot_base = rot_transform * rot_sensor
+
+        qx, qy, qz, qw = rot_base.as_quat()
+        msg.orientation.x = float(qx)
+        msg.orientation.y = float(qy)
+        msg.orientation.z = float(qz)
+        msg.orientation.w = float(qw)
 
         self._latest_msg = msg
         self.publish_sensor_data()
@@ -120,7 +139,7 @@ class IMU(GenericSensor):
         if self.is_active("rotation"):
             rot_msg = PoseWithCovarianceStamped()
             rot_msg.header.stamp = stamp
-            rot_msg.header.frame_id = "imu_frame"
+            rot_msg.header.frame_id = "base_link"
             rot_msg.pose.pose.orientation = msg.orientation
             rot_msg.pose.covariance = self._build_rotation_cov()
             self.sensor_publishers["rotation"].publish(rot_msg)
@@ -128,7 +147,7 @@ class IMU(GenericSensor):
         if self.is_active("angular"):
             ang_msg = TwistWithCovarianceStamped()
             ang_msg.header.stamp = stamp
-            ang_msg.header.frame_id = "imu_frame"
+            ang_msg.header.frame_id = "base_link"
             ang_msg.twist.twist.angular = msg.angular_velocity
             ang_msg.twist.covariance = self._build_angular_cov()
             self.sensor_publishers["angular"].publish(ang_msg)
@@ -136,10 +155,9 @@ class IMU(GenericSensor):
         if self.is_active("accel"):
             accel_msg = Imu()
             accel_msg.header.stamp = stamp
-            accel_msg.header.frame_id = "imu_frame"
+            accel_msg.header.frame_id = "base_link"
             accel_msg.linear_acceleration = msg.linear_acceleration
             accel_msg.linear_acceleration_covariance = self._build_accel_cov()
-            # Signal that orientation and angular velocity are not provided
             accel_msg.orientation_covariance = [-1.0] + [0.0] * 8
             accel_msg.angular_velocity_covariance = [-1.0] + [0.0] * 8
             self.sensor_publishers["accel"].publish(accel_msg)

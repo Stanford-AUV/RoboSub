@@ -46,6 +46,7 @@ import spatialmath as sm
 
 from dataclasses import dataclass
 
+
 @dataclass
 class Magnitude:
     distance: float
@@ -53,8 +54,14 @@ class Magnitude:
     angle: float
     angular_speed: float
 
-    def __gt__(self, other: 'Magnitude'):
-        return self.distance > other.distance and self.speed > other.speed and self.angle > other.angle and self.angular_speed > other.angular_speed
+    def __gt__(self, other: "Magnitude"):
+        return (
+            self.distance > other.distance
+            and self.speed > other.speed
+            and self.angle > other.angle
+            and self.angular_speed > other.angular_speed
+        )
+
 
 class State:
     """
@@ -65,11 +72,13 @@ class State:
     manage and manipulate the state information effectively.
     """
 
-    def __init__(self,
-                 position: np.ndarray,
-                 velocity: np.ndarray,
-                 orientation: sm.SE3,
-                 angular_velocity: np.ndarray):
+    def __init__(
+        self,
+        position: np.ndarray,
+        velocity: np.ndarray,
+        orientation: sm.SE3,
+        angular_velocity: np.ndarray,
+    ):
         """
         Initialize a State object.
 
@@ -89,14 +98,26 @@ class State:
         self.orientation = orientation
         self.angular_velocity = angular_velocity
 
-    def __sub__(self, other: 'State'):
+    def __sub__(self, other: "State"):
+        q_ref = self.orientation
+        q_cur = other.orientation
+
+        print(
+            f"SUBTRACTION RAW DATA -> Self (Ref) Pos: {self.position} | Other (Curr) Pos: {other.position}"
+        )
+
+        pos_err = self.position - other.position
+        print(f"SUBTRACTION RESULT -> Pos Error: {pos_err}")
+
+        error_orientation = q_cur.inv() * q_ref
+
         return State(
             self.position - other.position,
             self.velocity - other.velocity,
-            self.orientation * other.orientation.inv(),
-            self.angular_velocity - other.angular_velocity
+            error_orientation,
+            self.angular_velocity - other.angular_velocity,
         )
-    
+
     def magnitude(self):
         position_magnitude = np.linalg.norm(self.position)
         velocity_magnitude = np.linalg.norm(self.velocity)
@@ -107,9 +128,9 @@ class State:
             distance=position_magnitude,
             speed=velocity_magnitude,
             angle=angle_magnitude,
-            angular_speed=angular_velocity_magnitude
+            angular_speed=angular_velocity_magnitude,
         )
-    
+
     @staticmethod
     def from_odometry_msg(msg: Odometry):
         """
@@ -140,7 +161,7 @@ class State:
                 msg.pose.pose.orientation.x,
                 msg.pose.pose.orientation.y,
                 msg.pose.pose.orientation.z,
-            ]
+            ],
         )
         angular_velocity = np.array(
             [
@@ -150,12 +171,7 @@ class State:
             ]
         )
 
-        return State(
-            position,
-            velocity,
-            orientation,
-            angular_velocity
-        )
+        return State(position, velocity, orientation, angular_velocity)
 
     @staticmethod
     def from_generatedpath_msg(msg: GeneratedPath, index=0):
@@ -193,7 +209,7 @@ class State:
                 msg.poses[index].pose.orientation.x,
                 msg.poses[index].pose.orientation.y,
                 msg.poses[index].pose.orientation.z,
-            ]
+            ],
         )
         angular_velocity = np.array(
             [
@@ -203,17 +219,12 @@ class State:
             ]
         )
 
-        return State(
-            position,
-            velocity,
-            orientation,
-            angular_velocity
-        )
+        return State(position, velocity, orientation, angular_velocity)
 
     def copy(self):
         return State(
             self.position.copy(),
             self.velocity.copy(),
             self.orientation.copy(),
-            self.angular_velocity.copy()
+            self.angular_velocity.copy(),
         )

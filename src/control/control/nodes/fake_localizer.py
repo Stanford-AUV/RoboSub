@@ -16,15 +16,17 @@ from rclpy.node import Node
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import WrenchStamped
 
-MASS = 15.0          # kg
-INERTIA = np.array([0.5, 0.5, 1.0])   # kg·m² (roll, pitch, yaw)
-DRAG_LINEAR = 8.0    # N·s/m  — tune so terminal velocity feels realistic
-DRAG_ANGULAR = 1.5   # N·m·s/rad
+from rclpy.impl.logging_severity import LoggingSeverity
+
+MASS = 15.0  # kg
+INERTIA = np.array([0.5, 0.5, 1.0])  # kg·m² (roll, pitch, yaw)
+DRAG_LINEAR = 8.0  # N·s/m  — tune so terminal velocity feels realistic
+DRAG_ANGULAR = 1.5  # N·m·s/rad
 
 # Sensor noise sigmas (simulate EKF output noise)
-NOISE_POSITION = 0.05    # m   — ~5 cm, typical EKF position noise
-NOISE_VELOCITY = 0.02    # m/s — ~2 cm/s, DVL velocity noise
-NOISE_ORIENTATION = 0.01 # rad — ~0.6°, IMU orientation noise
+NOISE_POSITION = 0.05  # m   — ~5 cm, typical EKF position noise
+NOISE_VELOCITY = 0.02  # m/s — ~2 cm/s, DVL velocity noise
+NOISE_ORIENTATION = 0.01  # rad — ~0.6°, IMU orientation noise
 NOISE_ANGULAR_VEL = 0.005  # rad/s — IMU angular rate noise
 
 
@@ -33,7 +35,7 @@ class FakeLocalizer(Node):
         super().__init__("fake_localizer")
 
         self.position = np.zeros(3)
-        self.velocity = np.zeros(3)          # world frame
+        self.velocity = np.zeros(3)  # world frame
         self.orientation = Rotation.identity()
         self.angular_velocity = np.zeros(3)  # body frame
 
@@ -48,16 +50,20 @@ class FakeLocalizer(Node):
         self.get_logger().info("FakeLocalizer started at origin (0,0,0).")
 
     def _wrench_cb(self, msg: WrenchStamped):
-        self.force_body = np.array([
-            msg.wrench.force.x,
-            msg.wrench.force.y,
-            msg.wrench.force.z,
-        ])
-        self.torque_body = np.array([
-            msg.wrench.torque.x,
-            msg.wrench.torque.y,
-            msg.wrench.torque.z,
-        ])
+        self.force_body = np.array(
+            [
+                msg.wrench.force.x,
+                msg.wrench.force.y,
+                msg.wrench.force.z,
+            ]
+        )
+        self.torque_body = np.array(
+            [
+                msg.wrench.torque.x,
+                msg.wrench.torque.y,
+                msg.wrench.torque.z,
+            ]
+        )
 
     def _update(self):
         dt = self.dt
@@ -71,7 +77,9 @@ class FakeLocalizer(Node):
         self.position += self.velocity * dt
 
         # Angular: α = (τ - drag*ω) / I  (body frame)
-        angular_accel = (self.torque_body - DRAG_ANGULAR * self.angular_velocity) / INERTIA
+        angular_accel = (
+            self.torque_body - DRAG_ANGULAR * self.angular_velocity
+        ) / INERTIA
         self.angular_velocity += angular_accel * dt
 
         # Integrate orientation
@@ -82,7 +90,9 @@ class FakeLocalizer(Node):
         # Add sensor noise to simulate EKF output
         noisy_pos = self.position + np.random.normal(0, NOISE_POSITION, 3)
         noisy_vel = self.velocity + np.random.normal(0, NOISE_VELOCITY, 3)
-        noisy_ang_vel = self.angular_velocity + np.random.normal(0, NOISE_ANGULAR_VEL, 3)
+        noisy_ang_vel = self.angular_velocity + np.random.normal(
+            0, NOISE_ANGULAR_VEL, 3
+        )
 
         # Orientation noise: small random rotation
         noise_rotvec = np.random.normal(0, NOISE_ORIENTATION, 3)
@@ -109,6 +119,8 @@ class FakeLocalizer(Node):
         msg.twist.twist.angular.x = float(noisy_ang_vel[0])
         msg.twist.twist.angular.y = float(noisy_ang_vel[1])
         msg.twist.twist.angular.z = float(noisy_ang_vel[2])
+
+        self.get_logger().log(f"Pose: {msg.pose.pose.position}", LoggingSeverity.INFO)
 
         self.pub.publish(msg)
 
