@@ -11,6 +11,24 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
 
+def _skew(v):
+    """3x3 skew-symmetric matrix of vector v."""
+    return np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
+
+
+def _left_jacobian_so3(r):
+    """Left Jacobian of SO(3). Maps rotvec derivative to world-frame angular velocity: ω = J_l(r) * ṙ."""
+    theta = np.linalg.norm(r)
+    if theta < 1e-6:
+        return np.eye(3)
+    n = r / theta
+    return (
+        (np.sin(theta) / theta) * np.eye(3)
+        + (1.0 - np.sin(theta) / theta) * np.outer(n, n)
+        + ((1.0 - np.cos(theta)) / theta) * _skew(n)
+    )
+
+
 class LinearSpline:
     def __init__(self, x, y):
         self.x = np.asarray(x, dtype=float)
@@ -186,10 +204,18 @@ def create_path(
             return rotations.as_euler(order, degrees=degrees)
 
         def angular_velocity(self, t_fine):
-            angular_vel_x = self.spline_x(t_fine, 1)
-            angular_vel_y = self.spline_y(t_fine, 1)
-            angular_vel_z = self.spline_z(t_fine, 1)
-            return np.vstack((angular_vel_x, angular_vel_y, angular_vel_z)).T
+            # True angular velocity: ω = J_l(r) * ṙ  (left Jacobian of SO(3))
+            r_dot = np.vstack((
+                self.spline_x(t_fine, 1),
+                self.spline_y(t_fine, 1),
+                self.spline_z(t_fine, 1),
+            )).T
+            r = np.vstack((
+                self.spline_x(t_fine),
+                self.spline_y(t_fine),
+                self.spline_z(t_fine),
+            )).T
+            return np.array([_left_jacobian_so3(r[i]) @ r_dot[i] for i in range(len(t_fine))])
 
         def angular_acceleration(self, t_fine):
             angular_acc_x = self.spline_x(t_fine, 2)

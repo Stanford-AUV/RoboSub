@@ -6,7 +6,7 @@ ekf_filter_node:
     world_frame: "odom"
     odom_frame: "odom"
     base_link_frame: "base_link"
-    frequency: 10.0
+    frequency: 50.0
     sensor_timeout: 0.2
     print_diagnostics: true
     
