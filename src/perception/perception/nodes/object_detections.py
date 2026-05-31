@@ -6,6 +6,7 @@ from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithP
 
 from std_msgs.msg import Header
 from ultralytics import YOLO
+from pathlib import Path
 
 
 class ObjectDetections(Node):
@@ -90,8 +91,7 @@ class ObjectDetections(Node):
 
                 detection.results.append(hypothesis)
 
-                if class_name == self.object_id:
-                    detection_array.detections.append(detection)
+                detection_array.detections.append(detection)
 
         if len(detection_array.detections) == 0:
             return -1
@@ -101,7 +101,9 @@ class ObjectDetections(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    node = ObjectDetections("yolo-Weights/yolov8n.pt", "person", "oak_0")
+    script_dir = Path(__file__).resolve().parent
+    
+    node = ObjectDetections(f"{script_dir}/../underwater_images.pt", "blood", "oak_0")
 
     rclpy.spin(node)
     node.destroy_node()
