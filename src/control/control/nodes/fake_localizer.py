@@ -21,6 +21,12 @@ INERTIA = np.array([0.5, 0.5, 1.0])   # kg·m² (roll, pitch, yaw)
 DRAG_LINEAR = 8.0    # N·s/m  — tune so terminal velocity feels realistic
 DRAG_ANGULAR = 1.5   # N·m·s/rad
 
+# Sensor noise sigmas (simulate EKF output noise)
+NOISE_POSITION = 0.05    # m   — ~5 cm, typical EKF position noise
+NOISE_VELOCITY = 0.02    # m/s — ~2 cm/s, DVL velocity noise
+NOISE_ORIENTATION = 0.01 # rad — ~0.6°, IMU orientation noise
+NOISE_ANGULAR_VEL = 0.005  # rad/s — IMU angular rate noise
+
 
 class FakeLocalizer(Node):
     def __init__(self):
@@ -73,28 +79,36 @@ class FakeLocalizer(Node):
         if np.linalg.norm(dtheta) > 1e-10:
             self.orientation = self.orientation * Rotation.from_rotvec(dtheta)
 
-        # Publish
-        q = self.orientation.as_quat()  # [x, y, z, w]
+        # Add sensor noise to simulate EKF output
+        noisy_pos = self.position + np.random.normal(0, NOISE_POSITION, 3)
+        noisy_vel = self.velocity + np.random.normal(0, NOISE_VELOCITY, 3)
+        noisy_ang_vel = self.angular_velocity + np.random.normal(0, NOISE_ANGULAR_VEL, 3)
+
+        # Orientation noise: small random rotation
+        noise_rotvec = np.random.normal(0, NOISE_ORIENTATION, 3)
+        noisy_orientation = self.orientation * Rotation.from_rotvec(noise_rotvec)
+        q = noisy_orientation.as_quat()  # [x, y, z, w]
+
         msg = Odometry()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = "map"
         msg.child_frame_id = "base_link"
 
-        msg.pose.pose.position.x = float(self.position[0])
-        msg.pose.pose.position.y = float(self.position[1])
-        msg.pose.pose.position.z = float(self.position[2])
+        msg.pose.pose.position.x = float(noisy_pos[0])
+        msg.pose.pose.position.y = float(noisy_pos[1])
+        msg.pose.pose.position.z = float(noisy_pos[2])
         msg.pose.pose.orientation.x = float(q[0])
         msg.pose.pose.orientation.y = float(q[1])
         msg.pose.pose.orientation.z = float(q[2])
         msg.pose.pose.orientation.w = float(q[3])
 
         # Velocity in world frame (matches path_generator spline derivatives)
-        msg.twist.twist.linear.x = float(self.velocity[0])
-        msg.twist.twist.linear.y = float(self.velocity[1])
-        msg.twist.twist.linear.z = float(self.velocity[2])
-        msg.twist.twist.angular.x = float(self.angular_velocity[0])
-        msg.twist.twist.angular.y = float(self.angular_velocity[1])
-        msg.twist.twist.angular.z = float(self.angular_velocity[2])
+        msg.twist.twist.linear.x = float(noisy_vel[0])
+        msg.twist.twist.linear.y = float(noisy_vel[1])
+        msg.twist.twist.linear.z = float(noisy_vel[2])
+        msg.twist.twist.angular.x = float(noisy_ang_vel[0])
+        msg.twist.twist.angular.y = float(noisy_ang_vel[1])
+        msg.twist.twist.angular.z = float(noisy_ang_vel[2])
 
         self.pub.publish(msg)
 

@@ -1,5 +1,5 @@
 kP_position: [1.0, 1.0, 1.0]
-kD_position: [0.5, 0.5, 0.5]
+kD_position: [0.1, 0.1, 0.1]
 kI_position: [0, 0, 0]
 kP_orientation: [0.5, 0.5, 1.0]
 kD_orientation: [0.1, 0.1, 0.1]
