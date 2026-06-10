@@ -197,6 +197,8 @@ class PID:
         print(f"P term: {error.position * self.kP_position}")
         print(f"D term: {error.velocity * self.kD_position}")
         print(f"Total force_world: {force_world}")
+        print(f"Total force body: {force_body}")
+        print(f"Total torque body: {torque_body}")
 
         wrench = AbstractWrench(force_body, torque_body)
 

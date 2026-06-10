@@ -21,8 +21,8 @@ imu_0:
   position: 0
   rotation: 123
   velocity: 0
-  angular: 123
-  accel: 123
+  angular: 0
+  accel: 0
 
 dvl_0:
   sensor_pos_in_base:

@@ -1,10 +1,15 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Imu
-from geometry_msgs.msg import TwistWithCovarianceStamped
+from geometry_msgs.msg import TwistWithCovarianceStamped, PoseWithCovarianceStamped
 import matplotlib.pyplot as plt
+import math
+import numpy as np
 
 
+# curr pitch = yaw
+# curr roll = pitch
+# curr yaw = roll
 class SensorsPlot(Node):
     def __init__(self):
         super().__init__("sensors_plot")
@@ -19,16 +24,22 @@ class SensorsPlot(Node):
             TwistWithCovarianceStamped, "/velocity", self.velocity_callback, 10
         )
 
+        self.rotation_sub = self.create_subscription(
+            PoseWithCovarianceStamped, "/rotation", self.rotation_callback, 10
+        )
+
         plt.ion()
         self.fig = plt.figure(figsize=(12, 8))
 
         self.ax_imu_accel = self.fig.add_subplot(221)
         self.ax_imu_gyro = self.fig.add_subplot(222)
         self.ax_dvl_vel = self.fig.add_subplot(223)
+        self.ax_imu_rot = self.fig.add_subplot(224)
 
         self.ax_imu_accel.set_title("IMU Acceleration")
         self.ax_imu_gyro.set_title("IMU Angular Velocity")
         self.ax_dvl_vel.set_title("DVL Velocity")
+        self.ax_imu_rot.set_title("IMU Rotation")
 
         self.start_time = self.get_clock().now()
 
@@ -47,8 +58,15 @@ class SensorsPlot(Node):
         self.vel_y_history = []
         self.vel_z_history = []
 
+        self.rot_time = []
+        self.rot_x_history = []
+        self.rot_y_history = []
+        self.rot_z_history = []
+
         self.update_period = 0.1
         self.last_plot_time = self.get_clock().now()
+
+        self.q_align = [0.5, 0.5, 0.5, 0.5]
 
     def _elapsed(self):
         return (self.get_clock().now() - self.start_time).nanoseconds * 1e-9
@@ -80,11 +98,56 @@ class SensorsPlot(Node):
         self.vel_z_history.append(msg.twist.twist.linear.z)
         self._maybe_update_plot()
 
+    def rotation_callback(self, msg: PoseWithCovarianceStamped):
+        self.rot_time.append(self._elapsed())
+        quat = msg.pose.pose.orientation
+
+        q_raw = [quat.w, quat.x, quat.y, quat.z]
+        q_fixed = self.q_multiply(self.q_align, q_raw)
+        r, p, y = self.quaternion_to_rpy(q_fixed[0], q_fixed[1], q_fixed[2], q_fixed[3])
+
+        self.rot_x_history.append(r)
+        self.rot_y_history.append(p)
+        self.rot_z_history.append(y)
+        self._maybe_update_plot()
+
+    def q_multiply(self, q1, q2):
+        # Expects [w, x, y, z]
+        w1, x1, y1, z1 = q1
+        w2, x2, y2, z2 = q2
+        return [
+            w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+            w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+            w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+            w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+        ]
+
+    def quaternion_to_rpy(self, q_w, q_x, q_y, q_z):
+        # Roll (x-axis)
+        sinr_cosp = 2 * (q_w * q_x + q_y * q_z)
+        cosr_cosp = 1 - 2 * (q_x**2 + q_y**2)
+        roll = math.atan2(sinr_cosp, cosr_cosp)
+
+        # Pitch (y-axis)
+        pitch = 2 * (q_w * q_y - q_z * q_x)
+        if abs(pitch) >= 1:
+            pitch = math.copysign(math.pi / 2, pitch)
+        else:
+            pitch = math.asin(pitch)
+
+        # Yaw (z-axis)
+        siny_cosp = 2 * (q_w * q_z + q_x * q_y)
+        cosy_cosp = 1 - 2 * (q_y**2 + q_z**2)
+        yaw = math.atan2(siny_cosp, cosy_cosp)
+
+        return roll, pitch, yaw
+
     def update_plot(self):
         # Clear all plots
         self.ax_imu_accel.cla()
         self.ax_imu_gyro.cla()
         self.ax_dvl_vel.cla()
+        self.ax_imu_rot.cla()
 
         self.ax_imu_accel.plot(self.accel_time, self.accel_x_history, "r-", label="X")
         self.ax_imu_accel.plot(self.accel_time, self.accel_y_history, "g-", label="Y")
@@ -109,6 +172,19 @@ class SensorsPlot(Node):
         self.ax_dvl_vel.set_ylabel("Velocity (m/s)")
         self.ax_dvl_vel.grid(True)
         self.ax_dvl_vel.legend()
+
+        # Unwrap the angles to remove the jumps before plotting
+        smooth_roll = np.unwrap(self.rot_x_history)
+        smooth_pitch = np.unwrap(self.rot_y_history)
+        smooth_yaw = np.unwrap(self.rot_z_history)
+
+        self.ax_imu_rot.plot(self.rot_time, smooth_roll, "r-", label="ROLL")
+        self.ax_imu_rot.plot(self.rot_time, smooth_pitch, "g-", label="PITCH")
+        self.ax_imu_rot.plot(self.rot_time, smooth_yaw, "b-", label="YAW")
+        self.ax_imu_rot.set_xlabel("Time (s)")
+        self.ax_imu_rot.set_ylabel("Rotation (rad)")
+        self.ax_imu_rot.grid(True)
+        self.ax_imu_rot.legend()
 
         # Adjust layout and update display
         plt.tight_layout()

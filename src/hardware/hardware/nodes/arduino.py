@@ -85,7 +85,8 @@ class Arduino(Node):
         #         pwm = int(pwm)
         #     commands.append(self.get_servo_command(index=i, pwm=pwm))
         commands = [
-            self.get_servo_command(index=i, pwm=pwm) for i, pwm in enumerate(self.pwms)
+            self.get_servo_command(index=i, pwm=np.clip(pwm, 1260, 1640))
+            for i, pwm in enumerate(self.pwms)
         ]
         message = " ".join(commands)
         # message = "1497 1550 1550 1550 1550 1550 1550 1550"

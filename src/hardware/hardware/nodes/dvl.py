@@ -128,9 +128,9 @@ class DVL(GenericSensor):
         stamp = self.get_clock().now().to_msg()
 
         if self.is_active("velocity"):
-            vx = self._safe(d["Velocity X"]) / 1000.0
-            vy = self._safe(d["Velocity Y"]) / 1000.0
-            vz = self._safe(d["Velocity Z"]) / 1000.0
+            vx = self._safe(d["Velocity X"])
+            vy = self._safe(d["Velocity Y"])
+            vz = self._safe(d["Velocity Z"])
             vel = self.R_sensor_to_base @ np.array([vx, vy, vz])
             vel_err = self._safe(d["Velocity Err"], default=None)
 

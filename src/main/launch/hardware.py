@@ -45,12 +45,12 @@ def generate_launch_description():
                 parameters=[global_params],
                 arguments=["--ros-args", "--log-level", "warn"],
             ),
-            # Node(
-            #     package="hardware",
-            #     executable="thrusters",
-            #     parameters=[global_params],
-            #     arguments=["--ros-args", "--log-level", "warn"],
-            # ),
+            Node(
+                package="hardware",
+                executable="thrusters",
+                parameters=[global_params],
+                arguments=["--ros-args", "--log-level", "warn"],
+            ),
             Node(
                 package="hardware",
                 executable="arduino",
