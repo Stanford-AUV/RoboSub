@@ -5,11 +5,12 @@ from geometry_msgs.msg import TwistWithCovarianceStamped, PoseWithCovarianceStam
 import matplotlib.pyplot as plt
 import math
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 
-# curr pitch = yaw
-# curr roll = pitch
-# curr yaw = roll
+# curr pitch y = yaw z
+# curr roll x = pitch y
+# curr yaw z = roll x
 class SensorsPlot(Node):
     def __init__(self):
         super().__init__("sensors_plot")
@@ -66,8 +67,6 @@ class SensorsPlot(Node):
         self.update_period = 0.1
         self.last_plot_time = self.get_clock().now()
 
-        self.q_align = [0.5, 0.5, 0.5, 0.5]
-
     def _elapsed(self):
         return (self.get_clock().now() - self.start_time).nanoseconds * 1e-9
 
@@ -102,25 +101,28 @@ class SensorsPlot(Node):
         self.rot_time.append(self._elapsed())
         quat = msg.pose.pose.orientation
 
-        q_raw = [quat.w, quat.x, quat.y, quat.z]
-        q_fixed = self.q_multiply(self.q_align, q_raw)
-        r, p, y = self.quaternion_to_rpy(q_fixed[0], q_fixed[1], q_fixed[2], q_fixed[3])
+        w, x, y, z = self.rotate_quaternion(quat.w, quat.x, quat.y, quat.z)
+
+        r, p, y = self.quaternion_to_rpy(w, x, y, z)
 
         self.rot_x_history.append(r)
         self.rot_y_history.append(p)
         self.rot_z_history.append(y)
         self._maybe_update_plot()
 
-    def q_multiply(self, q1, q2):
-        # Expects [w, x, y, z]
-        w1, x1, y1, z1 = q1
-        w2, x2, y2, z2 = q2
-        return [
-            w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
-            w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
-            w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
-            w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
-        ]
+    def rotate_quaternion(self, w, x, y, z):  # x, y, z, w
+        original_data = [x, y, z, w]
+        q_original = R.from_quat(original_data)
+
+        r_base = R.from_quat([0.0, 0.7071, 0.0, -0.7071])  # 90 deg around Y
+        r_flip = R.from_quat([0.0, 0.0, 1.0, 0.0])
+        r_change = r_flip * r_base
+
+        q_new = r_change * q_original * r_change.inv()
+        quat_array = q_new.as_quat()
+        x, y, z, w = quat_array
+
+        return w, x, y, z
 
     def quaternion_to_rpy(self, q_w, q_x, q_y, q_z):
         # Roll (x-axis)
