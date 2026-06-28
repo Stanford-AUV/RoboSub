@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Imu
 from geometry_msgs.msg import TwistWithCovarianceStamped, PoseWithCovarianceStamped
+
 import matplotlib.pyplot as plt
 import math
 import numpy as np
@@ -26,7 +27,7 @@ class SensorsPlot(Node):
         )
 
         self.rotation_sub = self.create_subscription(
-            PoseWithCovarianceStamped, "/rotation", self.rotation_callback, 10
+            PoseWithCovarianceStamped, "/odometry/filtered", self.rotation_callback, 10
         )
 
         plt.ion()
@@ -101,9 +102,9 @@ class SensorsPlot(Node):
         self.rot_time.append(self._elapsed())
         quat = msg.pose.pose.orientation
 
-        w, x, y, z = self.rotate_quaternion(quat.w, quat.x, quat.y, quat.z)
+        # w, x, y, z = self.rotate_quaternion(quat.w, quat.x, quat.y, quat.z)
 
-        r, p, y = self.quaternion_to_rpy(w, x, y, z)
+        r, p, y = self.quaternion_to_rpy(quat.w, quat.x, quat.y, quat.z)
 
         self.rot_x_history.append(r)
         self.rot_y_history.append(p)
@@ -190,7 +191,7 @@ class SensorsPlot(Node):
 
         # Adjust layout and update display
         plt.tight_layout()
-        plt.draw()
+        plt.savefig("/workspaces/Robosub/sensors_plot.png")
         plt.pause(0.001)
 
 

@@ -22,6 +22,9 @@ class IMU(GenericSensor):
     def __init__(self):
         super().__init__("imu", "imu_0")
 
+        self.is_initialized = False
+        self.q_init_inv = None
+
         if self.is_active("rotation"):
             self.sensor_publishers["rotation"] = self.create_publisher(
                 PoseWithCovarianceStamped, "/rotation", 10
@@ -73,6 +76,34 @@ class IMU(GenericSensor):
         rot_base = rot_transform * rot_sensor
 
         qx, qy, qz, qw = rot_base.as_quat()
+        qw, qx, qy, qz = self.rotate_quaternion(qw, qx, qy, qz)
+
+        rot_final = R.from_quat([qx, qy, qz, qw])
+
+        # 1. Convert the final transformed quaternion to Euler angles (in radians)
+        # Using 'xyz' ensures standard Roll (x), Pitch (y), and Yaw (z) mapping
+        r_current, p_current, y_current = rot_final.as_euler("xyz")
+
+        if not self.is_initialized:
+            # Capture the exact orientation errors on the very first frame
+            self.roll_offset = r_current
+            self.pitch_offset = p_current
+            self.yaw_offset = y_current
+
+            self.is_initialized = True
+            self.get_logger().info(
+                "IMU 3D Orientation successfully zeroed via Euler mapping!"
+            )
+
+        # 2. Subtract the initial offsets directly to isolate relative movement
+        r_zeroed = r_current - self.roll_offset
+        p_zeroed = p_current - self.pitch_offset
+        y_zeroed = y_current - self.yaw_offset
+
+        # 3. Convert the zeroed Euler angles back into a pure unit quaternion
+        rot_zeroed = R.from_euler("xyz", [r_zeroed, p_zeroed, y_zeroed])
+        qx, qy, qz, qw = rot_zeroed.as_quat()
+
         msg.orientation.x = float(qx)
         msg.orientation.y = float(qy)
         msg.orientation.z = float(qz)
@@ -161,6 +192,20 @@ class IMU(GenericSensor):
             accel_msg.orientation_covariance = [-1.0] + [0.0] * 8
             accel_msg.angular_velocity_covariance = [-1.0] + [0.0] * 8
             self.sensor_publishers["accel"].publish(accel_msg)
+
+    def rotate_quaternion(self, w, x, y, z):
+        original_data = [x, y, z, w]
+        q_original = R.from_quat(original_data)
+
+        r_base = R.from_quat([0.0, 0.7071, 0.0, -0.7071])  # 90 deg around Y
+        r_flip = R.from_quat([0.0, 0.0, 1.0, 0.0])
+        r_change = r_flip * r_base
+
+        q_new = r_change * q_original * r_change.inv()
+        quat_array = q_new.as_quat()
+        x, y, z, w = quat_array
+
+        return w, x, y, z
 
 
 def main(args=None):
