@@ -36,7 +36,6 @@
     "--volume=/dev/ttyUSB5:/dev/ttyUSB5",
     "--volume=/dev/ttyUSB_dvl:/dev/ttyUSB_dvl",
     "--volume=/dev/ttyUSB_imu:/dev/ttyUSB_imu",
-    "--volume=/dev/ttyACM_teensy:/dev/ttyACM_teensy",
     "--device-cgroup-rule=c 189:* rmw",
     // Add NVIDIA library mounts:
     "--volume=/usr/local/cuda-12:/usr/local/cuda-12:ro",
@@ -89,5 +88,5 @@
       ]
     }
   },
-  "postCreateCommand": "/home/ros/env/bin/python3 -m pip install --no-cache-dir -r /workspaces/Robosub/requirements.txt"
+  "postCreateCommand": "/home/ros/env/bin/python3 -m pip install --no-cache-dir -r /workspaces/RoboSub/requirements.txt"
 }

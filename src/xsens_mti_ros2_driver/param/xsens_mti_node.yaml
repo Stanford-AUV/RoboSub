@@ -24,7 +24,9 @@
         # to set baudrate to 115200, send the command: FA FF 30 00 D1,
         # or to set it to 921600, send: FA FF 18 01 80 68.
 
-        port: "/dev/ttyUSB_imu" # Uncomment and set your device's port.
+        scan_for_devices: false # Use the manual 'port' below instead of auto-scanning.
+        port: "/dev/ttyUSB_imu" # Xsens MTi-200 via the in-kernel xsens_mt driver (native USB; interface if01 = bulk data). This device is NOT an FTDI chip — it must bind xsens_mt, never ftdi_sio. /dev/ttyUSB_imu is a stable udev symlink (see /etc/udev/rules.d/99-xsens-imu.rules) -> the xsens_mt tty. Raw by-id path: /dev/serial/by-id/usb-Xsens_MTi-200_VRU_<serial>-if01-port0.
+        # baudrate left unset so the scanner auto-detects the rate on this port.
         # baudrate: 115200 # Uncomment and set your device's baudrate.
 
         # Device Scanning Selection

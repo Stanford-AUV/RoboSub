@@ -43,7 +43,7 @@ class Arduino(Node):
         try:
             # NOTE: If this fails, run the following command:
             # sudo chmod a+rw /dev/ttyACM0
-            port = "/dev/ttyACM_teensy"
+            port = "/dev/ttyACM0"
             self.portName = serial.Serial(port, baudrate=9600, timeout=1)
             self.get_logger().info(f"Serial port {port} opened successfully.")
         except serial.SerialException as e:

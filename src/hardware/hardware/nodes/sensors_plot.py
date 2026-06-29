@@ -27,7 +27,7 @@ class SensorsPlot(Node):
         )
 
         self.rotation_sub = self.create_subscription(
-            PoseWithCovarianceStamped, "/odometry/filtered", self.rotation_callback, 10
+            PoseWithCovarianceStamped, "/rotation", self.rotation_callback, 10
         )
 
         plt.ion()
@@ -191,7 +191,7 @@ class SensorsPlot(Node):
 
         # Adjust layout and update display
         plt.tight_layout()
-        plt.savefig("/workspaces/Robosub/sensors_plot.png")
+        plt.savefig("/workspaces/RoboSub/sensors_plot.png")
         plt.pause(0.001)
 
 
