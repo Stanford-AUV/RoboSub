@@ -174,3 +174,9 @@ mtsdk_linux-x64_2025.0.sh
 
 # Cursor IDE
 .cursor/
+
+# Scratch / temp work
+tmp/
+
+# All .a files
+*.a

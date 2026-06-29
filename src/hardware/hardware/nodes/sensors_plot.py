@@ -1,7 +1,8 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Imu
-from geometry_msgs.msg import TwistWithCovarianceStamped, PoseWithCovarianceStamped
+from geometry_msgs.msg import TwistWithCovarianceStamped
+from nav_msgs.msg import Odometry
 
 import matplotlib.pyplot as plt
 import math
@@ -27,7 +28,7 @@ class SensorsPlot(Node):
         )
 
         self.rotation_sub = self.create_subscription(
-            PoseWithCovarianceStamped, "/rotation", self.rotation_callback, 10
+            Odometry, "/odometry/filtered", self.rotation_callback, 10
         )
 
         plt.ion()
@@ -41,7 +42,7 @@ class SensorsPlot(Node):
         self.ax_imu_accel.set_title("IMU Acceleration")
         self.ax_imu_gyro.set_title("IMU Angular Velocity")
         self.ax_dvl_vel.set_title("DVL Velocity")
-        self.ax_imu_rot.set_title("IMU Rotation")
+        self.ax_imu_rot.set_title("EKF Rotation (/odometry/filtered)")
 
         self.start_time = self.get_clock().now()
 
@@ -98,7 +99,7 @@ class SensorsPlot(Node):
         self.vel_z_history.append(msg.twist.twist.linear.z)
         self._maybe_update_plot()
 
-    def rotation_callback(self, msg: PoseWithCovarianceStamped):
+    def rotation_callback(self, msg: Odometry):
         self.rot_time.append(self._elapsed())
         quat = msg.pose.pose.orientation
 

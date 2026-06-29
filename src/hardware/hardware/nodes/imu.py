@@ -170,7 +170,12 @@ class IMU(GenericSensor):
         if self.is_active("rotation"):
             rot_msg = PoseWithCovarianceStamped()
             rot_msg.header.stamp = stamp
-            rot_msg.header.frame_id = "base_link"
+            # World frame, NOT base_link: this is an absolute-orientation pose.
+            # robot_localization transforms a pose into world_frame (odom); with
+            # frame_id="base_link" it needs an odom<-base_link tf that doesn't
+            # exist until the EKF initializes -> deadlock, every measurement
+            # "Could not transform measurement into odom. Ignoring..." -> no output.
+            rot_msg.header.frame_id = "odom"
             rot_msg.pose.pose.orientation = msg.orientation
             rot_msg.pose.covariance = self._build_rotation_cov()
             self.sensor_publishers["rotation"].publish(rot_msg)
