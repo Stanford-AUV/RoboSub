@@ -128,9 +128,32 @@ class DVL(GenericSensor):
         stamp = self.get_clock().now().to_msg()
 
         if self.is_active("velocity"):
-            vx = self._safe(d["Velocity X"])
-            vy = self._safe(d["Velocity Y"])
-            vz = self._safe(d["Velocity Z"])
+            vx = d["Velocity X"]
+            vy = d["Velocity Y"]
+            vz = d["Velocity Z"]
+
+            # The Wayfinder reports NaN velocity when it has no bottom lock
+            # (out of water, below blanking range, too far, or bad return).
+            # Publishing a masked 0.0 tells the EKF "confidently stationary"
+            # with a small covariance, which poisons the filter. Skip instead.
+            if any(np.isnan(v) for v in (vx, vy, vz)):
+                self.get_logger().warn(
+                    "DVL: no bottom lock (velocity NaN) -> not publishing. "
+                    f"coord={d.get('Coordinate')} mean_range={d.get('Mean range')} "
+                    f"beams(m)=[{d.get('Beam 1 range')}, {d.get('Beam 2 range')}, "
+                    f"{d.get('Beam 3 range')}, {d.get('Beam 4 range')}]",
+                    throttle_duration_sec=2.0,
+                )
+                self._latest_data = None
+                return
+
+            self.get_logger().info(
+                f"DVL lock: raw v=[{vx:.3f}, {vy:.3f}, {vz:.3f}] "
+                f"err={d.get('Velocity Err')} mean_range={d.get('Mean range')} "
+                f"coord={d.get('Coordinate')}",
+                throttle_duration_sec=1.0,
+            )
+
             vel = self.R_sensor_to_base @ np.array([vx, vy, vz])
             vel_err = self._safe(d["Velocity Err"], default=None)
 

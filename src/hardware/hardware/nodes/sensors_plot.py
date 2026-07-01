@@ -4,6 +4,9 @@ from sensor_msgs.msg import Imu
 from geometry_msgs.msg import TwistWithCovarianceStamped
 from nav_msgs.msg import Odometry
 
+import matplotlib
+
+matplotlib.use("Agg")  # headless: write PNG to disk, no display forwarding needed
 import matplotlib.pyplot as plt
 import math
 import numpy as np
@@ -31,7 +34,6 @@ class SensorsPlot(Node):
             Odometry, "/odometry/filtered", self.rotation_callback, 10
         )
 
-        plt.ion()
         self.fig = plt.figure(figsize=(12, 8))
 
         self.ax_imu_accel = self.fig.add_subplot(221)
@@ -192,8 +194,7 @@ class SensorsPlot(Node):
 
         # Adjust layout and update display
         plt.tight_layout()
-        plt.savefig("/workspaces/RoboSub/sensors_plot.png")
-        plt.pause(0.001)
+        self.fig.savefig("/workspaces/RoboSub/sensors_plot.png")
 
 
 def main(args=None):

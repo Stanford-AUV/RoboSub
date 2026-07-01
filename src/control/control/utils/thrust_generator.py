@@ -31,6 +31,17 @@ def thruster_configs_to_TAM_inv(
     TAM = np.empty(shape=(6, thruster_count))
     TAM[:3, :] = thruster_orientations.T
     TAM[3:, :] = np.cross(thruster_positions, thruster_orientations).T
+
+    # Physical yaw handedness is inverted relative to the geometric model: a
+    # commanded +torque.z (model = CCW about body +Z) drives the vehicle CW in
+    # the water. Verified 2026-07-01 by an open-loop /wrench bench test (pure
+    # +z torque spun the sub clockwise), which is why closed-loop yaw ran away.
+    # Negate the yaw row so a +yaw request maps to thrusts that physically
+    # produce +yaw. Only affects yaw; surge/sway/heave/roll/pitch are untouched.
+    # TODO: proper fix is a per-thruster direction audit to correct
+    # thrusters.yaml (dx/dy signs or motor wiring); this is the contained fix.
+    TAM[5, :] *= -1
+
     TAM_inv = np.linalg.pinv(TAM)
     return TAM_inv
 
