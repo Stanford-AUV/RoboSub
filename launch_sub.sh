@@ -4,12 +4,15 @@
 # then on Ctrl+C shut everything down and send neutral PWM (1500) to every
 # thruster so the sub powers down safely.
 #
-# Usage:  ./launch_sub.sh
+# Usage:  conda activate robosub && ./launch_sub.sh
 #
 set -u
 
 # --- config -----------------------------------------------------------------
-ROS_DISTRO_SETUP="/opt/ros/jazzy/setup.bash"
+# ROS 2 is provided by the active conda env (`conda activate robosub`), so no
+# system setup file is sourced by default. For a native apt ROS install instead,
+# run with ROS_DISTRO_SETUP=/opt/ros/<distro>/setup.bash.
+ROS_DISTRO_SETUP="${ROS_DISTRO_SETUP:-}"
 ARDUINO_PORT="/dev/ttyACM0"
 ARDUINO_BAUD=9600
 THRUSTER_COUNT=8

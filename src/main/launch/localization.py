@@ -2,7 +2,12 @@ import os
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
-ekf_params = "/workspaces/RoboSub/src/localization/localization/nodes/ekf.yaml"
+# Resolve ekf.yaml relative to this launch file's real location (works on host +
+# in --symlink-install; the old hardcoded /workspaces/RoboSub path was Docker-only).
+ekf_params = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)),
+    "..", "..", "localization", "localization", "nodes", "ekf.yaml",
+)
 
 global_params = os.path.join(os.path.dirname(__file__), "params", "global.yaml")
 

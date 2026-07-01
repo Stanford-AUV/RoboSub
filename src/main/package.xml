@@ -15,7 +15,8 @@
   <exec_depend>manual</exec_depend>
   <exec_depend>perception</exec_depend>
   <exec_depend>planning</exec_depend>
-  <exec_depend>simulation</exec_depend>
+  <!-- simulation dropped from the vehicle build: it needs Gazebo Harmonic (Jazzy-era)
+       which isn't available on the Humble runtime env. Sim is not run on the sub. -->
   <exec_depend>gui</exec_depend>
 
   <export>

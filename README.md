@@ -1,6 +1,6 @@
 # RoboSub
 
-Stanford RoboSub autonomy stack for our AUV: sensing, state estimation, planning, control, perception, manual override, simulation, and operator GUI. The codebase is a **colcon workspace**: ROS 2 **Jazzy** packages under `src/`, with shared interfaces in **`msgs`**.
+Stanford RoboSub autonomy stack for our AUV: sensing, state estimation, planning, control, perception, manual override, simulation, and operator GUI. The codebase is a **colcon workspace**: ROS 2 **Humble** packages under `src/`, with shared interfaces in **`msgs`**.
 
 ---
 
@@ -11,12 +11,12 @@ Use this page as a map of the repo. The **diagrams below** show how packages rel
 | Step | Action |
 |------|--------|
 | 1 | Clone this repository into your ROS 2 workspace (commonly `ros2_ws/src/`). |
-| 2 | Open in **VS Code** and use **Dev Containers** (folder `.devcontainer/`) for a reproducible environment, or install ROS 2 Jazzy + dependencies manually (see [DEPENDENCY_MANAGEMENT.md](DEPENDENCY_MANAGEMENT.md)). |
+| 2 | Set up the **conda `robosub` environment** (ROS 2 Humble + GPU PyTorch) — see [Installation](#installation) and [ORIN_SETUP.md](ORIN_SETUP.md). |
 | 3 | From the **repository root** (directory containing `build.sh`), run `./build.sh && source install/setup.bash`. |
 | 4 | Skim **Package map** and **Runtime data flow** below, then open the doc for the subsystem you will work on. |
 | 5 | Use `ros2 launch main …` for bring-up (see [Running](#running)). Explore the live graph with `ros2 run rqt_graph rqt_graph`. |
 
-**Version warning:** Many tutorials online target older ROS / Gazebo releases. Use documentation for **ROS 2 Jazzy** and **Gazebo Harmonic** only.
+**Version warning:** Many tutorials online target other ROS releases. Use documentation for **ROS 2 Humble** (the distro this workspace runs on).
 
 ---
 
@@ -26,11 +26,10 @@ High-level directory structure:
 
 ```text
 RoboSub/                          # colcon workspace root (run build.sh here)
-├── .devcontainer/                 # VS Code dev container (Dockerfile, devcontainer.json)
 ├── build.sh                       # colcon build (--merge-install, symlink-install)
 ├── test.sh                        # workspace tests
-├── requirements.txt               # Python deps (often used by devcontainer post-create)
-├── DEPENDENCY_MANAGEMENT.md       # apt / venv / GPU / PyTorch layers
+├── requirements.txt               # Python deps (python -m pip install -r into the conda env)
+├── ORIN_SETUP.md                  # conda 'robosub' env setup + GPU torch + kinks
 ├── keyboard_local.sh              # Host keyboard → NATS (uses .local_venv + local_requirements.txt)
 ├── joystick_local.sh
 ├── local_requirements.txt         # pynput, etc. for host teleop scripts
@@ -189,8 +188,8 @@ flowchart LR
 | [manual](src/manual/README.md) | Keyboard teleop (default); optional joystick (NATS) |
 | [simulation](src/simulation/README.md) | Gazebo bridge nodes; nested [custom_gz_plugins](src/simulation/simulation/custom_gz_plugins/README.md) |
 | [gui](src/gui/README.md) | Web HUD WebSocket bridge |
-| [Dependency Management](DEPENDENCY_MANAGEMENT.md) | apt, venv, system Python, PyTorch / GPU |
-| [Simulation](SIMULATION.md) | Gazebo Harmonic, Docker ↔ host bridge |
+| [Orin Setup](ORIN_SETUP.md) | conda `robosub` env, ROS 2 Humble, GPU PyTorch, kinks |
+| [Simulation](SIMULATION.md) | Gazebo Harmonic (not part of the vehicle runtime env) |
 
 Additional notes in tree: `src/control/control.md`, `src/perception/perception.md`, `src/planning/planning.md`, `src/simulation/simulation.md`, `src/gui/gui.md`, `src/manual/manual.md`.
 
@@ -198,15 +197,43 @@ Additional notes in tree: `src/control/control.md`, `src/perception/perception.m
 
 ## Installation
 
-1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop) (or Docker Engine) if you use the dev container.
-2. Clone this repository (replace URL with your team’s canonical remote):
+The stack runs in a single **conda environment named `robosub`** (ROS 2 **Humble**
+via RoboStack + GPU PyTorch), no Docker. For a full fresh-Orin bring-up (kernel IMU
+driver, udev rules, GPU-torch details, every gotcha) see **[ORIN_SETUP.md](ORIN_SETUP.md)**.
+Quick version:
 
-   ```bash
-   git clone <YOUR_ROBOSUB_GIT_URL>
-   ```
+```bash
+# 1. Miniforge (conda), then create the env with ROS 2 Humble
+curl -fL -o /tmp/miniforge.sh \
+  "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-aarch64.sh"
+bash /tmp/miniforge.sh -b -p $HOME/miniforge3 && source ~/miniforge3/etc/profile.d/conda.sh
+conda create -n robosub python=3.10 -c robostack-humble -c robostack-staging -c conda-forge \
+  ros-humble-desktop ros-humble-robot-localization ros-humble-tf-transformations \
+  ros-humble-vision-msgs ros-humble-cv-bridge ros-humble-geographic-msgs \
+  ros-humble-unique-identifier-msgs colcon-common-extensions
+conda activate robosub
 
-3. In VS Code: **Command Palette** → **Dev Containers: Reopen in Container** if using `.devcontainer/`.
-4. Install Gazebo / simulation prerequisites per [SIMULATION.md](SIMULATION.md) when doing sim work outside the container.
+# 2. GPU PyTorch (Jetson prebuilt wheels; matches Python 3.10 / glibc 2.35 on JetPack 6).
+#    IMPORTANT: use `python -m pip` (a stray ~/.local/bin/pip can shadow the env's pip).
+python -m pip install \
+  https://pypi.jetson-ai-lab.io/jp6/cu126/+f/62a/1beee9f2f1470/torch-2.8.0-cp310-cp310-linux_aarch64.whl \
+  https://pypi.jetson-ai-lab.io/jp6/cu126/+f/907/c4c1933789645/torchvision-0.23.0-cp310-cp310-linux_aarch64.whl
+
+# 3. Remaining Python deps
+python -m pip install -r requirements.txt
+
+# 4. Two message packages have no py3.10 conda build — build them from source:
+git clone --depth 1 -b ros2 https://github.com/ros-drivers/nmea_msgs.git src/deps/nmea_msgs
+git clone --depth 1 -b ros2 https://github.com/mavlink/mavros.git /tmp/mavros && cp -r /tmp/mavros/mavros_msgs src/deps/mavros_msgs
+
+# 5. Build the workspace (sim is Gazebo-Harmonic-only; skipped on the runtime env)
+colcon build --packages-skip simulation --symlink-install
+source install/setup.bash
+```
+
+The `robosub` env auto-configures `LD_LIBRARY_PATH` (host CUDA/tegra for GPU torch **and**
+`$CONDA_PREFIX/lib` for the colcon-built C++ nodes), `PYTHONNOUSERSITE=1`, and an isolated
+`ROS_DOMAIN_ID` via a `conda/activate.d` hook (created in [ORIN_SETUP.md](ORIN_SETUP.md)).
 
 ---
 
@@ -261,7 +288,7 @@ ros2 launch control control.py
 
 ### Other ROS dependencies
 
-`main/launch/localization.py` (and `state.py`) run **`robot_localization`**’s `ekf_node`. Install the **ROS 2 Jazzy** package on your system or add it to the workspace overlay if missing, for example: `sudo apt install ros-jazzy-robot-localization`.
+`main/launch/localization.py` (and `state.py`) run **`robot_localization`**’s `ekf_node`, installed into the `robosub` conda env (`ros-humble-robot-localization`, see [Installation](#installation)).
 
 ### Run a single node
 
@@ -282,7 +309,7 @@ Executable names come from each package’s `setup.py` (`console_scripts`). New 
 
 ## Simulation
 
-Simulation is GUI-heavy; teams often run Gazebo on a host or VM and bridge into Docker. Follow [SIMULATION.md](SIMULATION.md). Historical references to `./sim.sh` may apply to your team’s VM layout — if the script is absent, use the flows described in that doc.
+Simulation is GUI-heavy and Gazebo-Harmonic-based; it is **not** part of the vehicle runtime `robosub` env. Follow [SIMULATION.md](SIMULATION.md) for sim work on a separate machine/setup.
 
 ---
 
@@ -373,10 +400,10 @@ Reboot the VM/host, restart the container, and retry.
 
 ### Low disk space
 
-Keep **≥ ~30 GB** free for Docker and builds. Prune if needed (host / VM):
+Keep **≥ ~30 GB** free for the conda env, colcon builds, and logs. Clean colcon artifacts if needed:
 
 ```bash
-sudo docker system prune -a -f
+rm -rf build install log
 ```
 
 ### Sensor permissions
@@ -394,7 +421,7 @@ sudo docker system prune -a -f
 
 ## Contributing quick reference
 
-- Match **ROS 2 Jazzy** APIs and colcon / ament patterns used in existing packages.
+- Match **ROS 2 Humble** APIs and colcon / ament patterns used in existing packages.
 - **New messages:** extend `src/msgs`, rebuild before using in Python/C++.
 - **New nodes:** place under the right package’s `nodes/`, register in that package’s `setup.py`, add tests under `PACKAGE/test/` where appropriate.
 - Prefer small PRs with a clear subsystem scope (perception, control, etc.).

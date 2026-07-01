@@ -1,109 +1,76 @@
 # Orin Setup — conda `robosub` environment (Docker-free)
 
 How to bring up the Stanford RoboSub software stack on a fresh **Jetson AGX Orin**
-in a single **conda** environment named `robosub`, with a **GPU-enabled PyTorch**,
-**no Docker**. This replaces the old `.devcontainer/` Docker workflow.
+in a single **conda** environment named `robosub` — **ROS 2 Humble** (via RoboStack)
++ **GPU PyTorch**, **no Docker**. This replaces the old `.devcontainer/` workflow.
 
-It doubles as the **"kinks" log**: every non-obvious gotcha we hit is recorded in
-[§ Kinks & gotchas](#kinks--gotchas) so a new Orin (or a returning teammate) doesn't
-re-discover them the hard way.
+It doubles as the **"kinks" log**: every non-obvious gotcha we hit is in
+[§ Kinks & gotchas](#kinks--gotchas) so a new Orin doesn't re-discover them.
 
 > **Why conda instead of Docker?** The dev container is a *single shared instance*
-> that binds host-exclusive resources (`--net=host`, published ports 2222/4222,
-> specific `/dev/tty*` devices, `--privileged`), so only one person can really use
-> it at a time. A conda env is just a prefix on disk — every SSH user can
-> `conda activate robosub` simultaneously and work independently. Only the physical
-> hardware (one process per serial port) and the DDS graph stay inherently shared.
+> binding host-exclusive resources (`--net=host`, ports 2222/4222, specific
+> `/dev/tty*`, `--privileged`), so only one person can use it at a time. A conda env
+> is just a prefix on disk — every SSH user can `conda activate robosub` at once.
+> Only the physical hardware (one process per serial port) and the DDS graph stay shared.
 
 ---
 
-## Platform baseline (what this was verified on)
+## Platform baseline (verified on)
 
 | | |
 |---|---|
-| Board | Jetson **AGX Orin 64 GB** (8 cores, 61 GB RAM, 30 GB swap) |
+| Board | Jetson **AGX Orin 64 GB** (8 cores, 61 GB RAM) |
 | JetPack / L4T | **6.2** / **R36.5.0** (kernel `5.15.185-tegra`) |
-| OS | Ubuntu **22.04** (Jammy), **glibc 2.35** |
-| GPU compute | Orin = CUDA arch **sm_87** |
-| CUDA / cuDNN | **12.6.68** / **9.3.0** (both dev headers + libs present under `/usr/…`) |
-| System Python | 3.10 (unused by us — the conda env owns Python) |
-
-The single most important consequence of this baseline is the **glibc/Python wall**
-described in [§ Kinks](#the-gpu-torch--glibc-wall-the-big-one). Read it before
-changing the torch install.
+| OS | Ubuntu **22.04**, **glibc 2.35** |
+| GPU arch | Orin = CUDA **sm_87** |
+| CUDA / cuDNN | **12.6.68** / **9.3.0** |
 
 ---
 
-## TL;DR quick setup (fresh Orin, same JetPack 6.2)
+## TL;DR (fresh Orin, same JetPack 6.2)
 
 ```bash
-# 1. Miniforge (conda) — aarch64
+# 1. Miniforge (conda)
 curl -fL -o /tmp/miniforge.sh \
   "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-aarch64.sh"
-bash /tmp/miniforge.sh -b -p $HOME/miniforge3
-source ~/miniforge3/etc/profile.d/conda.sh
+bash /tmp/miniforge.sh -b -p $HOME/miniforge3 && source ~/miniforge3/etc/profile.d/conda.sh
 
-# 2. ROS 2 Jazzy + build tools, all in conda (RoboStack)
-mamba create -y -n robosub -c robostack-jazzy -c conda-forge python=3.12 \
-  ros-jazzy-ros-base ros-jazzy-robot-localization ros-jazzy-tf-transformations \
-  ros-jazzy-nmea-msgs ros-jazzy-mavros-msgs ros-jazzy-vision-msgs ros-jazzy-cv-bridge \
-  ros-jazzy-ros2cli colcon-common-extensions cmake ninja
+# 2. ROS 2 Humble + deps, all in conda (RoboStack). Python 3.10 is REQUIRED (see Kinks).
+conda create -n robosub python=3.10 -c robostack-humble -c robostack-staging -c conda-forge \
+  ros-humble-desktop ros-humble-robot-localization ros-humble-tf-transformations \
+  ros-humble-vision-msgs ros-humble-cv-bridge ros-humble-geographic-msgs \
+  ros-humble-unique-identifier-msgs colcon-common-extensions
 conda activate robosub
 
-# 3. GPU PyTorch — see §GPU PyTorch. Prefer the cached wheel:
-pip install ~/robosub-wheels/torch-2.8.0-cp312-cp312-linux_aarch64.whl \
-            ~/robosub-wheels/torchvision-*-cp312-cp312-linux_aarch64.whl
-pip install --no-deps ultralytics spatialmath-python
-pip install depthai            # OAK camera SDK (depthai-ros not on RoboStack)
+# 3. Env activation hook (CUDA libs + conda libs + no user-site + isolated DDS domain)
+mkdir -p $CONDA_PREFIX/etc/conda/activate.d
+cat > $CONDA_PREFIX/etc/conda/activate.d/robosub_env.sh <<'EOF'
+export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:/usr/local/cuda-12.6/lib64:/usr/lib/aarch64-linux-gnu/nvidia:/usr/lib/aarch64-linux-gnu/tegra:${LD_LIBRARY_PATH:-}
+export ROS_DOMAIN_ID=17
+export PYTHONNOUSERSITE=1
+EOF
+conda deactivate && conda activate robosub   # re-activate to apply the hook
 
-# 4. Env activation: CUDA libs on the path + isolate DDS (see §Env activation)
+# 4. GPU PyTorch — prebuilt Jetson wheels (cp310 / CUDA 12.6 / glibc 2.35). Use `python -m pip`!
+python -m pip install \
+  https://pypi.jetson-ai-lab.io/jp6/cu126/+f/62a/1beee9f2f1470/torch-2.8.0-cp310-cp310-linux_aarch64.whl \
+  https://pypi.jetson-ai-lab.io/jp6/cu126/+f/907/c4c1933789645/torchvision-0.23.0-cp310-cp310-linux_aarch64.whl
+python -m pip install -r requirements.txt        # scipy, casadi, pyserial, depthai, ultralytics-thop, ...
 
-# 5. Hardware drivers (IMU needs an out-of-tree kernel module)
-bash drivers/xsens_mt/install.sh     # re-run after any kernel update
+# 5. Two message packages have no py3.10 conda build → source-build them:
+git clone --depth 1 -b ros2 https://github.com/ros-drivers/nmea_msgs.git src/deps/nmea_msgs
+git clone --depth 1 -b ros2 https://github.com/mavlink/mavros.git /tmp/mavros && cp -r /tmp/mavros/mavros_msgs src/deps/mavros_msgs
 
-# 6. Build the ROS workspace (skip the sim package — it's Gazebo-Harmonic-only)
-colcon build --packages-skip simulation
+# 6. Hardware: IMU needs an out-of-tree kernel module (re-run after kernel updates)
+bash drivers/xsens_mt/install.sh
+
+# 7. Build + run
+colcon build --packages-skip simulation --symlink-install
 source install/setup.bash
+conda activate robosub && ./launch_sub.sh
 ```
 
----
-
-## GPU PyTorch (the hard part)
-
-> ⏳ **STATUS:** the from-source torch wheel is being built at the time of writing.
-> The exact wheel filename and the confirmed `torch.cuda.is_available()` result are
-> filled in once the build + GPU smoke-test pass. The *procedure* below is final.
-
-**You cannot `pip install` a prebuilt GPU torch here.** RoboStack forces Python
-3.11/3.12; the only prebuilt Jetson GPU-torch wheels are cp310 (glibc 2.35) or
-cp312 (glibc **2.38**, i.e. Ubuntu 24.04). Neither fits py3.12-on-glibc-2.35.
-Full reasoning in [§ Kinks](#the-gpu-torch--glibc-wall-the-big-one). So we **build
-torch from source once** and cache the wheel.
-
-### Build once, cache forever
-
-The build runs in a throwaway `torchbuild` conda env (to keep the ROS env clean)
-and drops the wheel in `~/robosub-wheels/`. Key settings (see the committed
-`scripts/build_torch_jetson.sh`):
-
-```bash
-export TORCH_CUDA_ARCH_LIST="8.7"          # Orin
-export USE_CUDA=1 USE_CUDNN=1 USE_CUSPARSELT=0
-export CUDA_HOME=/usr/local/cuda-12.6
-export CUDNN_INCLUDE_DIR=/usr/include  CUDNN_LIB_DIR=/usr/lib/aarch64-linux-gnu
-export CC=/usr/bin/gcc CXX=/usr/bin/g++    # host gcc 11
-export MAX_JOBS=8                          # 64 GB RAM → safe at full parallelism
-export CMAKE_POLICY_VERSION_MINIMUM=3.5    # let cmake 4.x accept old submodule minimums
-# git clone --branch v2.8.0 pytorch; submodules; pip install -r requirements.txt
-python setup.py bdist_wheel                # -> dist/torch-2.8.0-cp312-cp312-linux_aarch64.whl
-```
-
-Then torchvision **0.23.0** is built the same way (must match torch 2.8.0), and both
-wheels are copied to `~/robosub-wheels/`. **A new Orin on the same JetPack just
-installs the cached wheels — no recompile.** Rebuild only when bumping torch or
-JetPack.
-
-### Verify GPU
+**Verify GPU:**
 ```bash
 python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 # expect: 2.8.0  12.6  True  Orin
@@ -111,154 +78,131 @@ python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda
 
 ---
 
-## Env activation (CUDA path + DDS isolation)
+## Kinks & gotchas
 
-ROS nodes need the host CUDA/tegra libs on `LD_LIBRARY_PATH`, and — because the
-dev container uses `--net=host` — we set a distinct `ROS_DOMAIN_ID` so conda users
-don't collide with anyone still on Docker. Put this in the env's activation hook so
-it's automatic:
+### The distro/Python/glibc chain — why **Humble**, py3.10, prebuilt torch
+- **JetPack 6.2 = Ubuntu 22.04 = glibc 2.35.** ROS 2 **Jazzy** is built for Ubuntu
+  24.04 — that mismatch is *the entire reason the Docker container existed* (it
+  supplied a 24.04 userspace). **RoboStack** ships ROS as conda packages decoupled
+  from the host OS, removing that need.
+- **RoboStack Jazzy is Python 3.11/3.12; RoboStack Humble has Python 3.10 builds**
+  (older, packaged as `.tar.bz2` in `robostack-staging`). Only **py3.10** pairs with
+  the prebuilt Jetson GPU-torch wheels, which are **cp310** for the JetPack-6 /
+  glibc-2.35 line. So: **Humble + py3.10 + the prebuilt `cu126/cp310` torch** is the
+  combo that needs *no* source build. (Jazzy would force building torch from source.)
+- Verified working: `torch 2.8.0`, `cuda 12.6`, `is_available() True`, device `Orin`.
 
-```bash
-mkdir -p $CONDA_PREFIX/etc/conda/activate.d
-cat > $CONDA_PREFIX/etc/conda/activate.d/robosub_env.sh <<'EOF'
-export LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib64:/usr/lib/aarch64-linux-gnu/nvidia:/usr/lib/aarch64-linux-gnu/tegra:$LD_LIBRARY_PATH
-export ROS_DOMAIN_ID=17          # pick a team convention; keep off Docker's default 0
-EOF
-```
+### `pip` shadowing — **use `python -m pip` + `PYTHONNOUSERSITE=1`**
+A stray `~/.local/bin/pip` shadows the env's pip, so plain `pip install` puts
+packages in `~/.local` (and skips ones it already sees there) — they then silently
+fail to import once the env ignores user-site. **Always `python -m pip install`**, and
+the activation hook sets `PYTHONNOUSERSITE=1` so nodes use the env's packages.
+
+### `LD_LIBRARY_PATH` must include `$CONDA_PREFIX/lib`
+colcon-built **C++** nodes (e.g. `xsens_mti_node`) link the RoboStack ROS libs in
+`$CONDA_PREFIX/lib`, which conda does **not** put on `LD_LIBRARY_PATH` by default →
+they die with `error while loading shared libraries: librcutils.so`. The activation
+hook adds it (plus the host CUDA/tegra dirs for GPU torch).
+
+### Message packages with no py3.10 conda build
+`ros-humble-nmea-msgs`, `ros-humble-mavros-msgs`, and `ros-humble-depthai-ros` have
+**0 py3.10 builds**. `nmea_msgs` + `mavros_msgs` are compile-time deps of the Xsens
+driver → **source-built** into git-ignored `src/deps/` (their own deps —
+geographic_msgs, unique_identifier_msgs — come from conda). `depthai-ros` is only
+used by perception; use the **`depthai` pip SDK** instead.
+
+### Workspace fixes made for the Humble/host move
+- `msgs/package.xml` didn't declare `nmea_msgs`/`mavros_msgs`/`nav_msgs` (it
+  `find_package`s them) → added, so colcon builds them in the right order.
+- `main/package.xml` dropped its hard-dep on **`simulation`** (Gazebo-Harmonic only,
+  not on the vehicle) so the runtime workspace builds. Build with
+  `--packages-skip simulation`.
+- `localization.py` hardcoded the Docker path `/workspaces/RoboSub/.../ekf.yaml`
+  (and `sensors_plot.py` a `/workspaces/...png`) → made host-relative.
+
+### Env rename
+If you build the workspace and *then* `conda rename` the env, the install/ shebangs
+point at the old env path — **rebuild** (`rm -rf build install log && colcon build …`).
+Create the env as `robosub` up front to avoid this.
+
+### Future simplification
+conda-forge merged native **Tegra** PyTorch (sm_87, CUDA 12.9, py3.10–3.14). Once an
+installable build ships, GPU torch could come straight from `conda install` — re-check.
 
 ---
 
 ## Hardware & udev
 
-Physical devices are the one thing conda can't abstract — one process per serial
-port. Stable symlinks come from udev rules on the host (`/etc/udev/rules.d/`,
-`sudo udevadm control --reload`). **No passwordless sudo on this machine — a human
-runs the `sudo` steps.**
+One process per serial port. Stable symlinks come from udev rules
+(`/etc/udev/rules.d/`, `sudo udevadm control --reload`). **No passwordless sudo — a
+human runs `sudo` steps.**
 
 | Device | Chip / bus | Node | Notes |
 |---|---|---|---|
-| **IMU** Xsens MTi-200 | native-USB `2639:0012` | `/dev/ttyUSB_imu` | **needs the `xsens_mt` kernel module** — see below |
-| **DVL** Wayfinder | FTDI FT232R | `/dev/ttyUSB_dvl` | works with stock `ftdi_sio` |
-| **Teensy** breakout | native-USB CDC | `/dev/ttyACM*` / `/dev/ttyUSB_teensy` | thruster/servo bridge |
-| **Camera** OAK (DepthAI) | USB3 | — | use the `depthai` pip SDK (see §depthai) |
+| **IMU** Xsens MTi-200 | native-USB `2639:0012` | `/dev/ttyUSB_imu` | needs the **`xsens_mt` kernel module** (below); publishes `/imu/data` @ ~400 Hz |
+| **DVL** Wayfinder | FTDI FT232R (`0403:6001`) | `/dev/ttyUSB1` | node auto-detects the port; add a udev rule for a stable `/dev/ttyUSB_dvl` (none exists yet) |
+| **Teensy** | native-USB CDC | `/dev/ttyACM*` | thruster/servo bridge |
 
-### IMU — install the `xsens_mt` driver (do NOT use ftdi_sio)
-The MTi-200 is a **native-USB device, not an FTDI chip**. JetPack 6.2 ships with
-`CONFIG_USB_SERIAL_XSENS_MT` **unset**, so nothing binds it. The correct fix is the
-out-of-tree `xsens_mt` kernel module, packaged in `drivers/xsens_mt/`:
-
+### IMU — install the `xsens_mt` driver (NOT ftdi_sio)
+The MTi-200 is a **native-USB device, not an FTDI chip**; JetPack 6.2 ships
+`CONFIG_USB_SERIAL_XSENS_MT` unset. Build/install the out-of-tree module:
 ```bash
-bash drivers/xsens_mt/install.sh     # builds the module + installs the udev rule
-# re-run after every kernel/L4T update (the module is tied to the running kernel)
+bash drivers/xsens_mt/install.sh   # + udev rule for /dev/ttyUSB_imu; re-run after kernel updates
 ```
-This yields a stable `/dev/ttyUSB_imu` and `/imu/data` at ~400 Hz. See
-[§ IMU debug history](#imu-debug-history-the--32-saga) for why ftdi_sio is wrong.
+See [§ IMU debug history](#imu-debug-history-the--32-saga) for why ftdi_sio is wrong.
 
-### depthai (OAK camera)
-`depthai-ros` is **not** packaged by RoboStack (0 builds), so install the DepthAI
-**Python SDK** into the env (`pip install depthai`); the perception nodes import it
-directly. If a node genuinely needs the `depthai_ros_driver` ROS package, build it
-from source into the workspace.
-
----
-
-## colcon build notes
-
-```bash
-conda activate robosub
-colcon build --packages-skip simulation      # sim needs Gazebo Harmonic (Jazzy) — we're runtime-only
-source install/setup.bash
+### DVL udev (recommended)
+Only the IMU has a udev rule today. For a stable DVL symlink, add (sudo):
 ```
-- **`simulation`** is the only Jazzy-coupled package (depends on `gz-*` Harmonic
-  libs). We run vehicle-runtime-only, so skip it. If you ever want sim in conda,
-  that's separate work (RoboStack does ship `ros-jazzy-ros-gz`).
-- Everything else uses only the stable ROS 2 core API (rclpy/rclcpp, common
-  message packages, tf2, custom `msgs`/`xsens_mti_ros2_driver` via rosidl).
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", SYMLINK+="ttyUSB_dvl", MODE="0666", GROUP="dialout"
+```
 
 ---
 
-## Kinks & gotchas
+## Smoke test (what "working" looks like)
 
-### The GPU-torch ↔ glibc wall (the big one)
-- **JetPack 6.2 = Ubuntu 22.04 = glibc 2.35.** ROS 2 Jazzy is built for Ubuntu
-  24.04. That mismatch is the *entire reason the Docker container existed* — it
-  provided a 24.04 userspace. **RoboStack** removes that need by shipping ROS as
-  conda packages decoupled from the host OS.
-- **RoboStack uses conda-forge's Python (3.11/3.12), not the distro's 3.10.**
-  Verified: Humble pins `>=3.11,<3.12`, Jazzy `>=3.12,<3.13`. There is **no py3.10
-  RoboStack** for any current distro on aarch64. So switching Jazzy→Humble does
-  **not** help (and Humble's aarch64 `mavros-msgs` is py311-only, which has *no*
-  Jetson torch at all).
-- **Prebuilt Jetson GPU torch** (jetson-ai-lab `jp6`) is **cp310 only** for
-  cu126/cu128; the sole **cp312** wheel (cu129) is built on 24.04 and fails to
-  import on 22.04 with `GLIBC_2.38 not found`.
-- **You cannot fake glibc 2.38 on 22.04.** conda can't supply a runtime glibc
-  (`CONDA_OVERRIDE_GLIBC` only fools the solver → segfaults); `gcompat` is
-  musl-only; patchelf/private-glibc breaks CUDA detection. (NVIDIA's own forum
-  answer to this exact case: use a matching wheel or a 24.04 container.)
-- **Conclusion → build torch from source** for py3.12 + CUDA 12.6 + glibc 2.35 +
-  sm_87, and cache the wheel. That's the only path that is all-conda, keeps Jazzy,
-  and keeps the GPU, without a reflash.
-- **Future simplification:** conda-forge merged native **Tegra** pytorch support
-  (PR #491: sm_87, CUDA 12.9, py3.10–3.14, sysroot 2.34 → would run on glibc 2.35).
-  Not shipped as an installable build yet (as of 2026-06). When it lands, the
-  source build can be replaced by a plain `conda install pytorch`. Re-check
-  periodically.
-
-### Smaller traps
-- **pip `--extra-index-url` grabs the CPU torch from PyPI.** `pip install
-  --extra-index-url <jetson> torch==2.8.0` installed `2.8.0+cpu` (`cuda_avail
-  False`). Use the **direct wheel URL** (or the cached wheel) instead.
-- **cmake 4.x + PyTorch source.** Set `CMAKE_POLICY_VERSION_MINIMUM=3.5` or old
-  submodule `cmake_minimum_required`s error out.
-- **`ninja` isn't in the base env / system cmake is old** — install both from
-  conda-forge into the env.
-- **No passwordless sudo.** Anything touching `/etc/udev`, kernel modules, or root
-  sysfs must be run by a human.
-
----
-
-## Dependency management (supersedes `DEPENDENCY_MANAGEMENT.md`)
-
-The old Docker layering (system apt + a `/home/ros/env` venv + `--break-system-
-packages` torch) is gone. In the conda world there is **one** environment:
-
-- **ROS 2 + system-ish libs** → RoboStack conda packages (`ros-jazzy-*`) in `robosub`.
-- **GPU stack** → the from-source torch/torchvision wheels + `ultralytics`,
-  pip-installed into `robosub`. (Torch is deliberately **not** a colcon
-  `install_requires`, so `colcon build` never pulls a CPU wheel over it.)
-- **Camera** → `depthai` pip SDK.
-- **Workspace packages** → `colcon build` into `install/`.
-
-The old doc's core warning still holds: **perception's GPU torch must be the
-Jetson/CUDA build, never a generic PyPI wheel** — the difference is CPU vs GPU
-inference for the object detector.
+`conda activate robosub && ./launch_sub.sh` brings up hardware + localization +
+control + planning. Confirmed on the bench (Teensy off):
+- `/imu/data` @ **400 Hz** (xsens driver + `hardware/imu`)
+- `/odometry/filtered` @ **50 Hz** (robot_localization EKF fusing)
+- GPU torch usable (`torch.cuda.is_available()` True, device Orin)
+- Teensy/arduino errors are expected when the Teensy is powered off.
+- **DVL** connects only if it is actually streaming — a powered-but-idle DVL reads 0
+  bytes and the connect fails (a DVL state issue, independent of this env).
 
 ---
 
 ## IMU debug history (the `-32` saga)
 
-Kept so nobody re-runs a two-day dead end. Original symptom: `ftdi_sio` attached
-`ttyUSB0/1` but every FTDI control transfer returned **`-32` (EPIPE/STALL)**; baud
-never set; reads were garbage.
+Kept so nobody re-runs a dead end. Symptom: `ftdi_sio` attached `ttyUSB0/1` but every
+FTDI control transfer returned **`-32` (EPIPE/STALL)**; baud never set; garbage reads.
 
-- **Misdiagnosis (wrong):** a tegra-xusb/kernel USB bug requiring an L4T reflash or
-  a move to a true root USB port.
+- **Misdiagnosis (wrong):** a tegra-xusb/kernel USB bug needing an L4T reflash or a
+  true root port.
 - **Actual root cause:** the MTi-200 (`2639:0012`) is a **native-USB device, not an
-  FTDI chip** (`bDeviceClass=2`, if00=interrupt control, if01=bulk data). The debug
-  session had force-bound it to `ftdi_sio` via `new_id`; ftdi_sio then sent FTDI
-  *vendor* control requests to a non-FTDI device, which correctly **STALLs** them →
-  the deterministic `-32`. Standard control transfers worked; only FTDI-vendor ones
-  stalled — proof the device was rejecting FTDI commands, not a controller fault.
-- **Fix (verified, `/imu/data` @ ~400 Hz):** build/install the in-kernel
-  **`xsens_mt`** driver out-of-tree + a udev rule for `/dev/ttyUSB_imu`. All in
-  `drivers/xsens_mt/` → `bash drivers/xsens_mt/install.sh` (re-run after kernel
-  updates). The DVL's FT232R is a *real* FTDI part and keeps using `ftdi_sio`.
+  FTDI chip** (`bDeviceClass=2`). It had been force-bound to `ftdi_sio` via `new_id`;
+  ftdi_sio then sent FTDI *vendor* control requests to a non-FTDI device, which
+  correctly **STALLs** them → the deterministic `-32`. Standard control worked; only
+  FTDI-vendor control stalled — proof the *device* rejected FTDI commands.
+- **Fix (verified `/imu/data` @ ~400 Hz):** the in-kernel **`xsens_mt`** driver +
+  udev symlink, in `drivers/xsens_mt/` → `bash drivers/xsens_mt/install.sh`. The DVL's
+  FT232R is a *real* FTDI part and keeps using `ftdi_sio`.
+
+---
+
+## Dependency layers (supersedes the old `DEPENDENCY_MANAGEMENT.md`)
+
+One conda env, not the old apt + venv + `--break-system-packages` layering:
+- **ROS 2 Humble + libs** → RoboStack conda packages in `robosub`.
+- **GPU torch/torchvision** → prebuilt Jetson `cu126/cp310` wheels (`python -m pip`).
+- **Other Python deps** → `requirements.txt` via `python -m pip` (torch intentionally
+  *not* listed there, to avoid pulling a CPU wheel).
+- **Camera** → `depthai` pip SDK (`depthai-ros` isn't on RoboStack for py3.10).
+- **Workspace + `src/deps/` message packages** → `colcon build`.
 
 ---
 
 ## What still lives in Docker (nothing, by design)
 
-`.devcontainer/` and `sim_docker.sh` are retained only as a fallback/reference
-until the conda path is fully validated on the vehicle; they can be removed once
-this setup is confirmed in the water.
+`.devcontainer/` and `sim_docker.sh` are retained only as reference until this setup
+is fully validated in the water; they can be removed once confirmed.

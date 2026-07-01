@@ -9,6 +9,7 @@ import matplotlib
 matplotlib.use("Agg")  # headless: write PNG to disk, no display forwarding needed
 import matplotlib.pyplot as plt
 import math
+import os
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
@@ -194,7 +195,7 @@ class SensorsPlot(Node):
 
         # Adjust layout and update display
         plt.tight_layout()
-        self.fig.savefig("/workspaces/RoboSub/sensors_plot.png")
+        self.fig.savefig(os.path.join(os.path.expanduser("~"), "sensors_plot.png"))
 
 
 def main(args=None):
