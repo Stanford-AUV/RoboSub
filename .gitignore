@@ -184,3 +184,6 @@ tmp/
 # worktrees
 .worktree/
 .worktrees/
+
+# robosub ee directory
+references/robosub-ee/
