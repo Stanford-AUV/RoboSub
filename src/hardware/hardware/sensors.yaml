@@ -12,17 +12,20 @@ imu_0:
     - [0.0, 0.2, 0.0]
     - [0.0, 0.0, 0.2]
   sensor_pos_in_base: #x, y, z on (base) robot frame
-  # 3x3 rotation matrix: sensor frame → base (robot) frame
+  # 3x3 rotation matrix: sensor frame → base (robot) frame.
+  # This is the SINGLE mounting knob (imu.py applies one remount rotation from it).
+  # Gravity lands on base +Z / heading on yaw; the remaining freedom is which way
+  # is FORWARD (a rotation about base-Z), which is set from the physical axis test.
   R_sensor_to_base:
-    - [0, 0, 1]
-    - [1, 0, 0]
+    - [0, 0, -1]
+    - [-1, 0, 0]
     - [0, 1, 0]
   # Now for sensor info, 0 if none, 123 depending on what it has
   position: 0
   rotation: 123
   velocity: 0
   angular: 0
-  accel: 0
+  accel: 123
 
 dvl_0:
   sensor_pos_in_base:

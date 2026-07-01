@@ -89,7 +89,7 @@ class Arduino(Node):
             for i, pwm in enumerate(self.pwms)
         ]
         message = " ".join(commands)
-        # message = "1497 1550 1550 1550 1550 1550 1550 1550"
+        # message = "1550 1550 1550 1550 1550 1550 1550 1550"
         # self._pwms_out.publish(message)
         self.get_logger().info(f"{message}")
         try:
@@ -104,6 +104,7 @@ class Arduino(Node):
                 self.light_changed = False
             self.send_pwms()
             response = self.portName.readline().decode().strip().split("> ")[1]
+            # self.get_logger().info(f"{response}")
             if response[0] == " ":
                 response = response[1:]
             # self.get_logger().info(f"{response} is the response")
@@ -117,7 +118,7 @@ class Arduino(Node):
             msg.header.stamp = self.get_clock().now().to_msg()
             msg.header.frame_id = "sensor"
 
-            # self.get_logger().info(f"{data} is the data")
+            self.get_logger().info(f"{data} is the data")
             if data == {}:
                 self.get_logger().warning("No data received from Arduino.")
                 return

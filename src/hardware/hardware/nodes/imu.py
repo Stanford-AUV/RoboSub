@@ -23,7 +23,7 @@ class IMU(GenericSensor):
         super().__init__("imu", "imu_0")
 
         self.is_initialized = False
-        self.q_init_inv = None
+        self.rot_init_inv = None
 
         if self.is_active("rotation"):
             self.sensor_publishers["rotation"] = self.create_publisher(
@@ -71,37 +71,35 @@ class IMU(GenericSensor):
         q_raw /= np.linalg.norm(q_raw)
 
         rot_sensor = R.from_quat(q_raw)
-        rot_transform = R.from_matrix(self.R_sensor_to_base)
 
-        rot_base = rot_transform * rot_sensor
+        # Remount the sensor orientation into the base_link (FLU) frame with a
+        # single rotation:
+        #     world_from_base = world_from_sensor * sensor_from_base
+        # where sensor_from_base = R_sensor_to_base^-1. This puts gravity on base
+        # +Z, so roll/pitch are the (gravity-referenced) tilt axes and yaw is
+        # heading -- verified against the accelerometer, which reads ~9.8 on Z
+        # in the base frame (R_sensor_to_base @ [0.1, 9.8, 0.8] = [0.8, 0.1, 9.8]).
+        #
+        # This replaces the old chain (rotate_quaternion: 90 deg about Y + a flip,
+        # then 180 deg about Z), which left the frame mis-rotated ~90 deg and
+        # landed gravity/heading on the PITCH axis. That is why the VRU's
+        # unreferenced heading drift showed up as a slow pitch ramp instead of
+        # yaw, and why a tilted vehicle coupled that drift into pitch/roll.
+        rot_final = rot_sensor * R.from_matrix(self.R_sensor_to_base).inv()
 
-        qx, qy, qz, qw = rot_base.as_quat()
-        qw, qx, qy, qz = self.rotate_quaternion(qw, qx, qy, qz)
-
-        rot_final = R.from_quat([qx, qy, qz, qw])
-
-        # 1. Convert the final transformed quaternion to Euler angles (in radians)
-        # Using 'xyz' ensures standard Roll (x), Pitch (y), and Yaw (z) mapping
-        r_current, p_current, y_current = rot_final.as_euler("xyz")
-
+        # Zero ONLY the initial heading (yaw); keep roll/pitch ABSOLUTE
+        # (gravity-referenced). Zeroing the full orientation makes the reference
+        # frame the startup ATTITUDE -- if the sub isn't perfectly level at init,
+        # a real yaw (rotation about true vertical) then bleeds into roll/pitch.
+        # Removing only heading as a world-frame +Z rotation cannot tilt the
+        # reference, so turning the vehicle never couples into roll/pitch.
         if not self.is_initialized:
-            # Capture the exact orientation errors on the very first frame
-            self.roll_offset = r_current
-            self.pitch_offset = p_current
-            self.yaw_offset = y_current
-
+            yaw0 = rot_final.as_euler("ZYX")[0]  # initial heading about world +Z
+            self.rot_init_inv = R.from_euler("z", -yaw0)
             self.is_initialized = True
-            self.get_logger().info(
-                "IMU 3D Orientation successfully zeroed via Euler mapping!"
-            )
+            self.get_logger().info("IMU heading zeroed (roll/pitch kept absolute)")
 
-        # 2. Subtract the initial offsets directly to isolate relative movement
-        r_zeroed = r_current - self.roll_offset
-        p_zeroed = p_current - self.pitch_offset
-        y_zeroed = y_current - self.yaw_offset
-
-        # 3. Convert the zeroed Euler angles back into a pure unit quaternion
-        rot_zeroed = R.from_euler("xyz", [r_zeroed, p_zeroed, y_zeroed])
+        rot_zeroed = self.rot_init_inv * rot_final
         qx, qy, qz, qw = rot_zeroed.as_quat()
 
         msg.orientation.x = float(qx)
@@ -197,20 +195,6 @@ class IMU(GenericSensor):
             accel_msg.orientation_covariance = [-1.0] + [0.0] * 8
             accel_msg.angular_velocity_covariance = [-1.0] + [0.0] * 8
             self.sensor_publishers["accel"].publish(accel_msg)
-
-    def rotate_quaternion(self, w, x, y, z):
-        original_data = [x, y, z, w]
-        q_original = R.from_quat(original_data)
-
-        r_base = R.from_quat([0.0, 0.7071, 0.0, -0.7071])  # 90 deg around Y
-        r_flip = R.from_quat([0.0, 0.0, 1.0, 0.0])
-        r_change = r_flip * r_base
-
-        q_new = r_change * q_original * r_change.inv()
-        quat_array = q_new.as_quat()
-        x, y, z, w = quat_array
-
-        return w, x, y, z
 
 
 def main(args=None):
