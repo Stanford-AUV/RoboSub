@@ -73,7 +73,7 @@ class Thrusters(Node):
             return
         msg = PWMsStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.pwms = self.pwms
+        msg.pwms = self.pwms.tolist()
         self.get_logger().info(f"Publishing PWMs {msg.pwms}")
         self._pwms_pub.publish(msg)
 

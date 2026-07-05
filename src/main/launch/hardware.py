@@ -18,7 +18,7 @@ def generate_launch_description():
         [
             DeclareLaunchArgument(
                 "plot",
-                default_value="false",
+                default_value="true",
                 description="Run sensors_plot for IMU/DVL visualization",
             ),
             Node(
@@ -56,6 +56,11 @@ def generate_launch_description():
                 executable="arduino",
                 parameters=[global_params],
                 arguments=["--ros-args"],
+            ),
+            Node(
+                package="hardware",
+                executable="depth",
+                parameters=[global_params],
             ),
             Node(
                 package="hardware",

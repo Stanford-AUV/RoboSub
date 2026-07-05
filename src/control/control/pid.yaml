@@ -1,4 +1,4 @@
-kP_position: [1.0, 1.0, 1.0]
+kP_position: [20.0, -20.0, 20.0]
 kD_position: [0, 0, 0]
 kI_position: [0, 0, 0]
 kP_orientation: [0.02, 0.02, 0.02]

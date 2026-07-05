@@ -89,18 +89,41 @@ PY
 }
 
 # --- shutdown handler -------------------------------------------------------
+# Poll until every process in group $1 is gone, or $2 seconds elapse.
+# Returns 0 if the group emptied, 1 on timeout. A negative PID targets the
+# whole process group, so this still detects nodes after their launch leader
+# has exited (the group id outlives the leader).
+wait_group_gone() {
+    local pgid="$1" deadline=$(( SECONDS + $2 ))
+    while [ "$SECONDS" -lt "$deadline" ]; do
+        kill -0 "-$pgid" 2>/dev/null || return 0
+        sleep 0.2
+    done
+    kill -0 "-$pgid" 2>/dev/null && return 1
+    return 0
+}
+
 shutdown() {
     [ "$KILLED" -eq 1 ] && return
     KILLED=1
     echo
     echo ">>> Caught Ctrl+C - shutting down stack..."
 
-    # Gracefully stop each ros2 launch (SIGINT lets it tear down its children).
+    # Each launch runs in its OWN process group ('set -m'), so we signal the
+    # whole GROUP (negative PID) rather than just the ros2 launch leader. That
+    # reaches every node it spawned. One SIGINT lets ros2 launch tear down
+    # gracefully; escalate to TERM then KILL for anything that ignores it.
+    # (Previously localization/EKF survived Ctrl+C and kept publishing a stale
+    # /odometry/filtered pose, which the next run's PID then chased the wrong way.)
     for pid in "${PIDS[@]}"; do
-        kill -INT "$pid" 2>/dev/null
+        kill -INT "-$pid" 2>/dev/null
     done
     for pid in "${PIDS[@]}"; do
-        wait "$pid" 2>/dev/null
+        if ! wait_group_gone "$pid" 8; then
+            echo ">>> group $pid ignored SIGINT; escalating to SIGTERM/SIGKILL"
+            kill -TERM "-$pid" 2>/dev/null
+            wait_group_gone "$pid" 3 || kill -KILL "-$pid" 2>/dev/null
+        fi
     done
 
     kill_thrusters
@@ -110,6 +133,14 @@ shutdown() {
 trap shutdown INT TERM
 
 # --- launch -----------------------------------------------------------------
+# Enable job control so each 'ros2 launch' lands in its OWN process group.
+# Two payoffs: (1) the terminal's Ctrl+C hits only THIS script (the foreground
+# group), not the launches directly, so ros2 launch gets exactly one clean
+# SIGINT from our trap instead of a racy double-signal that makes it abort
+# teardown and orphan nodes; (2) shutdown() can kill each launch's entire group
+# to guarantee no survivors (this is what left localization running before).
+set -m
+
 echo ">>> Launching stack: ${LAUNCHES[*]}"
 for lf in "${LAUNCHES[@]}"; do
     echo ">>> ros2 launch main ${lf}.py"

@@ -44,7 +44,7 @@ class Arduino(Node):
             # NOTE: If this fails, run the following command:
             # sudo chmod a+rw /dev/ttyACM0
             port = "/dev/ttyACM0"
-            self.portName = serial.Serial(port, baudrate=9600, timeout=1)
+            self.portName = serial.Serial(port, baudrate=9600, timeout=1, exclusive=True)
             self.get_logger().info(f"Serial port {port} opened successfully.")
         except serial.SerialException as e:
             self.get_logger().error(f"Failed to open serial port: {e}")
@@ -118,7 +118,7 @@ class Arduino(Node):
             msg.header.stamp = self.get_clock().now().to_msg()
             msg.header.frame_id = "sensor"
 
-            self.get_logger().info(f"{data} is the data")
+            # self.get_logger().info(f"{data} is the data")
             if data == {}:
                 self.get_logger().warning("No data received from Arduino.")
                 return

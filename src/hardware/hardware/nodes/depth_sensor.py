@@ -1,11 +1,12 @@
 import rclpy
 from rclpy.node import Node
-from generic_sensor import GenericSensor
+from hardware.nodes.generic_sensor import GenericSensor
 from msgs.msg import SensorsStamped
 from geometry_msgs.msg import PoseWithCovarianceStamped
 import numpy as np
 
 _BIG = 1e9
+
 
 class DepthSensor(GenericSensor):
     def __init__(self):
@@ -13,15 +14,19 @@ class DepthSensor(GenericSensor):
 
         self.create_subscription(SensorsStamped, "/arduino/sensors", self.get_depth, 10)
         self.sensor_publishers = {
-            "position": self.create_publisher(PoseWithCovarianceStamped, "/position", 10),
+            "position": self.create_publisher(
+                PoseWithCovarianceStamped, "/position", 10
+            ),
         }
         self.current_data = None
 
-
     def get_depth(self, msg):
-        self.current_data = self._safe(msg.depth)
+        temp_depth = -1 * self._safe(msg.depth)
+        if self.current_data is not None and abs(self.current_data - temp_depth) > 1:
+            return 
+        self.current_data = temp_depth
         self.publish_sensor_data()
-    
+
     def _build_pose_cov(self):
         cov = np.zeros(36)
         pos_axes = self.get_axes("position")
@@ -36,12 +41,20 @@ class DepthSensor(GenericSensor):
                 cov[idx * 6 + idx] = float(pos_cov[idx][idx])
 
         return cov.tolist()
-    
+
     def publish_sensor_data(self):
         if self.is_active("position"):
             pose_msg = PoseWithCovarianceStamped()
             pose_msg.header.stamp = self.get_clock().now().to_msg()
-            pose_msg.header.frame_id = "base_link"
+            # World frame, NOT base_link. Depth is an ABSOLUTE z measurement.
+            # With frame_id="base_link", robot_localization transforms the pose
+            # into odom via the current odom<-base_link tf (the EKF's own estimate),
+            # i.e. it COMPOUNDS the measurement onto the current pose: measured_z
+            # becomes (current_z + (-depth)) instead of just (-depth). Innovation is
+            # then ~constant, so z is driven down every cycle and winds up
+            # unboundedly (the -17 m / -91 m runaways) regardless of velocity.
+            # Same fix imu.py already applies to /rotation.
+            pose_msg.header.frame_id = "odom"
             pose_msg.pose.pose.position.z = self.current_data
             pose_msg.pose.pose.orientation.w = 1.0
 

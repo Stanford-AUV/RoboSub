@@ -195,7 +195,13 @@ class SensorsPlot(Node):
 
         # Adjust layout and update display
         plt.tight_layout()
-        self.fig.savefig(os.path.join(os.path.expanduser("~"), "sensors_plot.png"))
+        # Write relative to the current working directory (run from your worktree
+        # root to land the PNG there). Log the resolved path so it's discoverable.
+        out_path = os.path.abspath("sensors_plot.png")
+        self.fig.savefig(out_path)
+        if not getattr(self, "_logged_out_path", False):
+            self.get_logger().info(f"writing sensors plot to {out_path}")
+            self._logged_out_path = True
 
 
 def main(args=None):

@@ -35,12 +35,10 @@ import rclpy
 from std_msgs.msg import Header
 from geometry_msgs.msg import WrenchStamped
 
-AXES = ["Fx", "Fy", "Fz", "Mx", "My", "Mz"]
+AXES = ["Fx", "Mx", "My", "Mz"]
 IDX = {a: i for i, a in enumerate(AXES)}
 EXPECT = {
-    "Fx": "SURGE forward (bow ahead)",
-    "Fy": "SWAY left (toward port)",
-    "Fz": "HEAVE up",
+        "Fx": "Forward",    
     "Mx": "ROLL: port side rises / starboard dips",
     "My": "PITCH: nose down (top leans forward)",
     "Mz": "YAW left / CCW from above (bow swings to port)",
@@ -74,10 +72,10 @@ def main():
     ap = argparse.ArgumentParser(description="Open-loop per-axis /wrench bench sweep")
     ap.add_argument("--axes", nargs="+", default=AXES, metavar="AXIS",
                     help="subset of: Fx Fy Fz Mx My Mz (default: all)")
-    ap.add_argument("--force", type=float, default=0.05, help="force magnitude N (default 0.05)")
-    ap.add_argument("--torque", type=float, default=0.05, help="torque magnitude N·m (default 0.05)")
-    ap.add_argument("--hold", type=float, default=3.0, help="seconds to hold each command (default 3)")
-    ap.add_argument("--gap", type=float, default=2.0, help="seconds of zero between commands (default 2)")
+    ap.add_argument("--force", type=float, default=0.15, help="force magnitude N (default 0.05)")
+    ap.add_argument("--torque", type=float, default=0.15, help="torque magnitude N·m (default 0.05)")
+    ap.add_argument("--hold", type=float, default=20.0, help="seconds to hold each command (default 3)")
+    ap.add_argument("--gap", type=float, default=5.0, help="seconds of zero between commands (default 2)")
     ap.add_argument("--both", action="store_true", help="test + and - for each axis")
     ap.add_argument("--interactive", action="store_true", help="wait for Enter before each command")
     args = ap.parse_args()
@@ -117,7 +115,7 @@ def main():
     except KeyboardInterrupt:
         print("\nAborted — sending zero wrench.")
     finally:
-        publish_for(node, pub, "Fx", 0.0, 0.5)
+        publish_for(node, pub, "Mx", 0.0, 0.05)
         node.destroy_node()
         rclpy.shutdown()
 
