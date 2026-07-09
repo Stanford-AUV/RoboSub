@@ -42,6 +42,16 @@ def thruster_configs_to_TAM_inv(
     # thrusters.yaml (dx/dy signs or motor wiring); this is the contained fix.
     TAM[5, :] *= -1
 
+    # Physical sway (body y / left-right) is likewise inverted: a commanded
+    # +force.y (model = sway LEFT / to port) drives the sub to starboard.
+    # Reported 2026-07-07 from a pool check ("left" commands moved it right).
+    # Negate the sway row so a +y force request maps to thrusts that physically
+    # produce leftward sway. NOTE: sway + yaw both inverted while surge stays
+    # correct is the signature of a mirrored body-y axis in thrusters.yaml, so
+    # roll (Mx) is likely inverted too. Proper fix: negate every y/dy in
+    # thrusters.yaml and drop both of these row hacks. Contained fix for now.
+    TAM[1, :] *= -1
+
     TAM_inv = np.linalg.pinv(TAM)
     return TAM_inv
 

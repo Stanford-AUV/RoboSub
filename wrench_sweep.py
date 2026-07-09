@@ -35,10 +35,16 @@ import rclpy
 from std_msgs.msg import Header
 from geometry_msgs.msg import WrenchStamped
 
-AXES = ["Fx", "Mx", "My", "Mz"]
+# Order MUST match the wrench component vector [Fx, Fy, Fz, Mx, My, Mz] so IDX
+# lines up with make_stamped's comp[] indices. The old 4-axis list was out of
+# order (missing Fy/Fz), so commanding e.g. Mx actually applied Fy, My->Fz,
+# Mz->Mx — every rotational test was scrambled. Fixed 2026-07-07.
+AXES = ["Fx", "Fy", "Fz", "Mx", "My", "Mz"]
 IDX = {a: i for i, a in enumerate(AXES)}
 EXPECT = {
-        "Fx": "Forward",    
+    "Fx": "SURGE forward",
+    "Fy": "SWAY left / to port",
+    "Fz": "HEAVE up",
     "Mx": "ROLL: port side rises / starboard dips",
     "My": "PITCH: nose down (top leans forward)",
     "Mz": "YAW left / CCW from above (bow swings to port)",
