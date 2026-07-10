@@ -191,9 +191,6 @@ class PID:
         # Convert force to body frame
         force_body = state.orientation.inv().R @ force_world
 
-        # force_body = np.clip(force_body, -1.0, 1.0)
-        # torque_body = np.clip(torque_body, -1.0, 1.0)
-
         print(f"P term: {error.position * self.kP_position}")
         print(f"D term: {error.velocity * self.kD_position}")
         print(f"Total force_world: {force_world}")

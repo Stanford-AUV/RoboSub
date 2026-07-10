@@ -32,31 +32,13 @@ def thruster_configs_to_TAM_inv(
     TAM[:3, :] = thruster_orientations.T
     TAM[3:, :] = np.cross(thruster_positions, thruster_orientations).T
 
-    # Physical yaw handedness is inverted relative to the geometric model: a
-    # commanded +torque.z (model = CCW about body +Z) drives the vehicle CW in
-    # the water. Verified 2026-07-01 by an open-loop /wrench bench test (pure
-    # +z torque spun the sub clockwise), which is why closed-loop yaw ran away.
-    # Negate the yaw row so a +yaw request maps to thrusts that physically
-    # produce +yaw. Only affects yaw; surge/sway/heave/roll/pitch are untouched.
-    # TODO: proper fix is a per-thruster direction audit to correct
-    # thrusters.yaml (dx/dy signs or motor wiring); this is the contained fix.
-    TAM[5, :] *= -1
-
-    # Physical sway (body y / left-right) is likewise inverted: a commanded
-    # +force.y (model = sway LEFT / to port) drives the sub to starboard.
-    # Reported 2026-07-07 from a pool check ("left" commands moved it right).
-    # Negate the sway row so a +y force request maps to thrusts that physically
-    # produce leftward sway. NOTE: sway + yaw both inverted while surge stays
-    # correct is the signature of a mirrored body-y axis in thrusters.yaml, so
-    # roll (Mx) is likely inverted too. Proper fix: negate every y/dy in
-    # thrusters.yaml and drop both of these row hacks. Contained fix for now.
-    TAM[1, :] *= -1
-
+    # Sign conventions live entirely in thrusters.yaml (y/dy corrected
+    # 2026-07-09); no row hacks, no negative PID gains.
     TAM_inv = np.linalg.pinv(TAM)
     return TAM_inv
 
 
-max_wrench = np.array([0.4, 0.4, 0.4, 0.1, 0.1, 0.1])
+max_wrench = np.array([4.0, 4.0, 4.0, 1.0, 1.0, 1.0])
 min_wrench = -max_wrench
 
 
