@@ -168,18 +168,6 @@ class DVL(GenericSensor):
 
             self.sensor_publishers["velocity"].publish(twist_msg)
 
-        if self.is_active("position"):
-            mean_range = self._safe(d["Mean range"])
-
-            pose_msg = PoseWithCovarianceStamped()
-            pose_msg.header.stamp = stamp
-            pose_msg.header.frame_id = "base_link"
-            pose_msg.pose.pose.position.z = mean_range
-            pose_msg.pose.pose.orientation.w = 1.0
-
-            pose_msg.pose.covariance = self._build_pose_cov()
-
-            self.sensor_publishers["position"].publish(pose_msg)
 
         self._latest_data = None
 

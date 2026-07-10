@@ -6,15 +6,6 @@ from hardware.nodes.generic_sensor import GenericSensor
 
 from scipy.spatial.transform import Rotation as R
 
-GYRO_BIAS = np.array(
-    [
-        -0.006099891562248375,
-        -0.0034746338098969654,
-        0.00273246756079096,
-    ],
-    dtype=float,
-)
-
 _BIG = 1e9
 
 
@@ -47,7 +38,7 @@ class IMU(GenericSensor):
             [msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z],
             dtype=float,
         )
-        w -= GYRO_BIAS
+
         w_base = self.R_sensor_to_base @ w
         msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z = (
             w_base.tolist()
@@ -72,27 +63,8 @@ class IMU(GenericSensor):
 
         rot_sensor = R.from_quat(q_raw)
 
-        # Remount the sensor orientation into the base_link (FLU) frame with a
-        # single rotation:
-        #     world_from_base = world_from_sensor * sensor_from_base
-        # where sensor_from_base = R_sensor_to_base^-1. This puts gravity on base
-        # +Z, so roll/pitch are the (gravity-referenced) tilt axes and yaw is
-        # heading -- verified against the accelerometer, which reads ~9.8 on Z
-        # in the base frame (R_sensor_to_base @ [0.1, 9.8, 0.8] = [0.8, 0.1, 9.8]).
-        #
-        # This replaces the old chain (rotate_quaternion: 90 deg about Y + a flip,
-        # then 180 deg about Z), which left the frame mis-rotated ~90 deg and
-        # landed gravity/heading on the PITCH axis. That is why the VRU's
-        # unreferenced heading drift showed up as a slow pitch ramp instead of
-        # yaw, and why a tilted vehicle coupled that drift into pitch/roll.
         rot_final = rot_sensor * R.from_matrix(self.R_sensor_to_base).inv()
 
-        # Zero ONLY the initial heading (yaw); keep roll/pitch ABSOLUTE
-        # (gravity-referenced). Zeroing the full orientation makes the reference
-        # frame the startup ATTITUDE -- if the sub isn't perfectly level at init,
-        # a real yaw (rotation about true vertical) then bleeds into roll/pitch.
-        # Removing only heading as a world-frame +Z rotation cannot tilt the
-        # reference, so turning the vehicle never couples into roll/pitch.
         if not self.is_initialized:
             yaw0 = rot_final.as_euler("ZYX")[0]  # initial heading about world +Z
             self.rot_init_inv = R.from_euler("z", -yaw0)
@@ -168,11 +140,6 @@ class IMU(GenericSensor):
         if self.is_active("rotation"):
             rot_msg = PoseWithCovarianceStamped()
             rot_msg.header.stamp = stamp
-            # World frame, NOT base_link: this is an absolute-orientation pose.
-            # robot_localization transforms a pose into world_frame (odom); with
-            # frame_id="base_link" it needs an odom<-base_link tf that doesn't
-            # exist until the EKF initializes -> deadlock, every measurement
-            # "Could not transform measurement into odom. Ignoring..." -> no output.
             rot_msg.header.frame_id = "odom"
             rot_msg.pose.pose.orientation = msg.orientation
             rot_msg.pose.covariance = self._build_rotation_cov()
