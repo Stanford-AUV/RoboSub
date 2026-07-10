@@ -6,38 +6,54 @@ from hardware.nodes.generic_sensor import GenericSensor
 
 from scipy.spatial.transform import Rotation as R
 
-GYRO_BIAS = np.array(
-    [
-        -0.006099891562248375,
-        -0.0034746338098969654,
-        0.00273246756079096,
-    ],
-    dtype=float,
-)
+# TODO: calibrate per unit once the sensors are mounted (log stationary gyro
+# and average, same procedure as the Xsens bias in imu.py). Indexed by
+# imu_index.
+GYRO_BIAS = {
+    0: np.zeros(3),
+    1: np.zeros(3),
+}
 
 _BIG = 1e9
 
 
-class IMU(GenericSensor):
-    def __init__(self):
-        super().__init__("imu", "imu_0")
+class BNO085(GenericSensor):
+    """One of the two Bosch BNO085 IMUs, read via the Arduino.
+
+    The arduino node publishes raw sensor-frame data (BNO085 on-chip fusion
+    quaternion + gyro + accel) on /arduino/imu_<n>. This node remounts it into
+    base_link using R_sensor_to_base from sensors.yaml and republishes under
+    /bno085_<n>/... (namespaced: the Xsens owns the bare /rotation, /angular,
+    /accel topics).
+
+    Launch twice, once per unit:
+        ros2 run hardware bno085_0
+        ros2 run hardware bno085_1
+    """
+
+    def __init__(self, imu_index):
+        super().__init__(f"bno085_{imu_index}", f"bno085_{imu_index}")
+        self.imu_index = imu_index
 
         self.is_initialized = False
         self.rot_init_inv = None
 
+        ns = f"/bno085_{self.imu_index}"
         if self.is_active("rotation"):
             self.sensor_publishers["rotation"] = self.create_publisher(
-                PoseWithCovarianceStamped, "/rotation", 10
+                PoseWithCovarianceStamped, f"{ns}/rotation", 10
             )
         if self.is_active("angular"):
             self.sensor_publishers["angular"] = self.create_publisher(
-                TwistWithCovarianceStamped, "/angular", 10
+                TwistWithCovarianceStamped, f"{ns}/angular", 10
             )
         if self.is_active("accel"):
-            self.sensor_publishers["accel"] = self.create_publisher(Imu, "/accel", 10)
+            self.sensor_publishers["accel"] = self.create_publisher(
+                Imu, f"{ns}/accel", 10
+            )
 
         self.imu_subscription = self.create_subscription(
-            Imu, "/imu/data", self._imu_callback, 10
+            Imu, f"/arduino/imu_{self.imu_index}", self._imu_callback, 10
         )
 
         self._latest_msg = None
@@ -47,19 +63,19 @@ class IMU(GenericSensor):
             [msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z],
             dtype=float,
         )
-        w -= GYRO_BIAS
+        w -= GYRO_BIAS[self.imu_index]
         w_base = self.R_sensor_to_base @ w
         msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z = (
             w_base.tolist()
         )
 
         # Rotate linear acceleration into base_link with the same mounting
-        # rotation as the gyro. Without this the /accel message claims
-        # frame_id="base_link" while carrying sensor-frame data, so the EKF
-        # would fuse surge/sway/heave accelerations on the wrong axes.
-        # (Xsens /imu/data accel includes gravity: reads +9.8 on base +Z at
-        # rest after this rotation, which is what robot_localization's
-        # remove_gravitational_acceleration expects.)
+        # rotation as the gyro (see imu.py for the full rationale).
+        # TODO: confirm which BNO085 accel report the firmware forwards.
+        # robot_localization's remove_gravitational_acceleration expects
+        # gravity INCLUDED (raw accelerometer, reads +9.8 on base +Z at rest);
+        # if the firmware sends the linear-acceleration report (gravity
+        # already removed), turn that flag off for this input instead.
         a = np.array(
             [
                 msg.linear_acceleration.x,
@@ -87,56 +103,31 @@ class IMU(GenericSensor):
             dtype=float,
         )
         if (not np.all(np.isfinite(q_raw))) or (np.linalg.norm(q_raw) < 1e-6):
-            self.get_logger().warn("Invalid IMU quaternion; dropping msg")
+            self.get_logger().warn(
+                f"Invalid BNO085_{self.imu_index} quaternion; dropping msg"
+            )
             return
 
         q_raw /= np.linalg.norm(q_raw)
 
         rot_sensor = R.from_quat(q_raw)
 
-        # Remount the sensor orientation into the base_link (FLU) frame with a
-        # single rotation:
+        # Single remount rotation, same convention as imu.py:
         #     world_from_base = world_from_sensor * sensor_from_base
-        # where sensor_from_base = R_sensor_to_base^-1. This puts gravity on base
-        # +Z, so roll/pitch are the (gravity-referenced) tilt axes and yaw is
-        # heading -- verified against the accelerometer, which reads ~9.8 on Z
-        # in the base frame (R_sensor_to_base @ [0.1, 9.8, 0.8] = [-0.8, -0.1, 9.8]).
-        #
-        # This replaces the old chain (rotate_quaternion: 90 deg about Y + a flip,
-        # then 180 deg about Z), which left the frame mis-rotated ~90 deg and
-        # landed gravity/heading on the PITCH axis. That is why the VRU's
-        # unreferenced heading drift showed up as a slow pitch ramp instead of
-        # yaw, and why a tilted vehicle coupled that drift into pitch/roll.
         rot_final = rot_sensor * R.from_matrix(self.R_sensor_to_base).inv()
 
-        # Zero ONLY the initial heading (yaw); keep roll/pitch ABSOLUTE
-        # (gravity-referenced). Zeroing the full orientation makes the reference
-        # frame the startup ATTITUDE -- if the sub isn't perfectly level at init,
-        # a real yaw (rotation about true vertical) then bleeds into roll/pitch.
-        # Removing only heading as a world-frame +Z rotation cannot tilt the
-        # reference, so turning the vehicle never couples into roll/pitch.
+        # Zero ONLY the initial heading (yaw); keep roll/pitch absolute
+        # (gravity-referenced). See imu.py for why zeroing the full attitude
+        # couples yaw drift into roll/pitch.
         if not self.is_initialized:
-            yaw0 = rot_final.as_euler("ZYX")[0]  # initial heading about world +Z
+            yaw0 = rot_final.as_euler("ZYX")[0]
             self.rot_init_inv = R.from_euler("z", -yaw0)
             self.is_initialized = True
-            self.get_logger().info("IMU heading zeroed (roll/pitch kept absolute)")
-
-        rot_zeroed = self.rot_init_inv * rot_final
-
-        # robot_localization keeps its state as euler RPY: at pitch +-90 deg
-        # the representation is degenerate and measurement updates there can
-        # destabilize the whole filter. Near the pole, publish gyro/accel
-        # only (the EKF integrates attitude through the flip) and resume
-        # absolute orientation once clear of it.
-        pitch = float(rot_zeroed.as_euler("ZYX")[1])
-        self._near_gimbal = abs(abs(pitch) - np.pi / 2) < np.radians(15)
-        if self._near_gimbal:
-            self.get_logger().warn(
-                f"pitch {np.degrees(pitch):+.0f} deg near gimbal pole - "
-                "suppressing /rotation (gyro still active)",
-                throttle_duration_sec=2.0,
+            self.get_logger().info(
+                f"BNO085_{self.imu_index} heading zeroed (roll/pitch kept absolute)"
             )
 
+        rot_zeroed = self.rot_init_inv * rot_final
         qx, qy, qz, qw = rot_zeroed.as_quat()
 
         msg.orientation.x = float(qx)
@@ -202,14 +193,11 @@ class IMU(GenericSensor):
 
         stamp = msg.header.stamp
 
-        if self.is_active("rotation") and not getattr(self, "_near_gimbal", False):
+        if self.is_active("rotation"):
             rot_msg = PoseWithCovarianceStamped()
             rot_msg.header.stamp = stamp
-            # World frame, NOT base_link: this is an absolute-orientation pose.
-            # robot_localization transforms a pose into world_frame (odom); with
-            # frame_id="base_link" it needs an odom<-base_link tf that doesn't
-            # exist until the EKF initializes -> deadlock, every measurement
-            # "Could not transform measurement into odom. Ignoring..." -> no output.
+            # World frame, NOT base_link: absolute-orientation pose (see
+            # imu.py / depth_sensor.py for the frame_id="odom" rationale).
             rot_msg.header.frame_id = "odom"
             rot_msg.pose.pose.orientation = msg.orientation
             rot_msg.pose.covariance = self._build_rotation_cov()
@@ -229,12 +217,8 @@ class IMU(GenericSensor):
             accel_msg.header.frame_id = "base_link"
             accel_msg.linear_acceleration = msg.linear_acceleration
             accel_msg.linear_acceleration_covariance = self._build_accel_cov()
-            # Include the (remounted, yaw-zeroed) orientation so
-            # robot_localization removes gravity with THIS message's attitude
-            # instead of falling back to (possibly lagged) filter state.
-            # Gravity removal only depends on roll/pitch, so the yaw-zeroing
-            # is irrelevant here. imu0_config keeps orientation fusion off in
-            # ekf.yaml, so this is not double-fused with /rotation.
+            # Ship the remounted attitude with the accel so gravity removal
+            # uses this message's roll/pitch (see imu.py).
             accel_msg.orientation = msg.orientation
             accel_msg.orientation_covariance = [
                 0.001, 0.0, 0.0,
@@ -245,13 +229,21 @@ class IMU(GenericSensor):
             self.sensor_publishers["accel"].publish(accel_msg)
 
 
-def main(args=None):
+def main(imu_index, args=None):
     rclpy.init(args=args)
-    imu = IMU()
-    rclpy.spin(imu)
-    imu.destroy_node()
+    node = BNO085(imu_index)
+    rclpy.spin(node)
+    node.destroy_node()
     rclpy.shutdown()
 
 
+def main_0(args=None):
+    main(0, args=args)
+
+
+def main_1(args=None):
+    main(1, args=args)
+
+
 if __name__ == "__main__":
-    main()
+    main(0)

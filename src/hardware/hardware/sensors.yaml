@@ -36,8 +36,66 @@ imu_0:
   angular: 123
   accel: 123
 
-dvl_0:
+# Bosch BNO085 IMUs read via the Arduino (hardware/nodes/bno085.py).
+# Covariances copied from imu_0 as starting points -- retune once real data
+# is plotted. The BNO085 rotation vector IS magnetometer-referenced, so yaw
+# may deserve more trust than the Xsens VRU's drifting yaw; keep 0.05 until
+# verified in the enclosure (magnetic distortion from thrusters/ESCs likely).
+bno085_0:
+  rotation_covariance:
+    - [0.001, 0.0,   0.0]
+    - [0.0,   0.001, 0.0]
+    - [0.0,   0.0,   0.05]
+  angular_covariance:
+    - [0.01, 0.0, 0.0]
+    - [0.0, 0.01, 0.0]
+    - [0.0, 0.0, 0.01]
+  accel_covariance:
+    - [0.2, 0.0, 0.0]
+    - [0.0, 0.2, 0.0]
+    - [0.0, 0.0, 0.2]
   sensor_pos_in_base:
+  # TODO(mounting): identity placeholder. Set from the physical mount once
+  # installed (gravity must land on base +Z; see imu_0 comment above).
+  R_sensor_to_base:
+    - [1, 0, 0]
+    - [0, 1, 0]
+    - [0, 0, 1]
+  position: 0
+  rotation: 123
+  velocity: 0
+  angular: 123
+  accel: 123
+
+bno085_1:
+  rotation_covariance:
+    - [0.001, 0.0,   0.0]
+    - [0.0,   0.001, 0.0]
+    - [0.0,   0.0,   0.05]
+  angular_covariance:
+    - [0.01, 0.0, 0.0]
+    - [0.0, 0.01, 0.0]
+    - [0.0, 0.0, 0.01]
+  accel_covariance:
+    - [0.2, 0.0, 0.0]
+    - [0.0, 0.2, 0.0]
+    - [0.0, 0.0, 0.2]
+  sensor_pos_in_base:
+  # TODO(mounting): identity placeholder, same note as bno085_0.
+  R_sensor_to_base:
+    - [1, 0, 0]
+    - [0, 1, 0]
+    - [0, 0, 1]
+  position: 0
+  rotation: 123
+  velocity: 0
+  angular: 123
+  accel: 123
+
+dvl_0:
+  # 12.5 cm behind base_link center, ~3 cm below it (FLU: back = -x,
+  # down = -z). Enables the omega x r lever-arm correction in dvl.py.
+  sensor_pos_in_base: [-0.125, 0.0, -0.03]
   # 3x3 rotation matrix: sensor frame → base (robot) frame
   R_sensor_to_base:
     - [-0.70710678,  0.70710678, 0]

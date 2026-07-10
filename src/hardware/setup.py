@@ -23,6 +23,8 @@ setup(
         "console_scripts": [
             "thrusters = hardware.nodes.thrusters:main",
             "imu = hardware.nodes.imu:main",
+            "bno085_0 = hardware.nodes.bno085:main_0",
+            "bno085_1 = hardware.nodes.bno085:main_1",
             "imu_plot_orientation = hardware.nodes.imu_plot_orientation:main",
             "dvl = hardware.nodes.dvl:main",
             "sensors = hardware.nodes.sensors:main",
@@ -33,6 +35,7 @@ setup(
             "imu_plot = hardware.nodes.imu_plot:main",
             "dvl_plot = hardware.nodes.dvl_plot:main",
             "sensors_plot = hardware.nodes.sensors_plot:main",
+            "ekf_watchdog = hardware.nodes.ekf_watchdog:main",
         ],
     },
 )

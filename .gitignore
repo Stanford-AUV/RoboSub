@@ -189,3 +189,4 @@ tmp/
 references/robosub-ee/
 # source-built ROS msg deps (nmea_msgs, mavros_msgs) not in RoboStack py310
 src/deps/
+docs/

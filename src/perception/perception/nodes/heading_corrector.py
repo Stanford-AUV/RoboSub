@@ -14,18 +14,27 @@ from cv_bridge import CvBridge
 # --- bottom-line orientation detection --------------------------------------
 # Dead simple, per the field-tested recipe: find lines PERMISSIVELY (low
 # Canny/Hough thresholds — the bar is LOW). Then two filters:
-#   1) SPATIAL: keep the densest neighborhood of segments (the mat is one
-#      compact region; scattered caustic/tile edges elsewhere drop out),
-#   2) ANGLE: within that group, keep the biggest cluster of near-identical
-#      angles (length-weighted), throw everything else out, average.
+#   SPATIAL + ANGLE jointly: keep the biggest (length-weighted) group of
+#   segments that are close together AND share nearly the same angle,
+#   throw everything else out, average. Close-together lines from the same
+#   physical feature (mat border, lane line, grout) satisfy both; caustic
+#   speckle and icon edges never do.
 PROC_WIDTH = 960          # process at this width (scale-invariant params)
 MIN_SEG_LEN = 25          # px at PROC_WIDTH
 MAX_LINE_GAP = 10
-HOUGH_THRESHOLD = 25
+HOUGH_THRESHOLD = 45
 SPATIAL_RADIUS_FRAC = 0.3  # neighborhood radius, fraction of frame short side
 CLUSTER_TOL = math.radians(5)  # segments within this of each other agree
-MIN_CLUSTER_LINES = 8     # publish only with at least this many agreeing
+MIN_CLUSTER_LINES = 30    # publish only with at least this many agreeing
+                          # (real tile/mat frames give 60+; pure caustic
+                          # false clusters topped out at ~27 in testing)
 MIN_CLUSTER_LEN = 300.0   # ...and this much total length (px at PROC_WIDTH)
+MAX_EKF_DISAGREE = math.radians(20)  # drop readings further than this from
+                                     # the current believed yaw: caustic
+                                     # clusters point anywhere, real lines
+                                     # roughly agree with the EKF already
+PROCESS_HZ = 3.0          # denoise costs ~170 ms/frame on the Orin; skip
+                          # camera frames beyond this rate
 
 
 def estimate_line_angle(img, debug_out=None):
@@ -43,11 +52,20 @@ def estimate_line_angle(img, debug_out=None):
     scale = PROC_WIDTH / img.shape[1]
     small = cv2.resize(img, (PROC_WIDTH, int(img.shape[0] * scale)))
     gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (5, 5), 0)
+    # Non-local means denoise (~170 ms/frame on the Orin — the node
+    # throttles to PROCESS_HZ to compensate): kills caustic speckle
+    # before it reaches Canny, roughly halving spurious segments, while
+    # keeping real edges crisp. Contrast boosting (CLAHE/unsharp) was
+    # tested and REJECTED: it amplifies caustics into hundreds of
+    # coherent false lines on line-free frames.
+    blur = cv2.fastNlMeansDenoising(gray, None, 7, 7, 21)
     med = float(np.median(blur))
     if med < 1:
         return None, 0
-    edges = cv2.Canny(blur, 0.3 * med, 0.7 * med)
+    # Low relative-to-median thresholds on purpose: the blue tile grout is
+    # LOW contrast (vs the high-contrast printed icons), and it only wins
+    # the cluster vote if its faint edges make it into the pool at all.
+    edges = cv2.Canny(blur, 0.15 * med, 0.4 * med)
     segs = cv2.HoughLinesP(
         edges,
         rho=1,
@@ -69,25 +87,22 @@ def estimate_line_angle(img, debug_out=None):
         axis=1,
     )
 
-    # 1) Spatial cluster: the segment whose neighborhood holds the most
-    # total segment LENGTH seeds the group; only its neighbors advance.
+    # Joint cluster: a segment's supporters are the segments that are BOTH
+    # near it (spatially) AND at nearly the same angle. The segment with
+    # the most supporting LENGTH seeds the group; its supporters are the
+    # inliers. Close-together lines from the same physical feature agree
+    # in both; caustics agree in neither.
     radius = SPATIAL_RADIUS_FRAC * min(small.shape[:2])
-    dist = np.linalg.norm(mids[:, None, :] - mids[None, :, :], axis=2)
-    near = dist < radius
-    seed = int(np.argmax((length[None, :] * near).sum(axis=1)))
-    spatial = near[seed]
-
-    # 2) Biggest angle cluster within the spatial group: each segment's
-    # support is the total LENGTH of group segments within CLUSTER_TOL of
-    # it (circular, mod 180); best wins.
+    near = (
+        np.linalg.norm(mids[:, None, :] - mids[None, :, :], axis=2) < radius
+    )
     d = np.abs(theta[:, None] - theta[None, :])
     d = np.minimum(d, np.pi - d)
-    support = (length[None, :] * (d < CLUSTER_TOL) * spatial[None, :]).sum(
-        axis=1
-    )
-    support[~spatial] = -1.0
+    agree = near & (d < CLUSTER_TOL)
+    support = (length[None, :] * agree).sum(axis=1)
     best = int(np.argmax(support))
-    inliers = spatial & (d[best] < CLUSTER_TOL)
+    inliers = agree[best]
+    spatial = near[best]  # for the debug overlay
     n_lines = int(inliers.sum())
     total_len = float(length[inliers].sum())
     if n_lines < MIN_CLUSTER_LINES or total_len < MIN_CLUSTER_LEN:
@@ -156,6 +171,7 @@ class HeadingCorrector(Node):
         # Current believed yaw (IMU): used to resolve the 2-fold ambiguity
         # of a line observation (facing along vs against it).
         self._imu_yaw = None
+        self._last_process = 0.0
         self.create_subscription(
             PoseWithCovarianceStamped, "/rotation", self.rotation_callback, 10
         )
@@ -177,6 +193,10 @@ class HeadingCorrector(Node):
     def image_callback(self, msg):
         if self._imu_yaw is None:
             return  # can't resolve the 2-fold ambiguity without a yaw yet
+        now = self.get_clock().now().nanoseconds * 1e-9
+        if now - self._last_process < 1.0 / PROCESS_HZ:
+            return
+        self._last_process = now
         try:
             img = self.bridge.imgmsg_to_cv2(msg, "bgr8")
         except Exception:
@@ -205,13 +225,29 @@ class HeadingCorrector(Node):
             ),
         )
 
+        # Sanity gate: if even the best candidate disagrees with the
+        # believed yaw by more than MAX_EKF_DISAGREE, this is a false lock
+        # (caustics, occluder) — throw it out rather than fight the EKF.
+        disagree = abs(
+            (yaw_abs - self._imu_yaw + math.pi) % (2.0 * math.pi) - math.pi
+        )
+        if disagree > MAX_EKF_DISAGREE:
+            self.get_logger().warn(
+                f"heading correction {math.degrees(yaw_abs):+.1f} deg is "
+                f"{math.degrees(disagree):.0f} deg from believed yaw — dropped"
+            )
+            return
+
         out = PoseWithCovarianceStamped()
         out.header.stamp = msg.header.stamp
         out.header.frame_id = "odom"
         out.pose.pose.orientation.z = math.sin(yaw_abs / 2.0)
         out.pose.pose.orientation.w = math.cos(yaw_abs / 2.0)
-        # Bigger agreeing cluster -> more confident.
-        yaw_var = 0.1 / min(support, 40)
+        # Bigger agreeing cluster -> more confident, but never overconfident:
+        # even a clean detection is reasonably a few degrees off (blur,
+        # caustics, mat not perfectly straight), so the floor is ~6 deg
+        # std (support=40) rising to ~10 deg std at minimal support.
+        yaw_var = 0.008 + 0.16 / min(support, 40)
         cov = np.zeros(36)
         cov[35] = yaw_var
         out.pose.covariance = cov.tolist()
