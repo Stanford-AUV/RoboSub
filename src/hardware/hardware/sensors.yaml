@@ -1,12 +1,19 @@
 imu_0:
+  # Xsens MTi-200 VRU: roll/pitch are gravity-referenced (~0.2 deg), yaw is
+  # unreferenced/drifting so trust it less. The old 1.0 rad^2 (~57 deg std)
+  # made the EKF nearly ignore the IMU -> attitude converged over many seconds.
   rotation_covariance:
-    - [0.01, 0.0, 0.0]
-    - [0.0, 0.01, 0.0]
-    - [0.0, 0.0, 0.01]
+    - [0.001, 0.0,   0.0]
+    - [0.0,   0.001, 0.0]
+    - [0.0,   0.0,   0.05]
   angular_covariance:
     - [0.01, 0.0, 0.0]
     - [0.0, 0.01, 0.0]
     - [0.0, 0.0, 0.01]
+  # Accel noise density on the MTi-200 is far below this, but 0.45 m/s^2 std
+  # deliberately budgets for thruster vibration + gravity-removal residual
+  # (attitude error leaks ~g*err into the body-frame accel). Isotropic, so it
+  # is unchanged by the R_sensor_to_base rotation.
   accel_covariance:
     - [0.2, 0.0, 0.0]
     - [0.0, 0.2, 0.0]
@@ -24,8 +31,10 @@ imu_0:
   position: 0
   rotation: 123
   velocity: 0
-  angular: 0
-  accel: 0
+  # angular enabled: ekf.yaml fuses /angular (twist1) but this flag kept the
+  # topic from ever publishing, so the EKF ran with no gyro at all.
+  angular: 123
+  accel: 123
 
 dvl_0:
   sensor_pos_in_base:
@@ -57,7 +66,7 @@ depth_0:
   position_covariance:
     - [1.0e9, 0.0,   0.0  ]
     - [0.0,   1.0e9, 0.0  ]
-    - [0.0,   0.0,   0.01 ]
+    - [0.0,   0.0,   0.001 ]
   position: 3
   rotation: 0
   velocity: 0

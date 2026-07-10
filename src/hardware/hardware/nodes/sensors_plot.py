@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Imu
-from geometry_msgs.msg import TwistWithCovarianceStamped
+from geometry_msgs.msg import TwistWithCovarianceStamped, AccelWithCovarianceStamped
 from nav_msgs.msg import Odometry
 
 import matplotlib
@@ -31,21 +31,21 @@ class SensorsPlot(Node):
             TwistWithCovarianceStamped, "/velocity", self.velocity_callback, 10
         )
 
-        self.rotation_sub = self.create_subscription(
-            Odometry, "/odometry/filtered", self.rotation_callback, 10
+        self.odom_sub = self.create_subscription(
+            Odometry, "/odometry/filtered", self.odom_callback, 10
+        )
+        self.ekf_accel_sub = self.create_subscription(
+            AccelWithCovarianceStamped, "/accel/filtered", self.ekf_accel_callback, 10
         )
 
-        self.fig = plt.figure(figsize=(12, 8))
+        self.fig = plt.figure(figsize=(16, 8))
 
-        self.ax_imu_accel = self.fig.add_subplot(221)
-        self.ax_imu_gyro = self.fig.add_subplot(222)
-        self.ax_dvl_vel = self.fig.add_subplot(223)
-        self.ax_imu_rot = self.fig.add_subplot(224)
-
-        self.ax_imu_accel.set_title("IMU Acceleration")
-        self.ax_imu_gyro.set_title("IMU Angular Velocity")
-        self.ax_dvl_vel.set_title("DVL Velocity")
-        self.ax_imu_rot.set_title("EKF Rotation (/odometry/filtered)")
+        self.ax_imu_accel = self.fig.add_subplot(231)
+        self.ax_imu_gyro = self.fig.add_subplot(232)
+        self.ax_dvl_vel = self.fig.add_subplot(233)
+        self.ax_imu_rot = self.fig.add_subplot(234)
+        self.ax_ekf_vel = self.fig.add_subplot(235)
+        self.ax_ekf_accel = self.fig.add_subplot(236)
 
         self.start_time = self.get_clock().now()
 
@@ -53,6 +53,12 @@ class SensorsPlot(Node):
         self.accel_x_history = []
         self.accel_y_history = []
         self.accel_z_history = []
+        # Gravity-removed accel (what the EKF fuses), computed with the
+        # orientation embedded in the /accel message, mirroring
+        # robot_localization's remove_gravitational_acceleration.
+        self.accel_ng_x_history = []
+        self.accel_ng_y_history = []
+        self.accel_ng_z_history = []
 
         self.gyro_time = []
         self.gyro_x_history = []
@@ -69,6 +75,16 @@ class SensorsPlot(Node):
         self.rot_y_history = []
         self.rot_z_history = []
 
+        self.ekf_vel_time = []
+        self.ekf_vel_x_history = []
+        self.ekf_vel_y_history = []
+        self.ekf_vel_z_history = []
+
+        self.ekf_accel_time = []
+        self.ekf_accel_x_history = []
+        self.ekf_accel_y_history = []
+        self.ekf_accel_z_history = []
+
         self.update_period = 0.1
         self.last_plot_time = self.get_clock().now()
 
@@ -83,9 +99,27 @@ class SensorsPlot(Node):
 
     def accel_callback(self, msg: Imu):
         self.accel_time.append(self._elapsed())
-        self.accel_x_history.append(msg.linear_acceleration.x)
-        self.accel_y_history.append(msg.linear_acceleration.y)
-        self.accel_z_history.append(msg.linear_acceleration.z)
+        a = np.array(
+            [
+                msg.linear_acceleration.x,
+                msg.linear_acceleration.y,
+                msg.linear_acceleration.z,
+            ]
+        )
+        self.accel_x_history.append(a[0])
+        self.accel_y_history.append(a[1])
+        self.accel_z_history.append(a[2])
+
+        # Same math as robot_localization: a_body - R_wb^-1 @ (0, 0, g)
+        q = msg.orientation
+        if msg.orientation_covariance[0] >= 0.0 and abs(q.w) + abs(q.x) + abs(q.y) + abs(q.z) > 1e-6:
+            g_body = R.from_quat([q.x, q.y, q.z, q.w]).inv().apply([0.0, 0.0, 9.80665])
+            a_ng = a - g_body
+        else:
+            a_ng = np.full(3, np.nan)  # no orientation -> can't remove gravity
+        self.accel_ng_x_history.append(a_ng[0])
+        self.accel_ng_y_history.append(a_ng[1])
+        self.accel_ng_z_history.append(a_ng[2])
         self._maybe_update_plot()
 
     def angular_callback(self, msg: TwistWithCovarianceStamped):
@@ -102,7 +136,7 @@ class SensorsPlot(Node):
         self.vel_z_history.append(msg.twist.twist.linear.z)
         self._maybe_update_plot()
 
-    def rotation_callback(self, msg: Odometry):
+    def odom_callback(self, msg: Odometry):
         self.rot_time.append(self._elapsed())
         quat = msg.pose.pose.orientation
 
@@ -113,6 +147,18 @@ class SensorsPlot(Node):
         self.rot_x_history.append(r)
         self.rot_y_history.append(p)
         self.rot_z_history.append(y)
+
+        self.ekf_vel_time.append(self._elapsed())
+        self.ekf_vel_x_history.append(msg.twist.twist.linear.x)
+        self.ekf_vel_y_history.append(msg.twist.twist.linear.y)
+        self.ekf_vel_z_history.append(msg.twist.twist.linear.z)
+        self._maybe_update_plot()
+
+    def ekf_accel_callback(self, msg: AccelWithCovarianceStamped):
+        self.ekf_accel_time.append(self._elapsed())
+        self.ekf_accel_x_history.append(msg.accel.accel.linear.x)
+        self.ekf_accel_y_history.append(msg.accel.accel.linear.y)
+        self.ekf_accel_z_history.append(msg.accel.accel.linear.z)
         self._maybe_update_plot()
 
     def rotate_quaternion(self, w, x, y, z):  # x, y, z, w
@@ -155,15 +201,25 @@ class SensorsPlot(Node):
         self.ax_imu_gyro.cla()
         self.ax_dvl_vel.cla()
         self.ax_imu_rot.cla()
+        self.ax_ekf_vel.cla()
+        self.ax_ekf_accel.cla()
 
-        self.ax_imu_accel.plot(self.accel_time, self.accel_x_history, "r-", label="X")
-        self.ax_imu_accel.plot(self.accel_time, self.accel_y_history, "g-", label="Y")
-        self.ax_imu_accel.plot(self.accel_time, self.accel_z_history, "b-", label="Z")
+        # Raw (gravity in, faint) vs gravity-removed (solid) — the solid
+        # traces are what the EKF actually fuses; at rest they should sit
+        # on zero while raw Z sits on ~9.8.
+        self.ax_imu_accel.set_title("IMU Acceleration (base_link)")
+        self.ax_imu_accel.plot(self.accel_time, self.accel_x_history, "r-", alpha=0.25, label="X raw")
+        self.ax_imu_accel.plot(self.accel_time, self.accel_y_history, "g-", alpha=0.25, label="Y raw")
+        self.ax_imu_accel.plot(self.accel_time, self.accel_z_history, "b-", alpha=0.25, label="Z raw")
+        self.ax_imu_accel.plot(self.accel_time, self.accel_ng_x_history, "r-", label="X -g")
+        self.ax_imu_accel.plot(self.accel_time, self.accel_ng_y_history, "g-", label="Y -g")
+        self.ax_imu_accel.plot(self.accel_time, self.accel_ng_z_history, "b-", label="Z -g")
         self.ax_imu_accel.set_xlabel("Time (s)")
         self.ax_imu_accel.set_ylabel("Acceleration (m/s²)")
         self.ax_imu_accel.grid(True)
-        self.ax_imu_accel.legend()
+        self.ax_imu_accel.legend(fontsize=7, ncol=2)
 
+        self.ax_imu_gyro.set_title("IMU Angular Velocity")
         self.ax_imu_gyro.plot(self.gyro_time, self.gyro_x_history, "r-", label="X")
         self.ax_imu_gyro.plot(self.gyro_time, self.gyro_y_history, "g-", label="Y")
         self.ax_imu_gyro.plot(self.gyro_time, self.gyro_z_history, "b-", label="Z")
@@ -172,6 +228,7 @@ class SensorsPlot(Node):
         self.ax_imu_gyro.grid(True)
         self.ax_imu_gyro.legend()
 
+        self.ax_dvl_vel.set_title("DVL Velocity")
         self.ax_dvl_vel.plot(self.vel_time, self.vel_x_history, "r-", label="X")
         self.ax_dvl_vel.plot(self.vel_time, self.vel_y_history, "g-", label="Y")
         self.ax_dvl_vel.plot(self.vel_time, self.vel_z_history, "b-", label="Z")
@@ -185,6 +242,7 @@ class SensorsPlot(Node):
         smooth_pitch = np.unwrap(self.rot_y_history)
         smooth_yaw = np.unwrap(self.rot_z_history)
 
+        self.ax_imu_rot.set_title("EKF Rotation (/odometry/filtered)")
         self.ax_imu_rot.plot(self.rot_time, smooth_roll, "r-", label="ROLL")
         self.ax_imu_rot.plot(self.rot_time, smooth_pitch, "g-", label="PITCH")
         self.ax_imu_rot.plot(self.rot_time, smooth_yaw, "b-", label="YAW")
@@ -192,6 +250,24 @@ class SensorsPlot(Node):
         self.ax_imu_rot.set_ylabel("Rotation (rad)")
         self.ax_imu_rot.grid(True)
         self.ax_imu_rot.legend()
+
+        self.ax_ekf_vel.set_title("EKF Velocity (/odometry/filtered)")
+        self.ax_ekf_vel.plot(self.ekf_vel_time, self.ekf_vel_x_history, "r-", label="X")
+        self.ax_ekf_vel.plot(self.ekf_vel_time, self.ekf_vel_y_history, "g-", label="Y")
+        self.ax_ekf_vel.plot(self.ekf_vel_time, self.ekf_vel_z_history, "b-", label="Z")
+        self.ax_ekf_vel.set_xlabel("Time (s)")
+        self.ax_ekf_vel.set_ylabel("Velocity (m/s)")
+        self.ax_ekf_vel.grid(True)
+        self.ax_ekf_vel.legend()
+
+        self.ax_ekf_accel.set_title("EKF Acceleration (/accel/filtered)")
+        self.ax_ekf_accel.plot(self.ekf_accel_time, self.ekf_accel_x_history, "r-", label="X")
+        self.ax_ekf_accel.plot(self.ekf_accel_time, self.ekf_accel_y_history, "g-", label="Y")
+        self.ax_ekf_accel.plot(self.ekf_accel_time, self.ekf_accel_z_history, "b-", label="Z")
+        self.ax_ekf_accel.set_xlabel("Time (s)")
+        self.ax_ekf_accel.set_ylabel("Acceleration (m/s²)")
+        self.ax_ekf_accel.grid(True)
+        self.ax_ekf_accel.legend()
 
         # Adjust layout and update display
         plt.tight_layout()

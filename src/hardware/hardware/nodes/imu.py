@@ -53,6 +53,28 @@ class IMU(GenericSensor):
             w_base.tolist()
         )
 
+        # Rotate linear acceleration into base_link with the same mounting
+        # rotation as the gyro. Without this the /accel message claims
+        # frame_id="base_link" while carrying sensor-frame data, so the EKF
+        # would fuse surge/sway/heave accelerations on the wrong axes.
+        # (Xsens /imu/data accel includes gravity: reads +9.8 on base +Z at
+        # rest after this rotation, which is what robot_localization's
+        # remove_gravitational_acceleration expects.)
+        a = np.array(
+            [
+                msg.linear_acceleration.x,
+                msg.linear_acceleration.y,
+                msg.linear_acceleration.z,
+            ],
+            dtype=float,
+        )
+        a_base = self.R_sensor_to_base @ a
+        (
+            msg.linear_acceleration.x,
+            msg.linear_acceleration.y,
+            msg.linear_acceleration.z,
+        ) = a_base.tolist()
+
         msg.header.frame_id = "base_link"
 
         q_raw = np.array(
@@ -192,7 +214,18 @@ class IMU(GenericSensor):
             accel_msg.header.frame_id = "base_link"
             accel_msg.linear_acceleration = msg.linear_acceleration
             accel_msg.linear_acceleration_covariance = self._build_accel_cov()
-            accel_msg.orientation_covariance = [-1.0] + [0.0] * 8
+            # Include the (remounted, yaw-zeroed) orientation so
+            # robot_localization removes gravity with THIS message's attitude
+            # instead of falling back to (possibly lagged) filter state.
+            # Gravity removal only depends on roll/pitch, so the yaw-zeroing
+            # is irrelevant here. imu0_config keeps orientation fusion off in
+            # ekf.yaml, so this is not double-fused with /rotation.
+            accel_msg.orientation = msg.orientation
+            accel_msg.orientation_covariance = [
+                0.001, 0.0, 0.0,
+                0.0, 0.001, 0.0,
+                0.0, 0.0, 0.05,
+            ]
             accel_msg.angular_velocity_covariance = [-1.0] + [0.0] * 8
             self.sensor_publishers["accel"].publish(accel_msg)
 

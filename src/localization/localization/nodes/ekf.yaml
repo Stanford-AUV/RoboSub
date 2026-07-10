@@ -25,8 +25,8 @@ ekf_filter_node:
       0.0,  0.0,  0.0,  0.03, 0.0,  0.0,  0.0,   0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
       0.0,  0.0,  0.0,  0.0,  0.03, 0.0,  0.0,   0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
       0.0,  0.0,  0.0,  0.0,  0.0,  0.06, 0.0,   0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-      0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.005, 0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-      0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.005, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+      0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.025, 0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+      0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.025, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
       0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.0,   0.04, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
       0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.0,   0.0,  0.01, 0.0,  0.0,  0.0,  0.0,  0.0,
       0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.0,   0.0,  0.0,  0.01, 0.0,  0.0,  0.0,  0.0,
@@ -100,15 +100,22 @@ ekf_filter_node:
 
     # ----------------------------------------------------
     # IMU 0: LINEAR ACCELERATION
-    # DISABLED ENTIRELY to prevent double-integration explosion
+    # Fusing ax, ay (body frame, gravity removed using the message's own
+    # roll/pitch — imu.py now embeds the remounted orientation in /accel).
+    # az stays OFF: depth already pins z tightly, and az carries the largest
+    # gravity-removal residual (any roll/pitch error leaks ~g*err into az),
+    # so fusing it buys nothing and injects bias into vz.
+    # Orientation fusion stays OFF here — absolute attitude comes from
+    # pose1 (/rotation); the orientation in /accel is only for gravity removal.
     # ----------------------------------------------------
     imu0: "/accel"
     imu0_config: [false, false, false,    # x_pos, y_pos, z_pos
                   false, false, false,    # roll, pitch, yaw
                   false, false, false,    # x_vel, y_vel, z_vel
                   false, false, false,    # roll_vel, pitch_vel, yaw_vel
-                  false, false, false]    # <--- CHANGED TO FALSE
+                  true, true, false]      # x_accel, y_accel, z_accel
     imu0_differential: false
     imu0_relative: false
     imu0_queue_size: 50
     imu0_remove_gravitational_acceleration: true
+    imu0_linear_acceleration_rejection_threshold: 3.0  # drop collision/vibration spikes
