@@ -1,22 +1,22 @@
 segment_0:
   waypoints:
-    - position: {x: 0.0, y: 0.0, z: -0.3}
+    - position: {x: 0.0, y: 0.0, z: -0.0}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-    - position: {x: 0.0, y: 0.0, z: -1.0}
+    - position: {x: 0.0, y: 0.0, z: -0.7}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
     # - position: {x: 0.0, y: 0.0, z: -1.75}
     #   orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
     # - position: {x: 1.5, y: -0.05, z: -2.5}
     #   orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-    - position: {x: 5.0, y: 0.0, z: -1.0}
+    - position: {x: 5.0, y: 0.0, z: -0.7}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
     # - position: {x: 13.0, y: -1.0, z: -2.5}
     #   orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
     # - position: {x: 13.0, y: 1.0, z: -2.5}
     #   orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-    - position: {x: 3.0, y: 0.0, z: -2.0}
+    - position: {x: 3.0, y: 0.0, z: -0.7}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-    - position: {x: 0.0, y: 0.0, z: -0.3}
+    - position: {x: 0.1, y: 0.0, z: -0.0}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
   concurrent_action: None
   exit_on_reach: True

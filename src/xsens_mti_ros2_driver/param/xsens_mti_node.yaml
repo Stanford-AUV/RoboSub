@@ -203,7 +203,14 @@
 
         # Enable or disable manual gyro bias estimation.
         # If enabled, specify the 'event_interval' and 'duration' in 'manual_gyro_bias_param'.
-        enable_manual_gyro_bias: true
+        # DISABLED (2026-07-11): MGBE assumes the sensor is STATIONARY during its
+        # window, but this timer fires every 15s ALL MISSION (it runs even with
+        # enable_deviceConfig false). Underwater, slow yaw (~1-2 deg/s) is below
+        # its rotation-abort threshold, so real rotation got swallowed into the
+        # gyro bias -> VRU yaw ramped +55 deg in 168s (bag run_20260711_214739,
+        # mag heading proved the sub returned to start within 0.2 deg). If a bias
+        # cal is wanted, run it ONCE pre-dive while the sub hangs still.
+        enable_manual_gyro_bias: false
 
         # Parameters for manual gyro bias estimation:
         # - 'event_interval': Time in seconds between two consecutive invocations.

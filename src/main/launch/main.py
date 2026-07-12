@@ -13,6 +13,9 @@ def generate_launch_description():
     return LaunchDescription(
         [
             IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(os.path.join(launch_dir, "imu.py"))
+            ),
+            IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(os.path.join(launch_dir, "hardware.py"))
             ),
             IncludeLaunchDescription(

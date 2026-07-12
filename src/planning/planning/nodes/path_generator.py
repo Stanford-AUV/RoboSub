@@ -1,14 +1,14 @@
 import rclpy
 from rclpy.node import Node
-from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped, Twist
 from nav_msgs.msg import Odometry
 from msgs.msg import GeneratedPath  # Custom message import
-from rclpy import Parameter
-from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
 
+import os
+import yaml
 import numpy as np
 from scipy.spatial.transform import Rotation
+from ament_index_python.packages import get_package_share_directory
 
 from planning.utils.create_path import create_path
 
@@ -17,13 +17,21 @@ class PathGenerator(Node):
     def __init__(self):
         super().__init__("path_generator")
 
-        latched_qos = QoSProfile(
-            depth=1,
-            durability=DurabilityPolicy.TRANSIENT_LOCAL,
-            reliability=ReliabilityPolicy.RELIABLE,
+        # Waypoints are loaded IN-PROCESS from YAML at startup - there is no
+        # /waypoints topic and no separate path_loader node. This deliberately
+        # removes the DDS discovery race that used to drop the (one-shot,
+        # latched) waypoints message when the loader published before this
+        # node's subscription had matched, leaving the generator idle forever.
+        # Override the file via the 'waypoints_path' ROS parameter if needed.
+        # The YAML is installed into the package share dir (see setup.py), so
+        # resolve it via ament - works under any install layout.
+        default_yaml = os.path.join(
+            get_package_share_directory("planning"), "prequal.yaml"
         )
-        self.waypoints_subscriber = self.create_subscription(
-            Path, "/waypoints", self.waypoints_callback, latched_qos
+        self.declare_parameter("waypoints_path", default_yaml)
+        self.waypoints_path = (
+            self.get_parameter("waypoints_path").get_parameter_value().string_value
+            or default_yaml
         )
 
         self.publish_desired = self.create_publisher(Odometry, "/desired/pose", 10)
@@ -34,9 +42,22 @@ class PathGenerator(Node):
         self.create_timer(1.0 / 60.0, self.publish_pose)
 
         self.get_logger().info("PathGenerator node has been started.")
+        self.load_and_generate()
 
-    def waypoints_callback(self, msg: Path):
-        self.get_logger().info("Received waypoints, generating path...")
+    def load_and_generate(self):
+        """Read the waypoint YAML and build the trajectory. Runs once at startup."""
+        self.get_logger().info(f"Loading waypoints from {self.waypoints_path}")
+
+        try:
+            with open(self.waypoints_path, "r") as f:
+                data = yaml.safe_load(f)
+        except Exception as exc:
+            self.get_logger().error(
+                f"Failed to read waypoints file '{self.waypoints_path}': {exc}"
+            )
+            return
+
+        segments = [data[key] for key in data]
 
         x_positions = []
         y_positions = []
@@ -45,23 +66,26 @@ class PathGenerator(Node):
         pitch_angles = []
         yaw_angles = []
 
-        for pose_stamped in msg.poses:
-            x_positions.append(pose_stamped.pose.position.x)
-            y_positions.append(pose_stamped.pose.position.y)
-            z_positions.append(pose_stamped.pose.position.z)
+        n_waypoints = 0
+        for segment in segments:
+            for waypoint in segment["waypoints"]:
+                x_positions.append(waypoint["position"]["x"])
+                y_positions.append(waypoint["position"]["y"])
+                z_positions.append(waypoint["position"]["z"])
+                roll_angles.append(waypoint["orientation"]["roll"])
+                pitch_angles.append(waypoint["orientation"]["pitch"])
+                yaw_angles.append(waypoint["orientation"]["yaw"])
+                n_waypoints += 1
 
-            orientation_q = pose_stamped.pose.orientation
-            quaternion = [
-                orientation_q.x,
-                orientation_q.y,
-                orientation_q.z,
-                orientation_q.w,
-            ]
+        if n_waypoints == 0:
+            self.get_logger().error(
+                f"No waypoints found in '{self.waypoints_path}'; nothing to generate."
+            )
+            return
 
-            euler = Rotation.from_quat(quaternion).as_euler("xyz", degrees=True)
-            roll_angles.append(euler[0])
-            pitch_angles.append(euler[1])
-            yaw_angles.append(euler[2])
+        self.get_logger().info(
+            f"Loaded {n_waypoints} waypoints from {len(segments)} segment(s), generating path..."
+        )
 
         x_positions = np.array(x_positions)
         y_positions = np.array(y_positions)
@@ -154,6 +178,12 @@ class PathGenerator(Node):
 
     def publish_pose(self):
         if self.generated_path is None or self.path_start_time is None:
+            # No trajectory yet - make the idle state loud instead of silent so a
+            # failed load is obvious in the terminal (throttled to avoid spam).
+            self.get_logger().warn(
+                "No generated path yet; not publishing /desired/pose",
+                throttle_duration_sec=5.0,
+            )
             return
 
         elapsed = (self.get_clock().now() - self.path_start_time).nanoseconds / 1e9

@@ -49,73 +49,62 @@ ekf_filter_node:
     pose0_relative: false
     pose0_rejection_threshold: 5.0        # Drops massive depth spikes
 
+    # (IMU absolute attitude — roll/pitch/yaw — is fused via imu0 = /imu/orientation
+    #  below. pose1 adds an ABSOLUTE-YAW-ONLY correction from perception, which
+    #  pins the Xsens VRU's drifting/unreferenced yaw to the pool bottom-line.)
+
     # ----------------------------------------------------
-    # POSE 1: IMU ORIENTATION
-    # Fusing Absolute Roll, Pitch, Yaw.
-    # Differential is FALSE so it doesn't lose track of North/Forward.
+    # POSE 1: PERCEPTION HEADING CORRECTION
+    # perception/heading_corrector.py detects the bottom-line angle and publishes
+    # an absolute yaw on /heading_correction (frame_id "odom"). Fuse YAW ONLY:
+    # roll/pitch stay gravity-referenced from the IMU; this just anchors heading.
+    # Differential FALSE so it drives yaw to the absolute (line-referenced) value.
     # ----------------------------------------------------
-    pose1: "/rotation"
+    pose1: "/heading_correction"
     pose1_config: [false, false, false,   # x_pos, y_pos, z_pos
-                  true, true, true,       # roll, pitch, yaw
+                  false, false, true,     # roll, pitch, yaw
                   false, false, false,    # x_vel, y_vel, z_vel
                   false, false, false,    # roll_vel, pitch_vel, yaw_vel
                   false, false, false]    # x_accel, y_accel, z_accel
-    pose1_differential: false             # <--- CHANGED TO FALSE
+    pose1_differential: false
     pose1_relative: false
-    pose1_queue_size: 50
+    pose1_queue_size: 10
     pose1_rejection_threshold: 5.0
 
     # ----------------------------------------------------
     # TWIST 0: DVL VELOCITY
-    # TEMPORARILY DISABLED for bench testing without the DVL.
-    # All config fields false => sensor is ignored, but the twist0 entry
-    # MUST stay: robot_localization stops scanning at the first missing
-    # twistN index, so deleting this would also drop twist1 (IMU gyro).
-    # To re-enable the DVL: set the x_vel,y_vel,z_vel row back to: true, true, true
+    # Fusing body-frame x/y/z linear velocity.
     # ----------------------------------------------------
     twist0: "/velocity"
     twist0_config: [false, false, false,  # x_pos, y_pos, z_pos
                   false, false, false,    # roll, pitch, yaw
-                  true, true, true,    # x_vel, y_vel, z_vel  <-- DVL DISABLED (was true, true, true)
+                  true, true, true,       # x_vel, y_vel, z_vel
                   false, false, false,    # roll_vel, pitch_vel, yaw_vel
                   false, false, false]    # x_accel, y_accel, z_accel
     twist0_differential: false
     twist0_relative: false
     twist0_rejection_threshold: 5.0
 
-    # ----------------------------------------------------
-    # TWIST 1: IMU ANGULAR VELOCITY
-    # Fusing Roll, Pitch, Yaw velocities.
-    # ----------------------------------------------------
-    twist1: "/angular"
-    twist1_config: [false, false, false,  # x_pos, y_pos, z_pos
-                  false, false, false,    # roll, pitch, yaw
-                  false, false, false,    # x_vel, y_vel, z_vel
-                  true, true, true,       # roll_vel, pitch_vel, yaw_vel
-                  false, false, false]    # x_accel, y_accel, z_accel
-    twist1_differential: false
-    twist1_relative: false
-    twist1_queue_size: 50
-    twist1_rejection_threshold: 5.0
+    # (No twist1: the IMU gyro is no longer published. imu.py now forwards ONLY
+    #  the Xsens on-board filter quaternion, so angular velocity / linear accel
+    #  are not fused. robot_localization stops scanning twistN after twist0.)
 
     # ----------------------------------------------------
-    # IMU 0: LINEAR ACCELERATION
-    # Fusing ax, ay (body frame, gravity removed using the message's own
-    # roll/pitch — imu.py now embeds the remounted orientation in /accel).
-    # az stays OFF: depth already pins z tightly, and az carries the largest
-    # gravity-removal residual (any roll/pitch error leaks ~g*err into az),
-    # so fusing it buys nothing and injects bias into vz.
-    # Orientation fusion stays OFF here — absolute attitude comes from
-    # pose1 (/rotation); the orientation in /accel is only for gravity removal.
+    # IMU 0: ABSOLUTE ORIENTATION (Xsens on-board filter quaternion)
+    # imu.py republishes /xsens/filter/quaternion (already gravity-referenced,
+    # remounted into base_link, initial heading zeroed) as sensor_msgs/Imu on
+    # /imu/data with orientation only. Angular velocity + linear acceleration
+    # carry covariance[0] = -1, so robot_localization ignores them; we fuse just
+    # roll/pitch/yaw. Differential FALSE keeps absolute North/Forward heading.
     # ----------------------------------------------------
-    imu0: "/accel"
+    imu0: "/imu/orientation"
     imu0_config: [false, false, false,    # x_pos, y_pos, z_pos
-                  false, false, false,    # roll, pitch, yaw
+                  true, true, true,       # roll, pitch, yaw
                   false, false, false,    # x_vel, y_vel, z_vel
                   false, false, false,    # roll_vel, pitch_vel, yaw_vel
-                  true, true, false]      # x_accel, y_accel, z_accel
+                  false, false, false]    # x_accel, y_accel, z_accel
     imu0_differential: false
     imu0_relative: false
     imu0_queue_size: 50
-    imu0_remove_gravitational_acceleration: true
-    imu0_linear_acceleration_rejection_threshold: 3.0  # drop collision/vibration spikes
+    imu0_remove_gravitational_acceleration: false
+    imu0_rejection_threshold: 5.0

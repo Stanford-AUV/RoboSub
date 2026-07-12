@@ -1,4 +1,8 @@
+import matplotlib
+
+matplotlib.use("Agg")  # headless: write PNG to disk, never pop a GUI window
 import matplotlib.pyplot as plt
+import os
 from nav_msgs.msg import Odometry
 import rclpy
 from rclpy.node import Node
@@ -54,12 +58,11 @@ class Logger(Node):
             for ax in ax_row:
                 ax.legend()
 
-        # Create a ROS 2 timer to periodically update the plot
-        self.timer = self.create_timer(0.01, self.update_plot)
-
-        # Show the plot
-        plt.ion()  # Interactive mode for real-time updates
-        self.fig.show()
+        # Periodically re-render to a PNG. 2 Hz is plenty for a written figure
+        # (the old 100 Hz was for a live GUI window); savefig is disk I/O so we
+        # do NOT want it every tick.
+        self.timer = self.create_timer(0.5, self.update_plot)
+        self._logged_out_path = False
 
     def log_data(self, msg: Odometry):
         """Callback to log odometry data."""
@@ -109,9 +112,16 @@ class Logger(Node):
                 ax.relim()
                 ax.autoscale_view()
 
-        # Redraw the figure
-        self.fig.canvas.draw()
-        self.fig.canvas.flush_events()
+        # Write to the repo root (NOT the launch CWD, which is $HOME under
+        # ros2 launch). Prefer $ROBOSUB_DIR, then ~/RoboSub, then cwd.
+        out_dir = os.environ.get("ROBOSUB_DIR") or os.path.expanduser("~/RoboSub")
+        if not os.path.isdir(out_dir):
+            out_dir = os.getcwd()
+        out_path = os.path.join(out_dir, "control_logger.png")
+        self.fig.savefig(out_path)
+        if not self._logged_out_path:
+            self.get_logger().info(f"writing control logger plot to {out_path}")
+            self._logged_out_path = True
 
 
 def main(args=None):

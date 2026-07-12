@@ -2,6 +2,7 @@ import serial
 import rclpy
 from rclpy.node import Node
 from msgs.msg import PWMsStamped, SensorsStamped, Float32Stamped
+from sensor_msgs.msg import Imu
 from std_msgs.msg import Int16, String
 from typing import List
 from rclpy import Parameter
@@ -39,6 +40,14 @@ class Arduino(Node):
         self._sensors_pub = self.create_publisher(
             SensorsStamped, "/arduino/sensors", history_depth
         )
+
+        # Raw sensor-frame data from the two BNO085 IMUs, one topic per unit.
+        # Consumed by hardware/nodes/bno085.py, which handles the remount into
+        # base_link -- publish exactly what the firmware reports here.
+        self._imu_pubs = [
+            self.create_publisher(Imu, f"/arduino/imu_{i}", history_depth)
+            for i in range(2)
+        ]
 
         try:
             # NOTE: If this fails, run the following command:
@@ -132,8 +141,36 @@ class Arduino(Node):
             msg.voltage = data["voltage"]
 
             self._sensors_pub.publish(msg)
+
+            self.publish_imus(data)
         except:
             return
+
+    def publish_imus(self, data):
+        # TODO(firmware): the Arduino must append the BNO085 fields to the same
+        # key/value response line, per unit n in {0, 1}:
+        #   imu<n>_qw imu<n>_qx imu<n>_qy imu<n>_qz   (rotation vector quat)
+        #   imu<n>_gx imu<n>_gy imu<n>_gz              (gyro, rad/s)
+        #   imu<n>_ax imu<n>_ay imu<n>_az              (accel, m/s^2, gravity INCLUDED)
+        # Until then this silently publishes nothing (keys missing).
+        for i, pub in enumerate(self._imu_pubs):
+            try:
+                imu_msg = Imu()
+                imu_msg.header.stamp = self.get_clock().now().to_msg()
+                imu_msg.header.frame_id = f"bno085_{i}"
+                imu_msg.orientation.w = data[f"imu{i}_qw"]
+                imu_msg.orientation.x = data[f"imu{i}_qx"]
+                imu_msg.orientation.y = data[f"imu{i}_qy"]
+                imu_msg.orientation.z = data[f"imu{i}_qz"]
+                imu_msg.angular_velocity.x = data[f"imu{i}_gx"]
+                imu_msg.angular_velocity.y = data[f"imu{i}_gy"]
+                imu_msg.angular_velocity.z = data[f"imu{i}_gz"]
+                imu_msg.linear_acceleration.x = data[f"imu{i}_ax"]
+                imu_msg.linear_acceleration.y = data[f"imu{i}_ay"]
+                imu_msg.linear_acceleration.z = data[f"imu{i}_az"]
+            except KeyError:
+                continue
+            pub.publish(imu_msg)
 
     def kill_motors(self):
         self.pwms = [self.zero_thrust] * self.thruster_count

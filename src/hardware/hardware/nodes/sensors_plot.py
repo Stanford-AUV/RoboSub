@@ -11,59 +11,55 @@ import matplotlib.pyplot as plt
 import math
 import os
 import numpy as np
-from scipy.spatial.transform import Rotation as R
 
 
-# curr pitch y = yaw z
-# curr roll x = pitch y
-# curr yaw z = roll x
 class SensorsPlot(Node):
+    """Plot the pieces of the localization puzzle: what we FEED the EKF (IMU
+    absolute rotation, DVL velocity) next to what the EKF PUTS OUT (rotation,
+    velocity, position, acceleration)."""
+
     def __init__(self):
         super().__init__("sensors_plot")
 
-        self.accel_sub = self.create_subscription(
-            Imu, "/accel", self.accel_callback, 10
+        # ---- EKF INPUTS ----
+        # Absolute orientation measurement we feed the EKF (imu.py output).
+        self.imu_in_sub = self.create_subscription(
+            Imu, "/imu/orientation", self.imu_in_callback, 10
         )
-        self.angular_sub = self.create_subscription(
-            TwistWithCovarianceStamped, "/angular", self.angular_callback, 10
-        )
+        # DVL body velocity.
         self.velocity_sub = self.create_subscription(
             TwistWithCovarianceStamped, "/velocity", self.velocity_callback, 10
         )
 
+        # ---- EKF OUTPUTS ----
         self.odom_sub = self.create_subscription(
             Odometry, "/odometry/filtered", self.odom_callback, 10
         )
         self.ekf_accel_sub = self.create_subscription(
             AccelWithCovarianceStamped, "/accel/filtered", self.ekf_accel_callback, 10
         )
+        # Desired position setpoint (planning -> control).
+        self.desired_sub = self.create_subscription(
+            Odometry, "/desired/pose", self.desired_callback, 10
+        )
 
-        self.fig = plt.figure(figsize=(16, 8))
+        self.fig = plt.figure(figsize=(24, 8))
 
-        self.ax_imu_accel = self.fig.add_subplot(231)
-        self.ax_imu_gyro = self.fig.add_subplot(232)
-        self.ax_dvl_vel = self.fig.add_subplot(233)
-        self.ax_imu_rot = self.fig.add_subplot(234)
-        self.ax_ekf_vel = self.fig.add_subplot(235)
-        self.ax_ekf_accel = self.fig.add_subplot(236)
+        # Top row: INPUTS + EKF rotation.  Bottom row: EKF outputs + desired pos.
+        self.ax_imu_in = self.fig.add_subplot(241)
+        self.ax_dvl_vel = self.fig.add_subplot(242)
+        self.ax_ekf_rot = self.fig.add_subplot(243)
+        self.ax_ekf_vel = self.fig.add_subplot(245)
+        self.ax_ekf_pos = self.fig.add_subplot(246)
+        self.ax_ekf_accel = self.fig.add_subplot(247)
+        self.ax_des_pos = self.fig.add_subplot(248)
 
         self.start_time = self.get_clock().now()
 
-        self.accel_time = []
-        self.accel_x_history = []
-        self.accel_y_history = []
-        self.accel_z_history = []
-        # Gravity-removed accel (what the EKF fuses), computed with the
-        # orientation embedded in the /accel message, mirroring
-        # robot_localization's remove_gravitational_acceleration.
-        self.accel_ng_x_history = []
-        self.accel_ng_y_history = []
-        self.accel_ng_z_history = []
-
-        self.gyro_time = []
-        self.gyro_x_history = []
-        self.gyro_y_history = []
-        self.gyro_z_history = []
+        self.imu_in_time = []
+        self.imu_in_roll_history = []
+        self.imu_in_pitch_history = []
+        self.imu_in_yaw_history = []
 
         self.vel_time = []
         self.vel_x_history = []
@@ -80,10 +76,20 @@ class SensorsPlot(Node):
         self.ekf_vel_y_history = []
         self.ekf_vel_z_history = []
 
+        self.ekf_pos_time = []
+        self.ekf_pos_x_history = []
+        self.ekf_pos_y_history = []
+        self.ekf_pos_z_history = []
+
         self.ekf_accel_time = []
         self.ekf_accel_x_history = []
         self.ekf_accel_y_history = []
         self.ekf_accel_z_history = []
+
+        self.des_pos_time = []
+        self.des_pos_x_history = []
+        self.des_pos_y_history = []
+        self.des_pos_z_history = []
 
         self.update_period = 0.1
         self.last_plot_time = self.get_clock().now()
@@ -97,36 +103,13 @@ class SensorsPlot(Node):
             self.update_plot()
             self.last_plot_time = now
 
-    def accel_callback(self, msg: Imu):
-        self.accel_time.append(self._elapsed())
-        a = np.array(
-            [
-                msg.linear_acceleration.x,
-                msg.linear_acceleration.y,
-                msg.linear_acceleration.z,
-            ]
-        )
-        self.accel_x_history.append(a[0])
-        self.accel_y_history.append(a[1])
-        self.accel_z_history.append(a[2])
-
-        # Same math as robot_localization: a_body - R_wb^-1 @ (0, 0, g)
+    def imu_in_callback(self, msg: Imu):
+        self.imu_in_time.append(self._elapsed())
         q = msg.orientation
-        if msg.orientation_covariance[0] >= 0.0 and abs(q.w) + abs(q.x) + abs(q.y) + abs(q.z) > 1e-6:
-            g_body = R.from_quat([q.x, q.y, q.z, q.w]).inv().apply([0.0, 0.0, 9.80665])
-            a_ng = a - g_body
-        else:
-            a_ng = np.full(3, np.nan)  # no orientation -> can't remove gravity
-        self.accel_ng_x_history.append(a_ng[0])
-        self.accel_ng_y_history.append(a_ng[1])
-        self.accel_ng_z_history.append(a_ng[2])
-        self._maybe_update_plot()
-
-    def angular_callback(self, msg: TwistWithCovarianceStamped):
-        self.gyro_time.append(self._elapsed())
-        self.gyro_x_history.append(msg.twist.twist.angular.x)
-        self.gyro_y_history.append(msg.twist.twist.angular.y)
-        self.gyro_z_history.append(msg.twist.twist.angular.z)
+        r, p, y = self.quaternion_to_rpy(q.w, q.x, q.y, q.z)
+        self.imu_in_roll_history.append(r)
+        self.imu_in_pitch_history.append(p)
+        self.imu_in_yaw_history.append(y)
         self._maybe_update_plot()
 
     def velocity_callback(self, msg: TwistWithCovarianceStamped):
@@ -139,11 +122,7 @@ class SensorsPlot(Node):
     def odom_callback(self, msg: Odometry):
         self.rot_time.append(self._elapsed())
         quat = msg.pose.pose.orientation
-
-        # w, x, y, z = self.rotate_quaternion(quat.w, quat.x, quat.y, quat.z)
-
         r, p, y = self.quaternion_to_rpy(quat.w, quat.x, quat.y, quat.z)
-
         self.rot_x_history.append(r)
         self.rot_y_history.append(p)
         self.rot_z_history.append(y)
@@ -152,6 +131,12 @@ class SensorsPlot(Node):
         self.ekf_vel_x_history.append(msg.twist.twist.linear.x)
         self.ekf_vel_y_history.append(msg.twist.twist.linear.y)
         self.ekf_vel_z_history.append(msg.twist.twist.linear.z)
+
+        pos = msg.pose.pose.position
+        self.ekf_pos_time.append(self._elapsed())
+        self.ekf_pos_x_history.append(pos.x)
+        self.ekf_pos_y_history.append(pos.y)
+        self.ekf_pos_z_history.append(pos.z)
         self._maybe_update_plot()
 
     def ekf_accel_callback(self, msg: AccelWithCovarianceStamped):
@@ -161,19 +146,13 @@ class SensorsPlot(Node):
         self.ekf_accel_z_history.append(msg.accel.accel.linear.z)
         self._maybe_update_plot()
 
-    def rotate_quaternion(self, w, x, y, z):  # x, y, z, w
-        original_data = [x, y, z, w]
-        q_original = R.from_quat(original_data)
-
-        r_base = R.from_quat([0.0, 0.7071, 0.0, -0.7071])  # 90 deg around Y
-        r_flip = R.from_quat([0.0, 0.0, 1.0, 0.0])
-        r_change = r_flip * r_base
-
-        q_new = r_change * q_original * r_change.inv()
-        quat_array = q_new.as_quat()
-        x, y, z, w = quat_array
-
-        return w, x, y, z
+    def desired_callback(self, msg: Odometry):
+        pos = msg.pose.pose.position
+        self.des_pos_time.append(self._elapsed())
+        self.des_pos_x_history.append(pos.x)
+        self.des_pos_y_history.append(pos.y)
+        self.des_pos_z_history.append(pos.z)
+        self._maybe_update_plot()
 
     def quaternion_to_rpy(self, q_w, q_x, q_y, q_z):
         # Roll (x-axis)
@@ -196,39 +175,32 @@ class SensorsPlot(Node):
         return roll, pitch, yaw
 
     def update_plot(self):
-        # Clear all plots
-        self.ax_imu_accel.cla()
-        self.ax_imu_gyro.cla()
-        self.ax_dvl_vel.cla()
-        self.ax_imu_rot.cla()
-        self.ax_ekf_vel.cla()
-        self.ax_ekf_accel.cla()
+        for ax in (
+            self.ax_imu_in,
+            self.ax_dvl_vel,
+            self.ax_ekf_rot,
+            self.ax_ekf_vel,
+            self.ax_ekf_pos,
+            self.ax_ekf_accel,
+            self.ax_des_pos,
+        ):
+            ax.cla()
 
-        # Raw (gravity in, faint) vs gravity-removed (solid) — the solid
-        # traces are what the EKF actually fuses; at rest they should sit
-        # on zero while raw Z sits on ~9.8.
-        self.ax_imu_accel.set_title("IMU Acceleration (base_link)")
-        self.ax_imu_accel.plot(self.accel_time, self.accel_x_history, "r-", alpha=0.25, label="X raw")
-        self.ax_imu_accel.plot(self.accel_time, self.accel_y_history, "g-", alpha=0.25, label="Y raw")
-        self.ax_imu_accel.plot(self.accel_time, self.accel_z_history, "b-", alpha=0.25, label="Z raw")
-        self.ax_imu_accel.plot(self.accel_time, self.accel_ng_x_history, "r-", label="X -g")
-        self.ax_imu_accel.plot(self.accel_time, self.accel_ng_y_history, "g-", label="Y -g")
-        self.ax_imu_accel.plot(self.accel_time, self.accel_ng_z_history, "b-", label="Z -g")
-        self.ax_imu_accel.set_xlabel("Time (s)")
-        self.ax_imu_accel.set_ylabel("Acceleration (m/s²)")
-        self.ax_imu_accel.grid(True)
-        self.ax_imu_accel.legend(fontsize=7, ncol=2)
+        # ---- INPUT: IMU absolute rotation fed to the EKF ----
+        imu_roll = np.unwrap(self.imu_in_roll_history)
+        imu_pitch = np.unwrap(self.imu_in_pitch_history)
+        imu_yaw = np.unwrap(self.imu_in_yaw_history)
+        self.ax_imu_in.set_title("IMU Rotation IN (/imu/orientation)")
+        self.ax_imu_in.plot(self.imu_in_time, imu_roll, "r-", label="ROLL")
+        self.ax_imu_in.plot(self.imu_in_time, imu_pitch, "g-", label="PITCH")
+        self.ax_imu_in.plot(self.imu_in_time, imu_yaw, "b-", label="YAW")
+        self.ax_imu_in.set_xlabel("Time (s)")
+        self.ax_imu_in.set_ylabel("Rotation (rad)")
+        self.ax_imu_in.grid(True)
+        self.ax_imu_in.legend()
 
-        self.ax_imu_gyro.set_title("IMU Angular Velocity")
-        self.ax_imu_gyro.plot(self.gyro_time, self.gyro_x_history, "r-", label="X")
-        self.ax_imu_gyro.plot(self.gyro_time, self.gyro_y_history, "g-", label="Y")
-        self.ax_imu_gyro.plot(self.gyro_time, self.gyro_z_history, "b-", label="Z")
-        self.ax_imu_gyro.set_xlabel("Time (s)")
-        self.ax_imu_gyro.set_ylabel("Angular Velocity (rad/s)")
-        self.ax_imu_gyro.grid(True)
-        self.ax_imu_gyro.legend()
-
-        self.ax_dvl_vel.set_title("DVL Velocity")
+        # ---- INPUT: DVL velocity ----
+        self.ax_dvl_vel.set_title("DVL Velocity (/velocity)")
         self.ax_dvl_vel.plot(self.vel_time, self.vel_x_history, "r-", label="X")
         self.ax_dvl_vel.plot(self.vel_time, self.vel_y_history, "g-", label="Y")
         self.ax_dvl_vel.plot(self.vel_time, self.vel_z_history, "b-", label="Z")
@@ -237,20 +209,20 @@ class SensorsPlot(Node):
         self.ax_dvl_vel.grid(True)
         self.ax_dvl_vel.legend()
 
-        # Unwrap the angles to remove the jumps before plotting
+        # ---- OUTPUT: EKF rotation ----
         smooth_roll = np.unwrap(self.rot_x_history)
         smooth_pitch = np.unwrap(self.rot_y_history)
         smooth_yaw = np.unwrap(self.rot_z_history)
+        self.ax_ekf_rot.set_title("EKF Rotation (/odometry/filtered)")
+        self.ax_ekf_rot.plot(self.rot_time, smooth_roll, "r-", label="ROLL")
+        self.ax_ekf_rot.plot(self.rot_time, smooth_pitch, "g-", label="PITCH")
+        self.ax_ekf_rot.plot(self.rot_time, smooth_yaw, "b-", label="YAW")
+        self.ax_ekf_rot.set_xlabel("Time (s)")
+        self.ax_ekf_rot.set_ylabel("Rotation (rad)")
+        self.ax_ekf_rot.grid(True)
+        self.ax_ekf_rot.legend()
 
-        self.ax_imu_rot.set_title("EKF Rotation (/odometry/filtered)")
-        self.ax_imu_rot.plot(self.rot_time, smooth_roll, "r-", label="ROLL")
-        self.ax_imu_rot.plot(self.rot_time, smooth_pitch, "g-", label="PITCH")
-        self.ax_imu_rot.plot(self.rot_time, smooth_yaw, "b-", label="YAW")
-        self.ax_imu_rot.set_xlabel("Time (s)")
-        self.ax_imu_rot.set_ylabel("Rotation (rad)")
-        self.ax_imu_rot.grid(True)
-        self.ax_imu_rot.legend()
-
+        # ---- OUTPUT: EKF velocity ----
         self.ax_ekf_vel.set_title("EKF Velocity (/odometry/filtered)")
         self.ax_ekf_vel.plot(self.ekf_vel_time, self.ekf_vel_x_history, "r-", label="X")
         self.ax_ekf_vel.plot(self.ekf_vel_time, self.ekf_vel_y_history, "g-", label="Y")
@@ -260,6 +232,19 @@ class SensorsPlot(Node):
         self.ax_ekf_vel.grid(True)
         self.ax_ekf_vel.legend()
 
+        # ---- OUTPUT: EKF position ----
+        # Z is pinned by depth; X/Y dead-reckon from DVL velocity and drift
+        # with no absolute horizontal fix.
+        self.ax_ekf_pos.set_title("EKF Position (/odometry/filtered)")
+        self.ax_ekf_pos.plot(self.ekf_pos_time, self.ekf_pos_x_history, "r-", label="X")
+        self.ax_ekf_pos.plot(self.ekf_pos_time, self.ekf_pos_y_history, "g-", label="Y")
+        self.ax_ekf_pos.plot(self.ekf_pos_time, self.ekf_pos_z_history, "b-", label="Z")
+        self.ax_ekf_pos.set_xlabel("Time (s)")
+        self.ax_ekf_pos.set_ylabel("Position (m)")
+        self.ax_ekf_pos.grid(True)
+        self.ax_ekf_pos.legend()
+
+        # ---- OUTPUT: EKF acceleration ----
         self.ax_ekf_accel.set_title("EKF Acceleration (/accel/filtered)")
         self.ax_ekf_accel.plot(self.ekf_accel_time, self.ekf_accel_x_history, "r-", label="X")
         self.ax_ekf_accel.plot(self.ekf_accel_time, self.ekf_accel_y_history, "g-", label="Y")
@@ -269,11 +254,24 @@ class SensorsPlot(Node):
         self.ax_ekf_accel.grid(True)
         self.ax_ekf_accel.legend()
 
-        # Adjust layout and update display
+        # ---- DESIRED: position setpoint (/desired/pose) ----
+        self.ax_des_pos.set_title("Desired Position (/desired/pose)")
+        self.ax_des_pos.plot(self.des_pos_time, self.des_pos_x_history, "r-", label="X")
+        self.ax_des_pos.plot(self.des_pos_time, self.des_pos_y_history, "g-", label="Y")
+        self.ax_des_pos.plot(self.des_pos_time, self.des_pos_z_history, "b-", label="Z")
+        self.ax_des_pos.set_xlabel("Time (s)")
+        self.ax_des_pos.set_ylabel("Position (m)")
+        self.ax_des_pos.grid(True)
+        self.ax_des_pos.legend()
+
         plt.tight_layout()
-        # Write relative to the current working directory (run from your worktree
-        # root to land the PNG there). Log the resolved path so it's discoverable.
-        out_path = os.path.abspath("sensors_plot.png")
+        # Land the PNG in the repo root, NOT the launch CWD. ros2 launch starts
+        # nodes from $HOME, so the old cwd-relative path wrote to ~/sensors_plot.png
+        # where nobody was looking. Prefer $ROBOSUB_DIR, then ~/RoboSub, then cwd.
+        out_dir = os.environ.get("ROBOSUB_DIR") or os.path.expanduser("~/RoboSub")
+        if not os.path.isdir(out_dir):
+            out_dir = os.getcwd()
+        out_path = os.path.join(out_dir, "sensors_plot.png")
         self.fig.savefig(out_path)
         if not getattr(self, "_logged_out_path", False):
             self.get_logger().info(f"writing sensors plot to {out_path}")

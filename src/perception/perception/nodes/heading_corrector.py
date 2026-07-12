@@ -6,7 +6,7 @@ import numpy as np
 
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, Imu
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from cv_bridge import CvBridge
 
@@ -172,11 +172,13 @@ class HeadingCorrector(Node):
         # of a line observation (facing along vs against it).
         self._imu_yaw = None
         self._last_process = 0.0
+        # imu.py publishes the Xsens filtered orientation as sensor_msgs/Imu on
+        # /imu/orientation (was PoseWithCovarianceStamped on /rotation).
         self.create_subscription(
-            PoseWithCovarianceStamped, "/rotation", self.rotation_callback, 10
+            Imu, "/imu/orientation", self.rotation_callback, 10
         )
 
-        # Separate topic from /rotation (imu.py owns that): absolute yaw,
+        # Separate topic from /imu/orientation (imu.py owns that): absolute yaw,
         # snapped to the line-axis candidate nearest the believed yaw.
         self.correction_publisher = self.create_publisher(
             PoseWithCovarianceStamped, "/heading_correction", 10
@@ -185,7 +187,7 @@ class HeadingCorrector(Node):
         self.get_logger().info(f"Subscribed to {rgb_topic}")
 
     def rotation_callback(self, msg):
-        q = msg.pose.pose.orientation
+        q = msg.orientation
         self._imu_yaw = math.atan2(
             2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
         )

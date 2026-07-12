@@ -12,13 +12,6 @@ DEBUG_MODE = False
 
 _BIG = 1e9
 
-# Beyond this tilt the Wayfinder's beam geometry degrades badly and the
-# velocity solution (plus the un-compensated lever arm) is mostly noise.
-_TILT_SKIP_RAD = 0.26  # ~15 deg: don't publish velocity at all
-# Below the hard cutoff, inflate covariance quadratically with tilt so the
-# EKF trusts tilted-DVL data less instead of eating it at full confidence.
-_TILT_COV_GAIN = 50.0
-
 
 class DVL(GenericSensor):
     def __init__(self, baudrate=115200):
@@ -34,13 +27,6 @@ class DVL(GenericSensor):
         }
 
         self._latest_data = None
-
-        # Track vehicle tilt from the IMU so we can gate/deweight DVL
-        # velocity when pitched or rolled (bad beam geometry + lever arm).
-        self._tilt = 0.0
-        self.create_subscription(
-            PoseWithCovarianceStamped, "/rotation", self._rotation_callback, 10
-        )
 
         # Body angular velocity for lever-arm compensation: a DVL mounted at
         # offset r from base_link measures v_base + omega x r; we subtract the
@@ -96,14 +82,6 @@ class DVL(GenericSensor):
                 self.get_logger().error(f"Unexpected error on port {port}: {e}")
         return None
 
-    def _rotation_callback(self, msg: PoseWithCovarianceStamped):
-        q = msg.pose.pose.orientation
-        # roll/pitch from quaternion (yaw-independent tilt)
-        roll = np.arctan2(2 * (q.w * q.x + q.y * q.z), 1 - 2 * (q.x**2 + q.y**2))
-        sinp = np.clip(2 * (q.w * q.y - q.z * q.x), -1.0, 1.0)
-        pitch = np.arcsin(sinp)
-        self._tilt = float(np.hypot(roll, pitch))
-
     def _angular_callback(self, msg: TwistWithCovarianceStamped):
         a = msg.twist.twist.angular
         self._omega = np.array([a.x, a.y, a.z])
@@ -119,7 +97,7 @@ class DVL(GenericSensor):
         self._latest_data = data_dict
         self.publish_sensor_data()
 
-    def _build_twist_cov(self, velocity_error=None, tilt_factor=1.0):
+    def _build_twist_cov(self, velocity_error=None):
         cov = np.zeros(36)
         vel_axes = self.get_axes("velocity")
         vel_cov = self.get_covariance("velocity")
@@ -137,7 +115,7 @@ class DVL(GenericSensor):
                 for r in range(3):
                     for c in range(3):
                         if (r + 1) in vel_axes and (c + 1) in vel_axes:
-                            cov[r * 6 + c] = float(vel_cov[r][c]) * tilt_factor
+                            cov[r * 6 + c] = float(vel_cov[r][c])
 
         cov[3 * 6 + 3] = _BIG
         cov[4 * 6 + 4] = _BIG
@@ -194,23 +172,10 @@ class DVL(GenericSensor):
                 throttle_duration_sec=1.0,
             )
 
-            if self._tilt > _TILT_SKIP_RAD:
-                self.get_logger().warn(
-                    f"DVL: tilt {np.degrees(self._tilt):.1f} deg > "
-                    f"{np.degrees(_TILT_SKIP_RAD):.0f} deg -> velocity not published",
-                    throttle_duration_sec=2.0,
-                )
-                self._latest_data = None
-                return
-
             vel = self.R_sensor_to_base @ np.array([vx, vy, vz])
             if self._lever_arm is not None:
                 vel = vel - np.cross(self._omega, self._lever_arm)
             vel_err = self._safe(d["Velocity Err"], default=None)
-            # Deweight with tilt: var *= 1 + 50*tilt^2 (1x level, ~4.4x at 15 deg)
-            tilt_factor = 1.0 + _TILT_COV_GAIN * self._tilt**2
-            if vel_err is not None:
-                vel_err = vel_err * np.sqrt(tilt_factor)
 
             twist_msg = TwistWithCovarianceStamped()
             twist_msg.header.stamp = stamp
@@ -220,7 +185,7 @@ class DVL(GenericSensor):
             twist_msg.twist.twist.linear.z = vel[2]
 
             twist_msg.twist.covariance = self._build_twist_cov(
-                velocity_error=vel_err, tilt_factor=tilt_factor
+                velocity_error=vel_err
             )
 
             self.sensor_publishers["velocity"].publish(twist_msg)

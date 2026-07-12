@@ -17,11 +17,6 @@ def generate_launch_description():
             ),
             Node(
                 package="planning",
-                executable="path_loader",
-                parameters=[global_params],
-            ),
-            Node(
-                package="planning",
                 executable="path_streamer",
                 parameters=[global_params],
             ),

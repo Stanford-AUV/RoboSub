@@ -1,11 +1,18 @@
 imu_0:
-  # Xsens MTi-200 VRU: roll/pitch are gravity-referenced (~0.2 deg), yaw is
-  # unreferenced/drifting so trust it less. The old 1.0 rad^2 (~57 deg std)
-  # made the EKF nearly ignore the IMU -> attitude converged over many seconds.
+  # Xsens MTi-200 VRU on-board filter. rotation_covariance (rad^2, diag) from a
+  # 12h static log (tools/allan_variance/data/imu_static_20260710_021600, 400Hz):
+  #   roll/pitch measured std ~0.06 deg (var ~1.2e-6) -- gravity-referenced, tight.
+  #     Bumped to 1e-5 (~0.18 deg) to budget for in-water thruster vibration that
+  #     the static test did not see. Still ~100x tighter than the old 0.001.
+  #   yaw is UNREFERENCED (no mag) and random-walked -3096 deg over the 12h log,
+  #     so the empirical static variance (265 rad^2) is drift-dominated and useless
+  #     as a measurement cov. Short-term yaw noise is tiny (gyro N=1.4e-4
+  #     rad/s/sqrt Hz), but absolute heading drifts, so keep a moderate 0.05
+  #     (~12.8 deg) trust -- it is the only heading source, just not fully trusted.
   rotation_covariance:
-    - [0.001, 0.0,   0.0]
-    - [0.0,   0.001, 0.0]
-    - [0.0,   0.0,   0.05]
+    - [1.0e-5, 0.0,    0.0 ]
+    - [0.0,    1.0e-5, 0.0 ]
+    - [0.0,    0.0,    0.05]
   angular_covariance:
     - [0.01, 0.0, 0.0]
     - [0.0, 0.01, 0.0]
@@ -20,21 +27,25 @@ imu_0:
     - [0.0, 0.0, 0.2]
   sensor_pos_in_base: #x, y, z on (base) robot frame
   # 3x3 rotation matrix: sensor frame → base (robot) frame.
-  # This is the SINGLE mounting knob (imu.py applies one remount rotation from it).
-  # Gravity lands on base +Z / heading on yaw; the remaining freedom is which way
-  # is FORWARD (a rotation about base-Z), which is set from the physical axis test.
+  # IDENTITY since 2026-07-11: the mount rotation is burned into the MTi itself
+  # (RotSensor alignment, tools/xsens_align/set_alignment.py), so ALL driver
+  # topics (quaternion/euler/gyro/accel/mag) already arrive in the vehicle
+  # frame. The old software remount was [[0,0,-1],[-1,0,0],[0,1,0]] — device
+  # holds its inverse per Xsens RotSensor convention (verified live: roll/pitch
+  # ~0 with the sub level on the bench). If the IMU is ever remounted, re-burn
+  # with the tool rather than editing this matrix.
   R_sensor_to_base:
-    - [0, 0, -1]
-    - [-1, 0, 0]
+    - [1, 0, 0]
     - [0, 1, 0]
+    - [0, 0, 1]
   # Now for sensor info, 0 if none, 123 depending on what it has
   position: 0
   rotation: 123
   velocity: 0
   # angular enabled: ekf.yaml fuses /angular (twist1) but this flag kept the
   # topic from ever publishing, so the EKF ran with no gyro at all.
-  angular: 123
-  accel: 123
+  angular: 0
+  accel: 0
 
 # Bosch BNO085 IMUs read via the Arduino (hardware/nodes/bno085.py).
 # Covariances copied from imu_0 as starting points -- retune once real data
