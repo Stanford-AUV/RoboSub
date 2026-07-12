@@ -63,7 +63,7 @@ def detect_segments(img_bgr):
 def center_crop_score(img_bgr):
     h, w = img_bgr.shape[:2]
     crop = img_bgr[h // 4: 3 * h // 4, w // 4: 3 * w // 4]
-    return estimate_line_angle(crop)
+    return estimate_line_angle(crop, undistort=False)
 
 
 def _seg_angle(s):
@@ -191,7 +191,7 @@ def apply_to_image(path, params, debug=False):
     print(f"{path} -> {out}")
     if debug:
         dbg = und.copy()
-        angle, n = estimate_line_angle(und, debug_out=dbg)
+        angle, n = estimate_line_angle(und, debug_out=dbg, undistort=False)
         dbg_path = path.rsplit(".", 1)[0] + "_undistorted_debug.jpg"
         cv2.imwrite(dbg_path, dbg)
         print(f"  undistorted heading: "
@@ -207,7 +207,7 @@ def center_vs_full(img, params=None):
         img = cv2.remap(img, map_x, map_y, cv2.INTER_LINEAR,
                         borderMode=cv2.BORDER_REPLICATE)
     a_c, _ = center_crop_score(img)
-    a_f, _ = estimate_line_angle(img)
+    a_f, _ = estimate_line_angle(img, undistort=False)
     if a_c is None or a_f is None:
         return None
     d = abs(a_c - a_f)
@@ -254,13 +254,25 @@ def main():
 
     if not chains_by_image:
         sys.exit("no frames passed the center-crop filter — nothing to fit")
+    if len(shapes) > 1:
+        sys.exit("inputs have mixed aspect ratios — fit them separately")
     h, w = shapes.pop()  # all frames resized to PROC_WIDTH
     all_chains = [c for cs in chains_by_image.values() for c in cs]
 
-    # Held-out check: fit on even chains, evaluate odd
-    fit_cv = fit_params({"train": all_chains[0::2]}, w, h)
-    print(f"held-out straightness RMS: "
-          f"{straightness_rms(all_chains[1::2], fit_cv, w, h):.2f} px")
+    # Held-out check: hold out whole images when possible so the eval set
+    # isn't contaminated by chains from the same frame used in training.
+    if len(chains_by_image) >= 2:
+        paths = list(chains_by_image.keys())
+        train_chains = [c for p in paths[0::2] for c in chains_by_image[p]]
+        eval_chains = [c for p in paths[1::2] for c in chains_by_image[p]]
+        fit_cv = fit_params({"train": train_chains}, w, h)
+        print(f"held-out straightness RMS (by image): "
+              f"{straightness_rms(eval_chains, fit_cv, w, h):.2f} px")
+    else:
+        print("held-out check: single image — within-frame chain split only")
+        fit_cv = fit_params({"train": all_chains[0::2]}, w, h)
+        print(f"held-out straightness RMS: "
+              f"{straightness_rms(all_chains[1::2], fit_cv, w, h):.2f} px")
 
     params = fit_params(chains_by_image, w, h)
     ident = {"k1": 0.0, "k2": 0.0, "sy": 1.0, "width": w, "height": h}

@@ -7,6 +7,7 @@ undistorted = distorted / D.
 """
 import math
 import os
+import sys
 
 import numpy as np
 import yaml
@@ -57,6 +58,14 @@ def build_remap(w, h, params):
         w,
         h,
     )
+    bad = ~np.isfinite(src).all(axis=1)
+    if bad.any():
+        print(
+            f"build_remap: {int(bad.sum())} non-finite remap points — "
+            "falling back to identity mapping for those pixels",
+            file=sys.stderr,
+        )
+        src[bad] = grid[bad]
     return (
         src[:, 0].reshape(h, w).astype(np.float32),
         src[:, 1].reshape(h, w).astype(np.float32),
@@ -71,12 +80,16 @@ def save_params(path, params):
 def load_params(path):
     if not os.path.exists(path):
         return None
-    with open(path) as f:
-        p = yaml.safe_load(f)
-    return {
-        "k1": float(p["k1"]),
-        "k2": float(p["k2"]),
-        "sy": float(p["sy"]),
-        "width": int(p["width"]),
-        "height": int(p["height"]),
-    }
+    try:
+        with open(path) as f:
+            p = yaml.safe_load(f)
+        return {
+            "k1": float(p["k1"]),
+            "k2": float(p["k2"]),
+            "sy": float(p["sy"]),
+            "width": int(p["width"]),
+            "height": int(p["height"]),
+        }
+    except Exception as e:
+        print(f"load_params: failed to parse {path}: {e}", file=sys.stderr)
+        return None

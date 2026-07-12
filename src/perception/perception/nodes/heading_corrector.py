@@ -58,7 +58,7 @@ PROCESS_HZ = 3.0          # denoise costs ~170 ms/frame on the Orin; skip
                           # camera frames beyond this rate
 
 
-def estimate_line_angle(img, debug_out=None):
+def estimate_line_angle(img, debug_out=None, undistort=True):
     """Angle of the dominant line direction in the camera frame.
 
     Returns (angle, n_lines) or (None, 0), where n_lines is the number
@@ -72,12 +72,13 @@ def estimate_line_angle(img, debug_out=None):
     """
     scale = PROC_WIDTH / img.shape[1]
     small = cv2.resize(img, (PROC_WIDTH, int(img.shape[0] * scale)))
-    maps = _get_undistort_maps(small.shape[1], small.shape[0])
-    if maps is not None:
-        small = cv2.remap(
-            small, maps[0], maps[1], cv2.INTER_LINEAR,
-            borderMode=cv2.BORDER_REPLICATE,
-        )
+    if undistort:
+        maps = _get_undistort_maps(small.shape[1], small.shape[0])
+        if maps is not None:
+            small = cv2.remap(
+                small, maps[0], maps[1], cv2.INTER_LINEAR,
+                borderMode=cv2.BORDER_REPLICATE,
+            )
     gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
     # Non-local means denoise (~170 ms/frame on the Orin — the node
     # throttles to PROCESS_HZ to compensate): kills caustic speckle

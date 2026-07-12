@@ -87,3 +87,20 @@ def test_params_yaml_roundtrip(tmp_path):
     for k, v in PARAMS.items():
         assert abs(loaded[k] - v) < 1e-12 if isinstance(v, float) else loaded[k] == v
     assert load_params(str(tmp_path / "missing.yaml")) is None
+
+
+def test_load_params_malformed_yaml_returns_none(tmp_path):
+    path = str(tmp_path / "bad.yaml")
+    with open(path, "w") as f:
+        f.write("not: [valid")
+    assert load_params(path) is None
+
+
+def test_build_remap_handles_diverging_params():
+    # Edge-of-bounds params that can make distort_pts' fixed-point iteration
+    # diverge to NaN for some pixels; build_remap must fall back to the
+    # identity mapping for those pixels instead of propagating NaN.
+    params = {"k1": -0.5, "k2": 0.5, "sy": 1.25, "width": 64, "height": 64}
+    map_x, map_y = build_remap(64, 64, params)
+    assert np.isfinite(map_x).all()
+    assert np.isfinite(map_y).all()
