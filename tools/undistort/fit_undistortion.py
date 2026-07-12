@@ -38,6 +38,7 @@ CHAIN_LINK_ANGLE = math.radians(8)
 MIN_CHAIN_SEGS = 3
 MIN_CHAIN_SPAN = 250.0     # px end-to-end
 MIN_CENTER_LINES = 20      # center-crop cluster size to accept a frame
+COLLINEAR_TOL = 5.0        # px perpendicular tolerance to link collinear segments
 
 
 def detect_segments(img_bgr):
@@ -69,6 +70,13 @@ def _seg_angle(s):
     return math.atan2(s[3] - s[1], s[2] - s[0]) % math.pi
 
 
+def _perp_dists(seg, pts):
+    p0 = np.array(seg[:2])
+    d = np.array(seg[2:]) - p0
+    n = np.array([-d[1], d[0]]) / max(np.linalg.norm(d), 1e-9)
+    return np.abs((pts - p0) @ n)
+
+
 def build_chains(segs):
     n = len(segs)
     if n == 0:
@@ -92,8 +100,13 @@ def build_chains(segs):
             d = np.linalg.norm(
                 ends[i][:, None, :] - ends[j][None, :, :], axis=2
             ).min()
-            if d < CHAIN_LINK_DIST:
-                parent[find(i)] = find(j)
+            if d >= CHAIN_LINK_DIST:
+                continue
+            # mutual collinearity gate: reject adjacent parallel lines
+            if (_perp_dists(segs[i], ends[j]).max() > COLLINEAR_TOL
+                    or _perp_dists(segs[j], ends[i]).max() > COLLINEAR_TOL):
+                continue
+            parent[find(i)] = find(j)
 
     groups = {}
     for i in range(n):
@@ -130,7 +143,14 @@ def fit_params(chains_by_image, w, h):
         out = []
         for pts in norm_chains:
             und = undistort_pts(pts, k1, k2, sy)
-            out.append(_chain_residuals(und, scale_px))
+            perp = _chain_residuals(und, scale_px)
+            # per-chain normalization: a uniform image shrink no longer
+            # reduces the loss
+            c = und - und.mean(axis=0)
+            _, _, vt = np.linalg.svd(c, full_matrices=False)
+            proj = (c @ vt[0]) * scale_px
+            L = proj.max() - proj.min()
+            out.append(perp / max(L, 1.0) * 500.0)
         return np.concatenate(out)
 
     res = least_squares(
