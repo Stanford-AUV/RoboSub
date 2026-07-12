@@ -48,7 +48,10 @@ def test_remap_straightens_synthetic_line(tmp_path):
     # with build_remap and check the line is straight again.
     w, h = 640, 360
     img = np.zeros((h, w), np.uint8)
-    cv2.line(img, (40, 60), (600, 300), 255, 3)
+    # NOTE: the line must NOT pass through the image center (320, 180) --
+    # a radial division model maps center-crossing lines onto themselves,
+    # so they cannot bend. Use an off-center line for a real bend signal.
+    cv2.line(img, (40, 300), (600, 320), 255, 3)
 
     # Warp "clean -> distorted": each distorted pixel samples the clean
     # image at its undistorted location.
@@ -72,8 +75,9 @@ def test_remap_straightens_synthetic_line(tmp_path):
         _, _, vt = np.linalg.svd(pts, full_matrices=False)
         return np.abs(pts @ vt[1]).max()
 
-    assert max_line_residual(dist_img) > 3.0   # distortion visibly bent it
-    assert max_line_residual(fixed) < 1.5      # remap straightened it
+    clean = max_line_residual(img)
+    assert max_line_residual(dist_img) > clean + 1.0   # distortion visibly bent it
+    assert max_line_residual(fixed) < clean + 0.2      # remap restored straightness
 
 
 def test_params_yaml_roundtrip(tmp_path):
