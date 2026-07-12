@@ -1,4 +1,5 @@
 import math
+import os
 import sys
 
 import cv2
@@ -10,6 +11,26 @@ from sensor_msgs.msg import Image, Imu
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from cv_bridge import CvBridge
 
+try:
+    from perception.utils.undistort import build_remap, load_params
+except ImportError:  # run as a plain script (offline photo mode)
+    sys.path.insert(
+        0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
+    )
+    from perception.utils.undistort import build_remap, load_params
+
+UNDISTORT_YAML = os.path.expanduser("~/RoboSub/config/undistort_oak0.yaml")
+_undistort_params = load_params(UNDISTORT_YAML)
+_undistort_maps = {}
+
+
+def _get_undistort_maps(w, h):
+    if _undistort_params is None:
+        return None
+    if (w, h) not in _undistort_maps:
+        _undistort_maps[(w, h)] = build_remap(w, h, _undistort_params)
+    return _undistort_maps[(w, h)]
+
 
 # --- bottom-line orientation detection --------------------------------------
 # Dead simple, per the field-tested recipe: find lines PERMISSIVELY (low
@@ -20,16 +41,16 @@ from cv_bridge import CvBridge
 #   physical feature (mat border, lane line, grout) satisfy both; caustic
 #   speckle and icon edges never do.
 PROC_WIDTH = 960          # process at this width (scale-invariant params)
-MIN_SEG_LEN = 25          # px at PROC_WIDTH
+MIN_SEG_LEN = 55          # px at PROC_WIDTH
 MAX_LINE_GAP = 10
 HOUGH_THRESHOLD = 45
 SPATIAL_RADIUS_FRAC = 0.3  # neighborhood radius, fraction of frame short side
-CLUSTER_TOL = math.radians(5)  # segments within this of each other agree
-MIN_CLUSTER_LINES = 30    # publish only with at least this many agreeing
+CLUSTER_TOL = math.radians(1)  # segments within this of each other agree
+MIN_CLUSTER_LINES = 20    # publish only with at least this many agreeing
                           # (real tile/mat frames give 60+; pure caustic
                           # false clusters topped out at ~27 in testing)
-MIN_CLUSTER_LEN = 300.0   # ...and this much total length (px at PROC_WIDTH)
-MAX_EKF_DISAGREE = math.radians(20)  # drop readings further than this from
+MIN_CLUSTER_LEN = 400.0   # ...and this much total length (px at PROC_WIDTH)
+MAX_EKF_DISAGREE = math.radians(1)  # drop readings further than this from
                                      # the current believed yaw: caustic
                                      # clusters point anywhere, real lines
                                      # roughly agree with the EKF already
@@ -51,6 +72,12 @@ def estimate_line_angle(img, debug_out=None):
     """
     scale = PROC_WIDTH / img.shape[1]
     small = cv2.resize(img, (PROC_WIDTH, int(img.shape[0] * scale)))
+    maps = _get_undistort_maps(small.shape[1], small.shape[0])
+    if maps is not None:
+        small = cv2.remap(
+            small, maps[0], maps[1], cv2.INTER_LINEAR,
+            borderMode=cv2.BORDER_REPLICATE,
+        )
     gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
     # Non-local means denoise (~170 ms/frame on the Orin — the node
     # throttles to PROCESS_HZ to compensate): kills caustic speckle
@@ -162,6 +189,14 @@ class HeadingCorrector(Node):
 
         self.camera_key = camera_key
         self.bridge = CvBridge()
+
+        if _undistort_params is None:
+            self.get_logger().warn(
+                f"no undistortion calibration at {UNDISTORT_YAML} — "
+                "running on distorted frames"
+            )
+        else:
+            self.get_logger().info("tube undistortion active")
 
         rgb_topic = f"/camera/{self.camera_key}/rgb"
         self.camera_rgb = self.create_subscription(
