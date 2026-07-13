@@ -56,6 +56,14 @@ MAX_EKF_DISAGREE = math.radians(1)  # drop readings further than this from
                                      # roughly agree with the EKF already
 PROCESS_HZ = 3.0          # denoise costs ~170 ms/frame on the Orin; skip
                           # camera frames beyond this rate
+CENTER_STRIP_FRAC = 0.5   # use only the central vertical strip of the frame:
+                          # tube/water refraction is depth-dependent (no
+                          # single 2D undistort fixes it) but near-zero on
+                          # the camera axis, so the center strip gives the
+                          # least-distorted heading. Full-frame vs strip
+                          # agreed within ~1.4 deg median on 40 pool frames;
+                          # 90-deg grid-family flips are caught by the
+                          # MAX_EKF_DISAGREE gate. Set to 1.0 to disable.
 
 
 def estimate_line_angle(img, debug_out=None, undistort=True):
@@ -70,6 +78,10 @@ def estimate_line_angle(img, debug_out=None, undistort=True):
     positive slope means the vehicle is rotated CLOCKWISE (viewed from
     above) relative to the line.
     """
+    x_off = 0
+    if CENTER_STRIP_FRAC < 1.0:
+        x_off = int(img.shape[1] * (0.5 - CENTER_STRIP_FRAC / 2))
+        img = img[:, x_off: x_off + int(img.shape[1] * CENTER_STRIP_FRAC)]
     scale = PROC_WIDTH / img.shape[1]
     small = cv2.resize(img, (PROC_WIDTH, int(img.shape[0] * scale)))
     if undistort:
@@ -156,12 +168,12 @@ def estimate_line_angle(img, debug_out=None, undistort=True):
             color = (0, 255, 0) if ok else ((0, 255, 255) if sp else (0, 0, 255))
             cv2.line(
                 debug_out,
-                (int(x1 * s), int(y1 * s)),
-                (int(x2 * s), int(y2 * s)),
+                (int(x1 * s) + x_off, int(y1 * s)),
+                (int(x2 * s) + x_off, int(y2 * s)),
                 color,
                 2,
             )
-        c = mids[inliers].mean(axis=0) * s
+        c = mids[inliers].mean(axis=0) * s + [x_off, 0]
         dvec = 0.45 * min(debug_out.shape[:2]) * np.array(
             [math.cos(angle), -math.sin(angle)]
         )
