@@ -38,6 +38,7 @@ setup(
             "object_detection = perception.nodes.object_detections:main",
             "aligned_depth_publisher = perception.nodes.aligned_depth_publisher:main",
             "object_localizer = perception.nodes.object_localizer:main",
+            "object_world_localizer = perception.nodes.object_world_localizer:main",
             "heading_corrector = perception.nodes.heading_corrector:main",
         ],
     },

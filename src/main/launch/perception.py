@@ -1,5 +1,9 @@
+import os
+
 from launch import LaunchDescription
 from launch_ros.actions import Node
+
+global_params = os.path.join(os.path.dirname(__file__), "params", "global.yaml")
 
 
 def generate_launch_description():
@@ -14,6 +18,15 @@ def generate_launch_description():
             #     output="screen",
             #     parameters=[],
             # ),
+            # Turns detections3d (camera frame) into a filtered odom-frame
+            # goal on /object/<id>/world_position. Harmlessly idle until
+            # object_localizer is re-enabled (needs ultralytics installed).
+            Node(
+                package="perception",
+                executable="object_world_localizer",
+                output="screen",
+                parameters=[global_params],
+            ),
             Node(
                 package="perception",
                 executable="oak_node",

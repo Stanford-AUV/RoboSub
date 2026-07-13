@@ -3,6 +3,11 @@
     timer_period: 0.01
     history_depth: 10
     thruster_count: 8
+/path_generator:
+  ros__parameters:
+    # Bare filename resolves against the planning package share dir.
+    # Switch back to prequal.yaml for the spin/zigzag run.
+    waypoints_path: "segments.yaml"
 /thrust_generator:
   # IMU is [-0.1525, -0.02, 0.1375,]
   # DVL [-0.105, 0, -0.0625]
@@ -127,3 +132,16 @@
       i_resolution: 400P
     right:
       i_resolution: 400P
+/object_world_localizer:
+  ros__parameters:
+    object_id: "gate"          # class name in the YOLO model - SET BEFORE RUN
+    min_score: 0.5
+    # Forward cam mount in base_link: translation (m) and RPY (deg).
+    # MEASURE AND SET before the water test; identity = camera at base
+    # origin looking straight forward.
+    cam_translation: [0.0, 0.0, 0.0]
+    cam_rpy_deg: [0.0, 0.0, 0.0]
+    filter_window: 5
+    filter_alpha: 0.3
+    max_jump_m: 3.0
+    stale_sec: 2.0
