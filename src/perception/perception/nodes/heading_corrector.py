@@ -46,7 +46,7 @@ MAX_LINE_GAP = 10
 HOUGH_THRESHOLD = 45
 SPATIAL_RADIUS_FRAC = 0.3  # neighborhood radius, fraction of frame short side
 CLUSTER_TOL = math.radians(1)  # segments within this of each other agree
-MIN_CLUSTER_LINES = 20    # publish only with at least this many agreeing
+MIN_CLUSTER_LINES = 27    # publish only with at least this many agreeing
                           # (real tile/mat frames give 60+; pure caustic
                           # false clusters topped out at ~27 in testing)
 MIN_CLUSTER_LEN = 400.0   # ...and this much total length (px at PROC_WIDTH)

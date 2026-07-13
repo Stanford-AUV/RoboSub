@@ -112,6 +112,9 @@ dvl_0:
     - [-0.70710678,  0.70710678, 0]
     - [-0.70710678, -0.70710678, 0]
     - [ 0,           0,          1]
+  # Speed of sound in m/s, written to the Wayfinder at node startup. Fresh
+  # water (0 ppt) at ~25 C; the factory default 1500 assumes 35 ppt seawater.
+  speed_of_sound: 1497.0
   # Fallback velocity covariance (used when DVL does not report a velocity error).
   velocity_covariance:
     - [0.01, 0.0,  0.0 ]

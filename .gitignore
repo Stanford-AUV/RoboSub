@@ -193,3 +193,6 @@ docs/
 
 # rosbag recordings from launch_sub.sh
 bags/
+
+# runtime node logs from launch_sub.sh
+logs/

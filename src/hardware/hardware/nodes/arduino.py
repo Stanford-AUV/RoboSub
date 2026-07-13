@@ -1,3 +1,5 @@
+import time
+
 import serial
 import rclpy
 from rclpy.node import Node
@@ -25,6 +27,14 @@ class Arduino(Node):
             self.get_parameter("thruster_count").get_parameter_value().integer_value
         )
         self.pwms = [self.zero_thrust] * self.thruster_count
+        # Failsafe: if the /pwms publisher (thrusters node) freezes or dies we
+        # must not keep driving its last command forever (07/12 bag: node froze
+        # 157s, sub kept spinning open-loop). No fresh /pwms within this window
+        # -> latch neutral until messages resume. The Teensy heartbeat can't
+        # catch this case: it keeps running while a ROS node is frozen.
+        self.pwms_timeout = 0.5
+        self.last_pwms_time = None
+        self.pwms_stale = False
 
         history_depth = (
             self.get_parameter("history_depth").get_parameter_value().integer_value
@@ -68,8 +78,11 @@ class Arduino(Node):
         return command
 
     def pwms_callback(self, msg: PWMsStamped):
-        # self.get_logger().info(f"PWMs received {msg.pwms}")
         self.pwms: List[float] = msg.pwms.tolist()
+        self.last_pwms_time = time.monotonic()
+        if self.pwms_stale:
+            self.pwms_stale = False
+            self.get_logger().warning("/pwms resumed - leaving neutral failsafe")
 
     def light_callback(self, msg: Int16):
         light = msg.data
@@ -98,15 +111,19 @@ class Arduino(Node):
             for i, pwm in enumerate(self.pwms)
         ]
         message = " ".join(commands)
-        # message = "1550 1550 1550 1550 1550 1550 1550 1550"
-        # self._pwms_out.publish(message)
-        self.get_logger().info(f"{message}")
         try:
             self.portName.write((message + "\n").encode())
         except serial.SerialException as e:
             self.get_logger().error(f"Failed to write to serial port: {e}")
 
     def update(self):
+        if self.last_pwms_time is not None and not self.pwms_stale:
+            if time.monotonic() - self.last_pwms_time > self.pwms_timeout:
+                self.pwms_stale = True
+                self.pwms = [self.zero_thrust] * self.thruster_count
+                self.get_logger().error(
+                    f"No /pwms for >{self.pwms_timeout}s - failsafe: driving neutral"
+                )
         try:
             if self.light_changed:
                 self.send_light()

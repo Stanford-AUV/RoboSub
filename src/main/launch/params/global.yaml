@@ -3,6 +3,11 @@
     timer_period: 0.01
     history_depth: 10
     thruster_count: 8
+/path_generator:
+  ros__parameters:
+    # Bare filename resolves against the planning package share dir.
+    # Switch back to prequal.yaml for the spin/zigzag run.
+    waypoints_path: "segments.yaml"
 /thrust_generator:
   # IMU is [-0.1525, -0.02, 0.1375,]
   # DVL [-0.105, 0, -0.0625]

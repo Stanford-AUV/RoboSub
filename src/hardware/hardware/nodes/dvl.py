@@ -52,10 +52,43 @@ class DVL(GenericSensor):
             self.get_logger().error("Failed to connect to DVL.")
             return
 
+        self._configure_speed_of_sound()
+
         self.dvl.register_ondata_callback(self.update_data)
 
         if not self.dvl.exit_command_mode():
             self.get_logger().error("Failed to start pinging")
+
+    def _configure_speed_of_sound(self):
+        """Enforce the speed of sound from sensors.yaml on the device.
+
+        The Wayfinder stores it in flash (factory default 1500 m/s = 35 ppt
+        seawater), so a replaced or factory-reset unit would otherwise run
+        with the wrong value in fresh water.
+        """
+        target = self._load_sensors_yaml().get(self.sensor_name, {}).get(
+            "speed_of_sound"
+        )
+        if target is None:
+            return
+        if not self.dvl.enter_command_mode() or not self.dvl.get_setup():
+            self.get_logger().warning(
+                "Could not read DVL setup to verify speed of sound"
+            )
+            return
+        current = self.dvl.system_setup.speed_of_sound
+        if abs(current - target) < 0.5:
+            self.get_logger().info(f"DVL speed of sound OK ({current:.0f} m/s)")
+            return
+        if self.dvl.set_speed_of_sound(float(target)):
+            self.get_logger().info(
+                f"DVL speed of sound updated {current:.0f} -> {target:.0f} m/s"
+            )
+        else:
+            self.get_logger().error(
+                f"Failed to set DVL speed of sound to {target:.0f} m/s "
+                f"(device still at {current:.0f})"
+            )
 
     def autodetect_dvl_port(self, baudrate, timeout=2):
         preferred = ["/dev/ttyUSB_dvl"]

@@ -46,10 +46,10 @@ class LinearSpline:
         return float(out) if np.isscalar(t_values) else out
 
 
-def _fit_spline_with_fallback(x, y):
+def _fit_spline_with_fallback(x, y, kind="pchip"):
     x_arr = np.asarray(x, dtype=float)
     y_arr = np.asarray(y, dtype=float)
-    if len(x_arr) < 2:
+    if kind == "linear" or len(x_arr) < 2:
         return LinearSpline(x_arr, y_arr)
     try:
         return PchipInterpolator(x_arr, y_arr, extrapolate=False)
@@ -97,13 +97,24 @@ def find_maximum_bspl(spline, t_start, t_end, num_points=1000):
     return max_abs_value, max_time
 
 
-def make_interp_spline_with_constraints(x, y, v_max=None, a_max=None):
-    spline_pos = _fit_spline_with_fallback(x=x, y=y)
+def make_interp_spline_with_constraints(x, y, v_max=None, a_max=None, kind="pchip"):
+    spline_pos = _fit_spline_with_fallback(x=x, y=y, kind=kind)
 
     if v_max is None or a_max is None:
         return spline_pos, x
     if not hasattr(spline_pos, "derivative"):
-        return spline_pos, x
+        # LinearSpline: velocity is constant per segment (|dy|/dx), so the
+        # time-scaling factor is just slope / v_max. Acceleration is zero
+        # within segments, so no a_max term.
+        x_arr = np.asarray(x, dtype=float)
+        y_arr = np.asarray(y, dtype=float)
+        x_new = [x_arr[0]]
+        for i in range(len(x_arr) - 1):
+            dx = x_arr[i + 1] - x_arr[i]
+            slope = abs(y_arr[i + 1] - y_arr[i]) / dx if dx > 0 else 0.0
+            factor = max(slope / v_max, 1e-9)
+            x_new.append(x_new[-1] + dx * factor)
+        return spline_pos, x_new
 
     spline_vel = spline_pos.derivative()
     spline_acc = spline_vel.derivative()
@@ -161,6 +172,30 @@ def create_path(
 
             self.rotations = Rotation.from_quat(quaternions)
             self.rotvecs = self.rotations.as_rotvec()
+
+            # as_rotvec() wraps angles to [0, pi], so a yaw crossing +-180 deg
+            # would interpolate the long way around. Re-pick each rotvec's
+            # 2*pi-equivalent representation closest to the previous waypoint
+            # so the spline takes the shortest rotation between waypoints.
+            for i in range(1, len(self.rotvecs)):
+                prev = self.rotvecs[i - 1]
+                r = self.rotvecs[i]
+                while True:
+                    theta = np.linalg.norm(r)
+                    if theta < 1e-9:
+                        # Zero rotation: borrow the previous axis if it needs unwinding
+                        prev_theta = np.linalg.norm(prev)
+                        if prev_theta <= np.pi:
+                            break
+                        r = (prev / prev_theta) * 2 * np.pi * round(prev_theta / (2 * np.pi))
+                        break
+                    candidates = [r * (1 - 2 * np.pi / theta), r * (1 + 2 * np.pi / theta)]
+                    best = min(candidates, key=lambda c: np.linalg.norm(c - prev))
+                    if np.linalg.norm(best - prev) < np.linalg.norm(r - prev):
+                        r = best
+                    else:
+                        break
+                self.rotvecs[i] = r
 
             self.v_max = v_max
             self.a_max = a_max
@@ -273,6 +308,13 @@ def create_path(
     angular_accelerations = quaternion_spline.angular_acceleration(
         t_fine
     )  # orientation_spline(t_fine, 2)
+
+    # End the trajectory at rest: the last sample should command zero velocity
+    # so control station-keeps on the final waypoint instead of being told to
+    # keep moving at end-of-path speed.
+    for v in velocities:
+        v[-1] = 0.0
+    angular_velocities[-1] = 0.0
 
     return (
         positions,
