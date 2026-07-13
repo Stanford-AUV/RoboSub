@@ -18,29 +18,36 @@ class SensorsPlot(Node):
     absolute rotation, DVL velocity) next to what the EKF PUTS OUT (rotation,
     velocity, position, acceleration)."""
 
+    # savefig blocks the executor for ~1-2 s; queues must hold that much
+    # backlog at 60-400 Hz or DDS silently drops messages and the plot
+    # aliases (flat holds turn into ramps). Keep this generous.
+    QUEUE_DEPTH = 1000
+
     def __init__(self):
         super().__init__("sensors_plot")
 
         # ---- EKF INPUTS ----
         # Absolute orientation measurement we feed the EKF (imu.py output).
         self.imu_in_sub = self.create_subscription(
-            Imu, "/imu/orientation", self.imu_in_callback, 10
+            Imu, "/imu/orientation", self.imu_in_callback, self.QUEUE_DEPTH
         )
         # DVL body velocity.
         self.velocity_sub = self.create_subscription(
-            TwistWithCovarianceStamped, "/velocity", self.velocity_callback, 10
+            TwistWithCovarianceStamped, "/velocity", self.velocity_callback,
+            self.QUEUE_DEPTH,
         )
 
         # ---- EKF OUTPUTS ----
         self.odom_sub = self.create_subscription(
-            Odometry, "/odometry/filtered", self.odom_callback, 10
+            Odometry, "/odometry/filtered", self.odom_callback, self.QUEUE_DEPTH
         )
         self.ekf_accel_sub = self.create_subscription(
-            AccelWithCovarianceStamped, "/accel/filtered", self.ekf_accel_callback, 10
+            AccelWithCovarianceStamped, "/accel/filtered", self.ekf_accel_callback,
+            self.QUEUE_DEPTH,
         )
         # Desired position setpoint (planning -> control).
         self.desired_sub = self.create_subscription(
-            Odometry, "/desired/pose", self.desired_callback, 10
+            Odometry, "/desired/pose", self.desired_callback, self.QUEUE_DEPTH
         )
 
         self.fig = plt.figure(figsize=(24, 8))
@@ -53,8 +60,6 @@ class SensorsPlot(Node):
         self.ax_ekf_pos = self.fig.add_subplot(246)
         self.ax_ekf_accel = self.fig.add_subplot(247)
         self.ax_des_pos = self.fig.add_subplot(248)
-
-        self.start_time = self.get_clock().now()
 
         self.imu_in_time = []
         self.imu_in_roll_history = []
@@ -91,68 +96,70 @@ class SensorsPlot(Node):
         self.des_pos_y_history = []
         self.des_pos_z_history = []
 
-        self.update_period = 0.1
-        self.last_plot_time = self.get_clock().now()
+        # Redraw on a timer, NOT in the message callbacks: savefig takes
+        # ~1-2 s and doing it inline starved the subscriptions, dropping
+        # ~99% of samples and aliasing the curves.
+        self._t0 = None  # first header stamp seen; time axis is relative to it
+        self.create_timer(2.0, self.update_plot)
 
-    def _elapsed(self):
-        return (self.get_clock().now() - self.start_time).nanoseconds * 1e-9
-
-    def _maybe_update_plot(self):
-        now = self.get_clock().now()
-        if (now - self.last_plot_time).nanoseconds * 1e-9 >= self.update_period:
-            self.update_plot()
-            self.last_plot_time = now
+    def _stamp(self, msg):
+        """Seconds since start-of-run, from the message HEADER stamp (true
+        sample time), not arrival time - arrival time smears samples that
+        sat in the queue while the plotter was busy saving."""
+        s = msg.header.stamp
+        t = s.sec + s.nanosec * 1e-9
+        if t == 0.0:  # unstamped publisher: fall back to node clock
+            t = self.get_clock().now().nanoseconds * 1e-9
+        if self._t0 is None:
+            self._t0 = t
+        return t - self._t0
 
     def imu_in_callback(self, msg: Imu):
-        self.imu_in_time.append(self._elapsed())
+        self.imu_in_time.append(self._stamp(msg))
         q = msg.orientation
         r, p, y = self.quaternion_to_rpy(q.w, q.x, q.y, q.z)
         self.imu_in_roll_history.append(r)
         self.imu_in_pitch_history.append(p)
         self.imu_in_yaw_history.append(y)
-        self._maybe_update_plot()
 
     def velocity_callback(self, msg: TwistWithCovarianceStamped):
-        self.vel_time.append(self._elapsed())
+        self.vel_time.append(self._stamp(msg))
         self.vel_x_history.append(msg.twist.twist.linear.x)
         self.vel_y_history.append(msg.twist.twist.linear.y)
         self.vel_z_history.append(msg.twist.twist.linear.z)
-        self._maybe_update_plot()
 
     def odom_callback(self, msg: Odometry):
-        self.rot_time.append(self._elapsed())
+        t = self._stamp(msg)
+        self.rot_time.append(t)
         quat = msg.pose.pose.orientation
         r, p, y = self.quaternion_to_rpy(quat.w, quat.x, quat.y, quat.z)
         self.rot_x_history.append(r)
         self.rot_y_history.append(p)
         self.rot_z_history.append(y)
 
-        self.ekf_vel_time.append(self._elapsed())
+        self.ekf_vel_time.append(t)
         self.ekf_vel_x_history.append(msg.twist.twist.linear.x)
         self.ekf_vel_y_history.append(msg.twist.twist.linear.y)
         self.ekf_vel_z_history.append(msg.twist.twist.linear.z)
 
         pos = msg.pose.pose.position
-        self.ekf_pos_time.append(self._elapsed())
+        self.ekf_pos_time.append(t)
         self.ekf_pos_x_history.append(pos.x)
         self.ekf_pos_y_history.append(pos.y)
         self.ekf_pos_z_history.append(pos.z)
-        self._maybe_update_plot()
 
     def ekf_accel_callback(self, msg: AccelWithCovarianceStamped):
-        self.ekf_accel_time.append(self._elapsed())
+        self.ekf_accel_time.append(self._stamp(msg))
         self.ekf_accel_x_history.append(msg.accel.accel.linear.x)
         self.ekf_accel_y_history.append(msg.accel.accel.linear.y)
         self.ekf_accel_z_history.append(msg.accel.accel.linear.z)
-        self._maybe_update_plot()
 
     def desired_callback(self, msg: Odometry):
         pos = msg.pose.pose.position
-        self.des_pos_time.append(self._elapsed())
+        self.des_pos_time.append(self._stamp(msg))
         self.des_pos_x_history.append(pos.x)
         self.des_pos_y_history.append(pos.y)
         self.des_pos_z_history.append(pos.z)
-        self._maybe_update_plot()
 
     def quaternion_to_rpy(self, q_w, q_x, q_y, q_z):
         # Roll (x-axis)

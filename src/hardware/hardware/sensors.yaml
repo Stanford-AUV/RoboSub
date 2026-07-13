@@ -112,6 +112,12 @@ dvl_0:
     - [-0.70710678,  0.70710678, 0]
     - [-0.70710678, -0.70710678, 0]
     - [ 0,           0,          1]
+  # Fallback speed of sound in m/s, written to the Wayfinder at node startup
+  # when no Bar02 water temperature is available (normally it is computed from
+  # /arduino/sensors external_temperature, 0 ppt Marczak). Fresh water at
+  # ~25 C; the factory default 1500 assumes 35 ppt seawater. Remove this key
+  # to disable the startup speed-of-sound configuration entirely.
+  speed_of_sound: 1497.0
   # Fallback velocity covariance (used when DVL does not report a velocity error).
   velocity_covariance:
     - [0.01, 0.0,  0.0 ]

@@ -1,8 +1,16 @@
-kP_position: [1.0, 1.0, 2.0]
-kD_position: [0.02, 0.02, 0.02]
-kI_position: [0, 0, 0.00]
+kP_position: [1.0, 1.0, 1.0]
+kD_position: [0.02, 0.02, 0.04]
+kI_position: [0, 0, 0.01]
 kP_orientation: [0.2, 0.2, 0.2]
-kD_orientation: [0.04, 0.04, 0.04]
+kD_orientation: [0.04, 0.04, 0.06]
 kI_orientation: [0.0, 0.0, 0.0]
-max_integral_position: [0, 0, 0]
+# Integral clamp is on the raw error integral (m*s); force contribution is
+# kI * clamp. z: 100 m*s * 0.01 = 1 N of trim authority. Was [0,0,0], which
+# zeroed the integral entirely and left nothing to fight buoyancy.
+max_integral_position: [0, 0, 10]
 max_integral_orientation: [0, 0, 0]
+# Constant world-frame force (wrench units) added to every PID output.
+# z = -0.75: cancels measured residual buoyancy. From bag run_20260712_132138:
+# holding 0.1-0.3 m depth took Fz ~= -0.54 steady, and the sub rose whenever
+# down-force < ~0.35, so buoyancy is ~0.5-0.7 with more right at the surface.
+force_feedforward: [0.0, 0.0, -0.5]

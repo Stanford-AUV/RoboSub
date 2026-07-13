@@ -33,7 +33,10 @@ def config_rgb_image(pipeline, key, cam_cfg):
     cam_rgb.setInterleaved(False)
     cam_rgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
 
-    video_queue = cam_rgb.video.createOutputQueue()
+    # Use the preview output (configured width/height, BGR). The video output
+    # is full sensor 1080p regardless of setPreviewSize and saturates the
+    # USB2 link (~39 MB/s measured), so no frames ever reach the host.
+    video_queue = cam_rgb.preview.createOutputQueue(maxSize=4, blocking=False)
     return video_queue
 
 
@@ -56,10 +59,14 @@ def config_stereo_image(pipeline, key, cam_cfg):
     mono_left.setResolution(resolution_map[stereo_cfg["left"]["i_resolution"]])
     mono_right.setResolution(resolution_map[stereo_cfg["right"]["i_resolution"]])
 
+    fps = stereo_cfg.get("i_fps", 20)
+    mono_left.setFps(fps)
+    mono_right.setFps(fps)
+
     mono_left.out.link(stereo.left)
     mono_right.out.link(stereo.right)
 
-    depth_queue = stereo.depth.createOutputQueue()
+    depth_queue = stereo.depth.createOutputQueue(maxSize=4, blocking=False)
     return depth_queue
 
 
@@ -156,10 +163,8 @@ class OakNode(GenericCameraNode):
 def main(args=None):
     rclpy.init(args=args)
 
-    SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-    yaml_path = os.path.join(SCRIPT_DIR, "..", "cameras.yaml")
-    yaml_path = os.path.abspath(yaml_path)
-
+    from ament_index_python.packages import get_package_share_directory
+    yaml_path = os.path.join(get_package_share_directory("perception"), "cameras.yaml")
     node = OakNode(yaml_path)
 
     rclpy.spin(node)

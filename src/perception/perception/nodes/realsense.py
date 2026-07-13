@@ -105,9 +105,8 @@ class RealsenseNode(GenericCameraNode):
 def main(args=None):
     rclpy.init(args=args)
 
-    SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-    yaml_path = os.path.join(SCRIPT_DIR, "..", "cameras.yaml")
-    yaml_path = os.path.abspath(yaml_path)
+    from ament_index_python.packages import get_package_share_directory
+    yaml_path = os.path.join(get_package_share_directory("perception"), "cameras.yaml")
 
     node = RealsenseNode(yaml_path)
 

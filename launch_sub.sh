@@ -299,6 +299,24 @@ fi
 echo ">>> IMU up. Waiting ${IMU_SETTLE_DELAY}s for the Xsens filter to settle before starting: ${LAUNCHES_BASE[*]}"
 sleep_interruptible "$IMU_SETTLE_DELAY"
 
+# GATE: refuse to bring up the rest of the stack if the IMU chain is not
+# actually publishing. On 2026-07-13 the Xsens driver died at startup ("No MTi
+# device found"), the imu relay sat silent, and both runs drove blind: the EKF
+# yaw variance grew unbounded and the sub veered ~80 deg off the path. A dead
+# IMU must abort the launch, not produce a quietly garbage run.
+if [ "$KILLED" -eq 0 ]; then
+    echo ">>> Verifying /imu/orientation is publishing..."
+    if timeout 15 ros2 topic echo --once /imu/orientation >/dev/null 2>&1; then
+        echo ">>> IMU OK: /imu/orientation is live."
+    else
+        echo "ERROR: no data on /imu/orientation - Xsens driver likely failed" >&2
+        echo "       (check 'ls -l /dev/ttyUSB_imu' and ~/.ros/log/xsens_mti_node_*)." >&2
+        echo "       Aborting launch; NOT starting control/planning." >&2
+        shutdown
+        exit 1
+    fi
+fi
+
 # --- Phase 2: rest of the base stack ----------------------------------------
 if [ "$KILLED" -eq 0 ]; then
     echo ">>> Phase 2 - base stack: ${LAUNCHES_BASE[*]}"

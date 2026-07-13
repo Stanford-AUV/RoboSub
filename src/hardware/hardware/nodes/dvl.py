@@ -1,11 +1,13 @@
 import rclpy
 from geometry_msgs.msg import PoseWithCovarianceStamped, TwistWithCovarianceStamped
+from msgs.msg import SensorsStamped
 
 from hardware.utils.dvl_utils.system import OutputData
 from hardware.utils.dvl_utils.dvl_connect import Dvl
 from hardware.nodes.generic_sensor import GenericSensor
 import numpy as np
 import glob
+import os
 import serial
 
 DEBUG_MODE = False
@@ -52,14 +54,101 @@ class DVL(GenericSensor):
             self.get_logger().error("Failed to connect to DVL.")
             return
 
+        self._configure_speed_of_sound()
+
         self.dvl.register_ondata_callback(self.update_data)
 
         if not self.dvl.exit_command_mode():
             self.get_logger().error("Failed to start pinging")
 
+    @staticmethod
+    def _fresh_water_speed_of_sound(temp_c):
+        """Marczak (1997) pure-water (0 ppt) speed of sound in m/s."""
+        return (
+            1.402385e3
+            + 5.038813 * temp_c
+            - 5.799136e-2 * temp_c**2
+            + 3.287156e-4 * temp_c**3
+            - 1.398845e-6 * temp_c**4
+            + 2.787860e-9 * temp_c**5
+        )
+
+    def _wait_for_water_temperature(self, timeout=5.0):
+        """Grab one Bar02 water temperature from /arduino/sensors, or None."""
+        temp = []
+        sub = self.create_subscription(
+            SensorsStamped,
+            "/arduino/sensors",
+            lambda msg: temp.append(msg.external_temperature),
+            1,
+        )
+        deadline = self.get_clock().now().nanoseconds + int(timeout * 1e9)
+        while not temp and self.get_clock().now().nanoseconds < deadline:
+            rclpy.spin_once(self, timeout_sec=0.2)
+        self.destroy_subscription(sub)
+        return temp[0] if temp else None
+
+    def _configure_speed_of_sound(self):
+        """Enforce the fresh-water speed of sound on the device.
+
+        Computed from the Bar02 water temperature (0 ppt, Marczak) when
+        /arduino/sensors is up and reporting a plausible value; otherwise the
+        sensors.yaml `speed_of_sound` fallback. The Wayfinder stores it in
+        flash (factory default 1500 m/s = 35 ppt seawater), so a replaced or
+        factory-reset unit would otherwise run with the wrong value.
+        """
+        target = self._load_sensors_yaml().get(self.sensor_name, {}).get(
+            "speed_of_sound"
+        )
+        if target is None:
+            return
+        temp_c = self._wait_for_water_temperature()
+        # Out of water the Bar02 reads air/hull temperature, which is still a
+        # decent proxy; the plausibility gate only rejects sensor garbage.
+        if temp_c is not None and 0.0 < temp_c < 40.0:
+            target = round(self._fresh_water_speed_of_sound(temp_c), 1)
+            self.get_logger().info(
+                f"Water temperature {temp_c:.1f} C -> speed of sound "
+                f"{target:.1f} m/s (0 ppt)"
+            )
+        else:
+            self.get_logger().warning(
+                f"No usable water temperature (got {temp_c}); using "
+                f"sensors.yaml fallback {target:.0f} m/s"
+            )
+        if not self.dvl.enter_command_mode() or not self.dvl.get_setup():
+            self.get_logger().warning(
+                "Could not read DVL setup to verify speed of sound"
+            )
+            return
+        current = self.dvl.system_setup.speed_of_sound
+        # 2 m/s ~ 0.13% velocity error: not worth a flash write every launch.
+        if abs(current - target) < 2.0:
+            self.get_logger().info(f"DVL speed of sound OK ({current:.0f} m/s)")
+            return
+        if self.dvl.set_speed_of_sound(float(target)):
+            self.get_logger().info(
+                f"DVL speed of sound updated {current:.0f} -> {target:.0f} m/s"
+            )
+        else:
+            self.get_logger().error(
+                f"Failed to set DVL speed of sound to {target:.0f} m/s "
+                f"(device still at {current:.0f})"
+            )
+
     def autodetect_dvl_port(self, baudrate, timeout=2):
         preferred = ["/dev/ttyUSB_dvl"]
         fallback = glob.glob("/dev/ttyUSB[0-9]*") + glob.glob("/dev/ttyACM[0-9]*")
+        # NEVER probe the Xsens IMU's tty: opening it and firing Wayfinder
+        # commands at it can wedge the xsens_mt port so the Xsens driver's
+        # scan fails ("No MTi device found") and the whole run has no
+        # orientation (2026-07-13 bags). USB re-enumeration can swap ttyUSB
+        # numbers at any time, so resolve the udev symlink, don't hardcode.
+        skip = set()
+        for imu_link in ("/dev/ttyUSB_imu",):
+            if os.path.exists(imu_link):
+                skip.add(os.path.realpath(imu_link))
+        fallback = [p for p in fallback if os.path.realpath(p) not in skip]
         possible_ports = preferred + [p for p in fallback if p not in preferred]
 
         for port in possible_ports:

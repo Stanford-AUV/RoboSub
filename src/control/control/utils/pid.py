@@ -63,6 +63,7 @@ class PID:
         kI_orientation: np.ndarray,
         max_integral_position: np.ndarray,
         max_integral_orientation: np.ndarray,
+        force_feedforward: np.ndarray = None,
     ):
         """
         Initialize the PID controller gains and limits.
@@ -85,6 +86,12 @@ class PID:
             The maximum integral error for the position.
         max_integral_orientation : np.ndarray
             The maximum integral error for the orientation.
+        force_feedforward : np.ndarray
+            Constant world-frame force added to every output, in the same
+            units as the wrench. Used to cancel known static loads the
+            feedback terms would otherwise have to fight — for us, residual
+            buoyancy: the sub floats, so z needs a constant downward force
+            (negative z) just to hold depth.
         """
         self.kP_position = kP_position
         self.kD_position = kD_position
@@ -97,6 +104,9 @@ class PID:
         self.integral_orientation = np.array([0, 0, 0])
         self.max_integral_position = max_integral_position
         self.max_integral_orientation = max_integral_orientation
+        self.force_feedforward = (
+            np.zeros(3) if force_feedforward is None else np.asarray(force_feedforward)
+        )
 
         self.index = 0  # index of where we are in the paths
 
@@ -169,6 +179,7 @@ class PID:
                 error.position * self.kP_position
                 + error.velocity * self.kD_position
                 + self.integral_position * self.kI_position
+                + self.force_feedforward
             )
 
         if velocity_only:

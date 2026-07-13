@@ -23,6 +23,7 @@ class PIDControl(Node):
             kD_orie,
             max_integral_pos,
             max_integral_orie,
+            force_feedforward,
         ) = self.get_yaml_params(self.path)
 
         self.PID = PID(
@@ -34,6 +35,7 @@ class PIDControl(Node):
             kD_orientation=kD_orie,
             max_integral_position=max_integral_pos,
             max_integral_orientation=max_integral_orie,
+            force_feedforward=force_feedforward,
         )
 
         self.curr_state = None
@@ -70,6 +72,8 @@ class PIDControl(Node):
         kI_orientation = np.array(data["kI_orientation"])
         max_integral_position = np.array(data["max_integral_position"])
         max_integral_orientation = np.array(data["max_integral_orientation"])
+        # Optional so older pid.yaml files still load (defaults to no feedforward).
+        force_feedforward = np.array(data.get("force_feedforward", [0.0, 0.0, 0.0]))
 
         return (
             kP_position,
@@ -80,6 +84,7 @@ class PIDControl(Node):
             kD_orientation,
             max_integral_position,
             max_integral_orientation,
+            force_feedforward,
         )
 
     def update_curr_state(self, msg: Odometry):
