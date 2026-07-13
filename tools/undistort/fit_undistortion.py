@@ -57,7 +57,8 @@ def detect_segments(img_bgr):
     )
     if segs is None:
         return np.zeros((0, 4)), small.shape
-    return segs[:, 0].astype(float), small.shape
+    # reshape, not [:, 0]: some builds return (N,4) instead of (N,1,4)
+    return np.asarray(segs, dtype=float).reshape(-1, 4), small.shape
 
 
 def center_crop_score(img_bgr):
