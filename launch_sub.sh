@@ -4,9 +4,16 @@
 # planning), then on Ctrl+C shut everything down and send neutral PWM (1500) to
 # every thruster so the sub powers down safely.
 #
-# Usage:  conda activate robosub && ./launch_sub.sh
+# Usage:  conda activate robosub && ./launch_sub.sh [waypoints.yaml]
+#
+# The optional argument picks the waypoint yaml for path_generator (bare
+# filename, resolved against the planning share dir; default segments.yaml).
+# It must be BAKED first: python tools/bake_path.py src/planning/planning/<yaml>
+# - path_generator refuses to start on a missing/stale bake.
 #
 set -u
+
+WAYPOINTS_YAML="${1:-segments.yaml}"
 
 # --- config -----------------------------------------------------------------
 # ROS 2 is provided by the active conda env (`conda activate robosub`), so no
@@ -72,6 +79,15 @@ else
     exit 1
 fi
 set -u
+
+# Re-assert yaml symlinks EVERY launch: colcon copies data_files yamls into the
+# install space on every build (even with --symlink-install), which silently
+# reverts them to stale snapshots. This guarantees the stack always reads the
+# live src/ yamls (waypoints, PID gains, sensor config).
+"${REPO_DIR}/tools/symlink_yamls.sh" || {
+    echo "ERROR: yaml symlinking failed - install space may serve STALE configs." >&2
+    exit 1
+}
 
 # --- neutralize thrusters ---------------------------------------------------
 # Sends a string of 1500s (one per thruster) straight to the Arduino serial
@@ -221,12 +237,23 @@ trap shutdown INT TERM
 # to guarantee no survivors (this is what left localization running before).
 set -m
 
+# Node output goes to per-launch files, NOT this terminal. Writing to the SSH
+# pty is a safety hazard: if the tether/SSH link stalls, the pty buffer fills
+# and any node print()/log blocks its executor (07/12: thrusters node froze
+# 157s mid-run, PWMs latched at spin values). Files never block.
+LOG_DIR="${REPO_DIR}/logs/run_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$LOG_DIR"
+echo ">>> Node output -> $LOG_DIR/<launch>.log  (tail -f to watch)"
+
 # Launch one group of ros2 launch files, staggering each by 2s and recording
 # its PID (== process group id, thanks to 'set -m') for shutdown.
 launch_group() {
     for lf in "$@"; do
-        echo ">>> ros2 launch main ${lf}.py"
-        ros2 launch main "${lf}.py" &
+        # The planning launch takes the waypoint yaml chosen on our command line.
+        local extra=()
+        [ "$lf" = "planning" ] && extra=("waypoints_path:=${WAYPOINTS_YAML}")
+        echo ">>> ros2 launch main ${lf}.py ${extra[*]:-}  (log: $LOG_DIR/${lf}.log)"
+        ros2 launch main "${lf}.py" ${extra[@]:+"${extra[@]}"} </dev/null >"$LOG_DIR/${lf}.log" 2>&1 &
         local pid="$!"
         PIDS+=("$pid")
         # Remember the hardware launch's group so shutdown() can take it down

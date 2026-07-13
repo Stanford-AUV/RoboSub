@@ -1,6 +1,5 @@
 import numpy as np
 import rclpy
-from rclpy import Parameter
 from rclpy.node import Node
 from msgs.msg import ThrustsStamped, PWMsStamped
 from msgs.msg import SensorsStamped
@@ -16,8 +15,8 @@ class Thrusters(Node):
     def __init__(self):
         super().__init__("thrusters")
 
-        self.declare_parameter("timer_period", Parameter.Type.DOUBLE)
-        self.declare_parameter("history_depth", Parameter.Type.INTEGER)
+        self.declare_parameter("timer_period", 0.01)
+        self.declare_parameter("history_depth", 10)
 
         self.last_voltages = [14.8]
         self.pwms = None  # Will be initialized from first ThrustsStamped message
@@ -52,13 +51,10 @@ class Thrusters(Node):
                 self.get_logger().info(f"Initialized thruster count: {thruster_count}")
 
             voltage = self.get_voltage()
-            self.get_logger().info(f"Voltage {voltage}")
-            self.get_logger().info(f"Received thrusts {msg.thrusts}")
             self.pwms = np.array(
                 [thrust_to_pwm(thrust, voltage) for thrust in msg.thrusts],
                 dtype=np.int16,
             )
-            print(self.pwms)
         except ValueError as e:
             self.get_logger().error(f"Failed to convert thrusts to PWMs: {e}")
 
@@ -74,7 +70,6 @@ class Thrusters(Node):
         msg = PWMsStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.pwms = self.pwms.tolist()
-        self.get_logger().info(f"Publishing PWMs {msg.pwms}")
         self._pwms_pub.publish(msg)
 
 

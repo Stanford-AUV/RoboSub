@@ -3,7 +3,6 @@
 """This node converts sensor messages sent from the hardware into a unified format for use for state estimation."""
 
 import rclpy
-from rclpy import Parameter
 from rclpy.node import Node
 from geometry_msgs.msg import TwistWithCovarianceStamped, PoseWithCovarianceStamped
 from msgs.msg import DVLData
@@ -14,7 +13,7 @@ class Sensors(Node):
     def __init__(self):
         super().__init__("sensors")
 
-        self.declare_parameter("history_depth", Parameter.Type.INTEGER)
+        self.declare_parameter("history_depth", 10)
 
         history_depth = (
             self.get_parameter("history_depth").get_parameter_value().integer_value

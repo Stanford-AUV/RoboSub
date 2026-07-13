@@ -114,7 +114,7 @@ flowchart TB
 
 ## Runtime data flow (simplified)
 
-Typical signals on the vehicle (names align with `main/launch/params/global.yaml` where applicable):
+Typical signals on the vehicle:
 
 ```mermaid
 flowchart LR
@@ -162,7 +162,7 @@ flowchart LR
 
 | Package | Role |
 |---------|------|
-| **main** | Aggregates subsystems: `main.py` (hardware + localization + **control**; `manual.py` is commented out), plus standalone `control.py`, `hardware.py`, `manual.py`, etc. Installs `launch/` and `launch/params/global.yaml`. |
+| **main** | Aggregates subsystems: `main.py` (hardware + localization + **control**; `manual.py` is commented out), plus standalone `control.py`, `hardware.py`, `manual.py`, etc. Installs `launch/`. |
 | **msgs** | All custom interfaces; any new cross-package types should live here. |
 | **hardware** | `thrusters`, `imu`, `dvl`, `sensors` (sync/publish for EKF), `arduino`, plotting utilities. Depends on messages in `msgs`. |
 | **control** | `thrust_generator` (`/wrench` → `/thrusts`), `controller` (`/odometry/filtered` + `waypoint` → `wrench`), `path_tracker`, PID and trajectory helpers. See [src/control/README.md](src/control/README.md). |
@@ -178,7 +178,7 @@ flowchart LR
 
 | Document | Description |
 |----------|-------------|
-| [main](src/main/README.md) | Top-level launch files and `global.yaml` |
+| [main](src/main/README.md) | Top-level launch files |
 | [msgs](src/msgs/README.md) | Custom messages and services |
 | [hardware](src/hardware/README.md) | IMU/DVL/thrusters/Arduino nodes |
 | [control](src/control/README.md) | Thrust allocation, controller, PID, path tracker |

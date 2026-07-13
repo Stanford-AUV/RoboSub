@@ -9,7 +9,6 @@ ekf_params = os.path.join(
     "..", "..", "localization", "localization", "nodes", "ekf.yaml",
 )
 
-global_params = os.path.join(os.path.dirname(__file__), "params", "global.yaml")
 
 
 def generate_launch_description():
@@ -19,7 +18,6 @@ def generate_launch_description():
                 package="hardware",
                 executable="sensors",
                 name="sensors",
-                parameters=[global_params],
             ),
             Node(
                 package="robot_localization",

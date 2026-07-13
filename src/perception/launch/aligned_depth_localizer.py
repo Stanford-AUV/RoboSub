@@ -6,9 +6,6 @@ from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
-global_params = os.path.join(
-    os.path.dirname(__file__), "..", "..", "main", "launch", "params", "global.yaml"
-)
 
 VENV_PYTHON = "/home/ros/env/bin/python3 -u "
 
@@ -67,7 +64,6 @@ def generate_launch_description():
                 name="aligned_depth_publisher",
                 prefix=VENV_PYTHON,
                 parameters=[
-                    global_params,
                     {"camera_type": LaunchConfiguration("camera_type")},
                     {"camera_key": LaunchConfiguration("camera_key")},
                     {"timing_info": LaunchConfiguration("timing_info")},
@@ -80,7 +76,6 @@ def generate_launch_description():
                 name="object_localizer",
                 prefix=VENV_PYTHON,
                 parameters=[
-                    global_params,
                     {"model_name": LaunchConfiguration("model_name")},
                     {"object_id": LaunchConfiguration("object_id")},
                     {"camera_key": LaunchConfiguration("camera_key")},

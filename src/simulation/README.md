@@ -17,7 +17,7 @@
 
 ## Launch
 
-`ros2 launch main simulation.py` starts all three simulation executables with `main/launch/params/global.yaml`.
+`ros2 launch main simulation.py` starts all three simulation executables.
 
 ## Nested package: `custom_gz_plugins`
 

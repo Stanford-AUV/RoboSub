@@ -1,9 +1,14 @@
 import os
 
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
-global_params = os.path.join(os.path.dirname(__file__), "params", "global.yaml")
+# Per-subsystem params (object_world_localizer): installed to the perception
+# share dir and symlinked back to src by tools/symlink_yamls.sh at launch.
+object_tracking_params = os.path.join(
+    get_package_share_directory("perception"), "object_tracking.yaml"
+)
 
 
 def generate_launch_description():
@@ -25,7 +30,7 @@ def generate_launch_description():
                 package="perception",
                 executable="object_world_localizer",
                 output="screen",
-                parameters=[global_params],
+                parameters=[object_tracking_params],
             ),
             Node(
                 package="perception",

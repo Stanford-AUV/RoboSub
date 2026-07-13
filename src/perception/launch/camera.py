@@ -8,9 +8,6 @@ from launch.substitutions import LaunchConfiguration
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 
-global_params = os.path.join(
-    os.path.dirname(__file__), "..", "..", "main", "launch", "params", "global.yaml"
-)
 
 def generate_launch_description():
 
@@ -50,14 +47,12 @@ def generate_launch_description():
                 package="perception",
                 executable="oak_node",
                 parameters=[
-                    global_params,
                 ],
             ),
             Node(
                 package="perception",
                 executable="realsense_node",
                 parameters=[
-                    global_params,
                 ],
             ),
             OpaqueFunction(function=_launch_camera_viewers),
@@ -79,7 +74,6 @@ def _launch_camera_viewers(context, *args, **kwargs):
             executable="camera_viewer",
             arguments=[name],
             parameters=[
-                global_params,
             ],
         )
         for name in names
@@ -104,7 +98,6 @@ def _launch_photographer(context, *args, **kwargs):
             executable="photographer",
             arguments=names,
             parameters=[
-                global_params,
                 {
                     "output_dir": output_dir,
                     "capture_period_s": float(period),

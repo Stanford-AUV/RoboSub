@@ -1,7 +1,7 @@
 # Package: `perception`
 
 **Build type:** `ament_python`  
-**Role:** Cameras (OAK, RealSense), aligned RGB–depth publishing, YOLO-based object localization, recording helpers. Camera keys and parameters come from `perception/cameras.yaml` (installed to share) and `main/launch/params/global.yaml` when launched from `main`.
+**Role:** Cameras (OAK, RealSense), aligned RGB–depth publishing, YOLO-based object localization, recording helpers. Camera keys and parameters come from `perception/cameras.yaml`; object tracking params from `perception/object_tracking.yaml` (both installed to share).
 
 ## Executables (`ros2 run perception <name>`)
 
@@ -17,7 +17,7 @@
 
 ## Launches (`share/perception/launch/`)
 
-- **`camera.py`** — Starts **`oak_node`** and **`realsense_node`** together; optional `camera_viewer` and `photographer` via launch arguments (`camera_viewer`, `camera_names`, `photographer`, etc.). Uses `global.yaml` from `main`.
+- **`camera.py`** — Starts **`oak_node`** and **`realsense_node`** together; optional `camera_viewer` and `photographer` via launch arguments (`camera_viewer`, `camera_names`, `photographer`, etc.).
 - **`aligned_depth_localizer.py`** — **`aligned_depth_publisher`** + **`object_localizer`**, with `prefix="/home/ros/env/bin/python3 -u "` for venv Python (GPU stack). Declares args: `camera_type`, `camera_key`, `model_name`, `object_id`, visualization flags.
 
 ## Architecture (as implemented)

@@ -6,7 +6,6 @@
 ## What is installed
 
 - `share/main/launch/*.py` — system bring-up
-- `share/main/launch/params/global.yaml` — shared parameters (thruster geometry, EKF `robot_localization` config, camera snippets, timer/history defaults)
 
 ## Launch files (as coded)
 
@@ -20,7 +19,7 @@
 | `control.py` | **`controller`** + **`test_controller`** only. **`thrust_generator`** is expected from **`hardware.py`** when using **`main.py`**. For **`ros2 launch main control.py`** without hardware, run **`ros2 run control thrust_generator`** (see comments in `control.py`) or use **`manual.py`** / **`wrench_to_pwm`**. |
 | `perception.py` | Single node: `perception/object_localizer`. |
 | `planning.py` | Empty `LaunchDescription` (placeholder). |
-| `simulation.py` | `simulation/thrusters`, `simulation/sensors`, `simulation/path_bridge` with `global.yaml`. |
+| `simulation.py` | `simulation/thrusters`, `simulation/sensors`, `simulation/path_bridge`. |
 
 ## How to run
 
