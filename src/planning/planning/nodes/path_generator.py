@@ -1,30 +1,30 @@
-import rclpy
-from rclpy.node import Node
-from geometry_msgs.msg import PoseStamped, Twist
-from nav_msgs.msg import Odometry
-from msgs.msg import GeneratedPath  # Custom message import
-
 import os
-import yaml
+
 import numpy as np
+import rclpy
+from geometry_msgs.msg import PointStamped, Twist
+from nav_msgs.msg import Odometry
+from rclpy.node import Node
 from scipy.spatial.transform import Rotation
 from ament_index_python.packages import get_package_share_directory
 
-from planning.utils.create_path import create_path
+from planning.utils.bake import load_bake, source_hash
+from planning.utils.pursuit import arrived, pursuit_target, step_toward
+
+PURSUIT_V_MAX = 0.25  # m/s - matches create_path's max_velocity
+PURSUIT_GOAL_STALE_SEC = 2.0
+PURSUIT_ARRIVE_HOLD_SEC = 1.0
+TICK_HZ = 60.0
 
 
 class PathGenerator(Node):
+    """Plays a baked trajectory (tools/bake_path.py): spline legs sampled on
+    shore, plus go_to_object pursuit segments servoing on the live world goal
+    from perception. No spline math happens at runtime."""
+
     def __init__(self):
         super().__init__("path_generator")
 
-        # Waypoints are loaded IN-PROCESS from YAML at startup - there is no
-        # /waypoints topic and no separate path_loader node. This deliberately
-        # removes the DDS discovery race that used to drop the (one-shot,
-        # latched) waypoints message when the loader published before this
-        # node's subscription had matched, leaving the generator idle forever.
-        # Override the file via the 'waypoints_path' ROS parameter if needed.
-        # The YAML is installed into the package share dir (see setup.py), so
-        # resolve it via ament - works under any install layout.
         default_yaml = os.path.join(
             get_package_share_directory("planning"), "prequal.yaml"
         )
@@ -33,181 +33,272 @@ class PathGenerator(Node):
             self.get_parameter("waypoints_path").get_parameter_value().string_value
             or default_yaml
         )
+        if not os.path.isabs(self.waypoints_path) and not os.path.exists(
+            self.waypoints_path
+        ):
+            self.waypoints_path = os.path.join(
+                get_package_share_directory("planning"), self.waypoints_path
+            )
+
+        # Once the trajectory is done, keep holding the final pose for this
+        # many seconds, then exit. The planning launch marks this node with
+        # on_exit=Shutdown, and launch_sub.sh tears down the whole stack when
+        # any launch exits, so path completion ends the run automatically.
+        # Set <0 to disable.
+        self.declare_parameter("shutdown_after_path_sec", 3.0)
+        self.shutdown_after_path_sec = (
+            self.get_parameter("shutdown_after_path_sec")
+            .get_parameter_value()
+            .double_value
+        )
 
         self.publish_desired = self.create_publisher(Odometry, "/desired/pose", 10)
 
-        self.generated_path = None
-        self.path_start_time = None
+        self.items = self.load_baked()
+        self.item_index = 0
+        self.item_start = None  # rclpy Time, set on first tick of each item
+        self.pause_logged = set()
+        self.path_done_logged = False
+        self.done_time = None
 
-        self.create_timer(1.0 / 60.0, self.publish_pose)
-
-        self.get_logger().info("PathGenerator node has been started.")
-        self.load_and_generate()
-
-    def load_and_generate(self):
-        """Read the waypoint YAML and build the trajectory. Runs once at startup."""
-        self.get_logger().info(f"Loading waypoints from {self.waypoints_path}")
-
-        try:
-            with open(self.waypoints_path, "r") as f:
-                data = yaml.safe_load(f)
-        except Exception as exc:
-            self.get_logger().error(
-                f"Failed to read waypoints file '{self.waypoints_path}': {exc}"
+        # Pursuit state
+        self.cmd_pos = None  # np.ndarray(3,) - last commanded position
+        self.cmd_yaw = 0.0  # deg
+        self.pursuit_entry_pos = None
+        self.pursuit_target_pos = None
+        self.pursuit_target_yaw = None
+        self.pursuit_arrived_at = None
+        self.pursuit_fallback_logged = False
+        self.goals = {}  # object_id -> (np.ndarray(3,), rclpy Time)
+        for oid in {
+            i["object_id"] for i in self.items if i["type"] == "go_to_object"
+        }:
+            self.create_subscription(
+                PointStamped,
+                f"/object/{oid}/world_position",
+                lambda msg, oid=oid: self.on_goal(oid, msg),
+                10,
             )
-            return
 
-        segments = [data[key] for key in data]
-
-        x_positions = []
-        y_positions = []
-        z_positions = []
-        roll_angles = []
-        pitch_angles = []
-        yaw_angles = []
-
-        n_waypoints = 0
-        for segment in segments:
-            for waypoint in segment["waypoints"]:
-                x_positions.append(waypoint["position"]["x"])
-                y_positions.append(waypoint["position"]["y"])
-                z_positions.append(waypoint["position"]["z"])
-                roll_angles.append(waypoint["orientation"]["roll"])
-                pitch_angles.append(waypoint["orientation"]["pitch"])
-                yaw_angles.append(waypoint["orientation"]["yaw"])
-                n_waypoints += 1
-
-        if n_waypoints == 0:
-            self.get_logger().error(
-                f"No waypoints found in '{self.waypoints_path}'; nothing to generate."
-            )
-            return
-
+        self.create_timer(1.0 / TICK_HZ, self.tick)
         self.get_logger().info(
-            f"Loaded {n_waypoints} waypoints from {len(segments)} segment(s), generating path..."
+            f"Playing baked path: {len(self.items)} item(s) "
+            f"({sum(1 for i in self.items if i['type'] == 'leg')} leg(s))"
         )
 
-        x_positions = np.array(x_positions)
-        y_positions = np.array(y_positions)
-        z_positions = np.array(z_positions)
-        roll_angles = np.array(roll_angles)
-        pitch_angles = np.array(pitch_angles)
-        yaw_angles = np.array(yaw_angles)
-
+    def load_baked(self):
+        base, _ = os.path.splitext(self.waypoints_path)
+        baked_path = base + ".baked.yaml"
         try:
-            (
-                positions,
-                velocities,
-                accelerations,
-                orientations,
-                angular_velocities,
-                angular_accelerations,
-                duration,
-            ) = create_path(
-                x_positions,
-                y_positions,
-                z_positions,
-                roll_angles,
-                pitch_angles,
-                yaw_angles,
-            )
+            doc = load_bake(baked_path)
         except Exception as exc:
-            self.get_logger().error(f"Failed to generate path from waypoints: {exc}")
-            return
+            self.get_logger().error(
+                f"Cannot read baked path '{baked_path}': {exc}. "
+                "Run: python tools/bake_path.py <waypoints yaml> on shore."
+            )
+            raise SystemExit(1)
+        if doc.get("source_sha256") != source_hash(self.waypoints_path):
+            self.get_logger().error(
+                f"Baked path '{baked_path}' is STALE for "
+                f"'{self.waypoints_path}'. Re-run tools/bake_path.py."
+            )
+            raise SystemExit(1)
+        return doc["items"]
 
-        self.make_generated_path(
-            positions,
-            velocities,
-            accelerations,
-            orientations,
-            angular_velocities,
-            angular_accelerations,
-            duration,
+    def on_goal(self, object_id, msg: PointStamped):
+        p = np.array([msg.point.x, msg.point.y, msg.point.z])
+        if np.all(np.isfinite(p)):
+            self.goals[object_id] = (p, self.get_clock().now())
+
+    def fresh_goal(self, object_id):
+        entry = self.goals.get(object_id)
+        if entry is None:
+            return None
+        p, t = entry
+        if (self.get_clock().now() - t).nanoseconds / 1e9 > PURSUIT_GOAL_STALE_SEC:
+            return None
+        return p
+
+    def publish_cmd(self, pos, quat_xyzw, twist=None):
+        odom = Odometry()
+        odom.header.stamp = self.get_clock().now().to_msg()
+        odom.header.frame_id = "map"
+        odom.pose.pose.position.x = float(pos[0])
+        odom.pose.pose.position.y = float(pos[1])
+        odom.pose.pose.position.z = float(pos[2])
+        odom.pose.pose.orientation.x = float(quat_xyzw[0])
+        odom.pose.pose.orientation.y = float(quat_xyzw[1])
+        odom.pose.pose.orientation.z = float(quat_xyzw[2])
+        odom.pose.pose.orientation.w = float(quat_xyzw[3])
+        odom.twist.twist = twist if twist is not None else Twist()
+        self.publish_desired.publish(odom)
+        self.cmd_pos = np.asarray(pos, dtype=float)
+        self.cmd_yaw = float(
+            Rotation.from_quat(quat_xyzw).as_euler("xyz", degrees=True)[2]
         )
 
-    def make_generated_path(
-        self,
-        positions,
-        velocities,
-        accelerations,
-        orientations,
-        angular_velocities,
-        angular_accelerations,
-        duration,
-    ):
+    def advance_item(self):
+        self.item_index += 1
+        self.item_start = None
+        self.pursuit_entry_pos = None
+        self.pursuit_target_pos = None
+        self.pursuit_target_yaw = None
+        self.pursuit_arrived_at = None
+        self.pursuit_fallback_logged = False
 
-        self.get_logger().info("Generated path, sending back...")
+    def tick(self):
+        if self.item_index >= len(self.items):
+            self.finish_tick()
+            return
+        item = self.items[self.item_index]
+        if self.item_start is None:
+            self.item_start = self.get_clock().now()
+        if item["type"] == "leg":
+            self.leg_tick(item)
+        else:
+            self.pursuit_tick(item)
 
-        generated_path = GeneratedPath()
-        generated_path.header.stamp = self.get_clock().now().to_msg()
-        generated_path.header.frame_id = "map"
-        generated_path.duration = duration
+    def elapsed(self):
+        return (self.get_clock().now() - self.item_start).nanoseconds / 1e9
 
-        for i in range(len(positions[0])):
-            pose_stamped = PoseStamped()
-            pose_stamped.header.stamp = generated_path.header.stamp
-            pose_stamped.header.frame_id = generated_path.header.frame_id
+    def leg_tick(self, item):
+        t = self.elapsed()
+        poses, twists = item["poses"], item["twists"]
+        n = len(poses)
+        duration = max(item["duration"], 1e-9)
+        if t < item["duration"]:
+            i = min(int(t / duration * (n - 1)), n - 1)
+            tw = Twist()
+            (
+                tw.linear.x,
+                tw.linear.y,
+                tw.linear.z,
+                tw.angular.x,
+                tw.angular.y,
+                tw.angular.z,
+            ) = [float(v) for v in twists[i]]
+            self.publish_cmd(poses[i][:3], poses[i][3:], tw)
+            return
+        if t < item["duration"] + item["pause_after"]:
+            # Station-keep on the leg's final pose with ZERO velocity
+            # feed-forward (re-sending twists makes the sub thrash).
+            if self.item_index not in self.pause_logged:
+                self.pause_logged.add(self.item_index)
+                self.get_logger().info(
+                    f"Item {self.item_index + 1}/{len(self.items)} done; "
+                    f"pausing {item['pause_after']:.1f}s."
+                )
+            self.publish_cmd(poses[-1][:3], poses[-1][3:])
+            return
+        self.publish_cmd(poses[-1][:3], poses[-1][3:])
+        self.advance_item()
 
-            pose_stamped.pose.position.x = positions[0][i]
-            pose_stamped.pose.position.y = positions[1][i]
-            pose_stamped.pose.position.z = positions[2][i]
-
-            orientation_quat = Rotation.from_euler(
-                "xyz", orientations[i], degrees=True
-            ).as_quat()
-            pose_stamped.pose.orientation.x = orientation_quat[0]
-            pose_stamped.pose.orientation.y = orientation_quat[1]
-            pose_stamped.pose.orientation.z = orientation_quat[2]
-            pose_stamped.pose.orientation.w = orientation_quat[3]
-
-            generated_path.poses.append(pose_stamped)
-
-            twist = Twist()
-            twist.linear.x = velocities[0][i]
-            twist.linear.y = velocities[1][i]
-            twist.linear.z = velocities[2][i]
-            twist.angular.x = angular_velocities[i][0]
-            twist.angular.y = angular_velocities[i][1]
-            twist.angular.z = angular_velocities[i][2]
-
-            generated_path.twists.append(twist)
-
-        self.generated_path = generated_path
-        self.path_start_time = self.get_clock().now()
-        self.get_logger().info("Generated path with poses and twists.")
-
-    def publish_pose(self):
-        if self.generated_path is None or self.path_start_time is None:
-            # No trajectory yet - make the idle state loud instead of silent so a
-            # failed load is obvious in the terminal (throttled to avoid spam).
-            self.get_logger().warn(
-                "No generated path yet; not publishing /desired/pose",
-                throttle_duration_sec=5.0,
+    def pursuit_tick(self, item):
+        now = self.get_clock().now()
+        dt = 1.0 / TICK_HZ
+        if self.cmd_pos is None:
+            # Pursuit as the first item: no commanded pose yet - hold origin
+            # until a goal shows up (control holds current pose anyway).
+            self.cmd_pos = np.zeros(3)
+        if self.pursuit_entry_pos is None:
+            self.pursuit_entry_pos = self.cmd_pos.copy()
+            self.get_logger().info(
+                f"go_to_object '{item['object_id']}' "
+                f"(standoff={item['standoff']}m timeout={item['timeout']}s)"
             )
+
+        goal = self.fresh_goal(item["object_id"])
+        if goal is not None:
+            # Approach line anchored at the ENTRY position so the standoff
+            # point doesn't slide as the sub moves.
+            target, yaw = pursuit_target(
+                goal, self.pursuit_entry_pos, item["standoff"]
+            )
+            self.pursuit_target_pos, self.pursuit_target_yaw = target, yaw
+        elif (
+            self.pursuit_target_pos is None
+            and self.elapsed() > item["timeout"]
+        ):
+            # Never saw it: give up and drive to the fallback waypoint.
+            if not self.pursuit_fallback_logged:
+                self.pursuit_fallback_logged = True
+                self.get_logger().warn(
+                    f"'{item['object_id']}' not seen in {item['timeout']:.0f}s; "
+                    "driving to fallback waypoint."
+                )
+            fb = item["fallback"]
+            self.pursuit_target_pos = np.array(fb[:3])
+            self.pursuit_target_yaw = fb[5]
+
+        if self.pursuit_target_pos is None:
+            # Waiting for first detection: hold the entry pose.
+            quat = Rotation.from_euler(
+                "xyz", [0.0, 0.0, self.cmd_yaw], degrees=True
+            ).as_quat()
+            self.publish_cmd(self.pursuit_entry_pos, quat)
             return
 
-        elapsed = (self.get_clock().now() - self.path_start_time).nanoseconds / 1e9
-        duration = self.generated_path.duration
-        n = len(self.generated_path.poses)
+        new_cmd = step_toward(
+            self.cmd_pos, self.pursuit_target_pos, PURSUIT_V_MAX, dt
+        )
+        quat = Rotation.from_euler(
+            "xyz", [0.0, 0.0, self.pursuit_target_yaw], degrees=True
+        ).as_quat()
+        self.publish_cmd(new_cmd, quat)
 
-        if duration <= 0.0 or n == 0:
-            return
+        if arrived(new_cmd, self.pursuit_target_pos, item["arrive_tol"]):
+            if self.pursuit_arrived_at is None:
+                self.pursuit_arrived_at = now
+                self.get_logger().info(
+                    f"Arrived at '{item['object_id']}' target; holding "
+                    f"{PURSUIT_ARRIVE_HOLD_SEC:.0f}s."
+                )
+            elif (
+                now - self.pursuit_arrived_at
+            ).nanoseconds / 1e9 >= PURSUIT_ARRIVE_HOLD_SEC:
+                self.advance_item()
+        else:
+            self.pursuit_arrived_at = None
 
-        t = min(max(elapsed, 0.0), duration)
-        index = int(t / duration * (n - 1))
-        index = min(index, n - 1)
-
-        odom = Odometry()
-        odom.header = self.generated_path.poses[index].header
-        odom.pose.pose = self.generated_path.poses[index].pose
-        odom.twist.twist = self.generated_path.twists[index]
-        self.publish_desired.publish(odom)
+    def finish_tick(self):
+        # All items done: hold the final commanded pose (zero twist - velocity
+        # feed-forward here made the sub thrash pre-shutdown), then exit.
+        if not self.path_done_logged:
+            self.path_done_logged = True
+            self.done_time = self.get_clock().now()
+            self.get_logger().info(
+                f"Path complete; holding {self.shutdown_after_path_sec:.1f}s "
+                "before shutting down."
+            )
+        if self.cmd_pos is not None:
+            quat = Rotation.from_euler(
+                "xyz", [0.0, 0.0, self.cmd_yaw], degrees=True
+            ).as_quat()
+            self.publish_cmd(self.cmd_pos, quat)
+        if (
+            self.shutdown_after_path_sec >= 0.0
+            and (self.get_clock().now() - self.done_time).nanoseconds / 1e9
+            >= self.shutdown_after_path_sec
+        ):
+            self.get_logger().info("Hold elapsed - exiting to shut down the stack.")
+            raise SystemExit
 
 
 def main(args=None):
     rclpy.init(args=args)
-    node = PathGenerator()
-    rclpy.spin(node)
+    try:
+        node = PathGenerator()
+    except SystemExit:
+        # Startup failure (missing/stale bake): propagate a nonzero exit so
+        # the launch treats it as a crash and aborts on shore.
+        rclpy.shutdown()
+        raise
+    try:
+        rclpy.spin(node)
+    except SystemExit:
+        # Raised from finish_tick once the path (+ hold) is done: exit 0 so
+        # ros2 launch treats it as a clean shutdown, not a crash.
+        pass
     node.destroy_node()
     rclpy.shutdown()
 
