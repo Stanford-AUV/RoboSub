@@ -105,7 +105,9 @@ def estimate_line_angle(img, debug_out=None, undistort=True):
     if segs is None:
         return None, 0
 
-    segs = segs[:, 0].astype(float)
+    # HoughLinesP returns (N,1,4), except some builds give (1,4) for a
+    # single segment — reshape instead of indexing away the middle axis
+    segs = np.asarray(segs, dtype=float).reshape(-1, 4)
     length = np.hypot(segs[:, 2] - segs[:, 0], segs[:, 3] - segs[:, 1])
     # image y grows downward; negate dy for visual angles, fold mod 180
     theta = np.arctan2(-(segs[:, 3] - segs[:, 1]), segs[:, 2] - segs[:, 0])
