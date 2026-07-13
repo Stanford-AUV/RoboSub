@@ -200,3 +200,4 @@ logs/
 real/
 
 tools/
+*.png
