@@ -295,11 +295,11 @@ class HeadingCorrector(Node):
         out.header.frame_id = "odom"
         out.pose.pose.orientation.z = math.sin(yaw_abs / 2.0)
         out.pose.pose.orientation.w = math.cos(yaw_abs / 2.0)
-        # Bigger agreeing cluster -> more confident, but never overconfident:
-        # even a clean detection is reasonably a few degrees off (blur,
-        # caustics, mat not perfectly straight), so the floor is ~6 deg
-        # std (support=40) rising to ~10 deg std at minimal support.
-        yaw_var = 0.008 + 0.16 / min(support, 40)
+        # Center-strip detections agreed with full-frame within ~1.4 deg
+        # median on 40 pool frames, so publish 1-2 deg std: 2 deg at the
+        # minimum cluster size, tightening linearly to 1 deg at 100+ lines.
+        std_deg = 2.0 - min(support, 100) / 100.0
+        yaw_var = math.radians(std_deg) ** 2
         cov = np.zeros(36)
         cov[35] = yaw_var
         out.pose.covariance = cov.tolist()
