@@ -40,7 +40,7 @@ BAG_ROOT="${REPO_DIR}/bags"
 # a dropped tether/peer can never stall an executor. See config/fastdds_async.xml.
 # Override by exporting FASTRTPS_DEFAULT_PROFILES_FILE before running.
 export FASTRTPS_DEFAULT_PROFILES_FILE="${FASTRTPS_DEFAULT_PROFILES_FILE:-${REPO_DIR}/config/fastdds_async.xml}"
-
+export ROS_LOCALHOST_ONLY=1
 # Three-phase bringup:
 #   1. IMU + Xsens driver ONLY, then wait IMU_SETTLE_DELAY so the Xsens onboard
 #      filter (AHS heading + orientation) converges before anything consumes it.
@@ -48,7 +48,7 @@ export FASTRTPS_DEFAULT_PROFILES_FILE="${FASTRTPS_DEFAULT_PROFILES_FILE:-${REPO_
 #      wait PATH_DELAY so the EKF converges and thrusters idle at neutral.
 #   3. The path / planning nodes that issue setpoints.
 LAUNCHES_IMU=(imu)
-LAUNCHES_BASE=(hardware localization control)
+LAUNCHES_BASE=(hardware localization perception control)
 LAUNCHES_PATH=(planning)
 IMU_SETTLE_DELAY="${IMU_SETTLE_DELAY:-20}"
 PATH_DELAY="${PATH_DELAY:-5}"
@@ -262,7 +262,9 @@ if [ "$ROSBAG" = "1" ] && [ "$KILLED" -eq 0 ]; then
     # tty raises SIGTTOU/SIGTTIN and the recorder is stopped/killed BEFORE it opens
     # the bag - silently, so you get an empty bags/ and no error. Detaching stdin
     # makes it disable keyboard handling and record headless.
-    ros2 bag record -a --include-hidden-topics -o "$BAG_DIR" </dev/null &
+    # Exclude raw camera images: with the perception launch in the base stack
+    # (oak_node for the heading corrector) they would balloon the bag by GBs.
+    ros2 bag record -a --include-hidden-topics -x "/camera/.*" -o "$BAG_DIR" </dev/null &
     BAG_PID="$!"
 fi
 
