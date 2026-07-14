@@ -4,13 +4,28 @@
 # planning), then on Ctrl+C shut everything down and send neutral PWM (1500) to
 # every thruster so the sub powers down safely.
 #
-# Usage:  conda activate robosub && ./launch_sub.sh [waypoints.yaml]
+# Usage: bash launch_sub.sh [waypoints.yaml]
 #
 # The optional argument picks the waypoint yaml for path_generator (bare
 # filename, resolved against the planning share dir; default segments.yaml).
 # The launcher (re)bakes it automatically via tools/bake_path.py before the
 # stack starts (a fresh bake is a no-op).
 #
+# Activate the robosub conda env. In a non-interactive shell 'conda' is not a
+# shell function yet, so source the conda hook first; abort if activation
+# fails rather than launching against the wrong Python/ROS.
+# shellcheck disable=SC1091
+source "${CONDA_SH:-$HOME/miniforge3/etc/profile.d/conda.sh}" || {
+    echo "ERROR: could not source conda.sh (set CONDA_SH to its path)." >&2
+    exit 1
+}
+if [ "${CONDA_DEFAULT_ENV:-}" != "robosub" ]; then
+    conda activate robosub || {
+        echo "ERROR: 'conda activate robosub' failed." >&2
+        exit 1
+    }
+fi
+
 set -u
 
 WAYPOINTS_YAML="${1:-segments.yaml}"
