@@ -139,7 +139,9 @@
         pub_dv: false
         pub_mag: true
         pub_temperature: true
-        pub_pressure: true
+        # MTi-200 (VRU) has no barometer - /pressure never publishes; don't
+        # advertise a dead topic (hardware pressure lives in /arduino/sensors).
+        pub_pressure: false
         pub_accelerationhr: false #High Rate Data Acceleration, when this is true, set enable_high_rate to true as well
         pub_angular_velocity_hr: false #High Rate Data Angular Velocity,  when this is true, set enable_high_rate to true as well
         pub_transform: true
