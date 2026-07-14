@@ -8,8 +8,8 @@
 #
 # The optional argument picks the waypoint yaml for path_generator (bare
 # filename, resolved against the planning share dir; default segments.yaml).
-# It must be BAKED first: python tools/bake_path.py src/planning/planning/<yaml>
-# - path_generator refuses to start on a missing/stale bake.
+# The launcher (re)bakes it automatically via tools/bake_path.py before the
+# stack starts (a fresh bake is a no-op).
 #
 set -u
 
@@ -20,7 +20,9 @@ WAYPOINTS_YAML="${1:-segments.yaml}"
 # system setup file is sourced by default. For a native apt ROS install instead,
 # run with ROS_DISTRO_SETUP=/opt/ros/<distro>/setup.bash.
 ROS_DISTRO_SETUP="${ROS_DISTRO_SETUP:-}"
-ARDUINO_PORT="/dev/ttyACM0"
+# udev symlink pinned to the Teensy (99-teensy-acm.rules); bare ttyACM numbers
+# shuffle on USB re-enumeration (07/13: a DaisySeed landed on ttyACM0).
+ARDUINO_PORT="/dev/ttyACM_teensy"
 ARDUINO_BAUD=9600
 THRUSTER_COUNT=8
 NEUTRAL_PWM=1500
@@ -80,6 +82,18 @@ else
 fi
 set -u
 
+# (Re)bake the chosen waypoint yaml so path_generator never hits a missing or
+# stale bake. bake_path.py skips the recompute when the bake is already fresh.
+WAYPOINTS_SRC="${REPO_DIR}/src/planning/planning/${WAYPOINTS_YAML}"
+if [ ! -f "$WAYPOINTS_SRC" ]; then
+    echo "ERROR: waypoint yaml not found: $WAYPOINTS_SRC" >&2
+    exit 1
+fi
+(cd "$REPO_DIR" && python tools/bake_path.py "$WAYPOINTS_SRC") || {
+    echo "ERROR: baking ${WAYPOINTS_YAML} failed - NOT launching." >&2
+    exit 1
+}
+
 # Re-assert yaml symlinks EVERY launch: colcon copies data_files yamls into the
 # install space on every build (even with --symlink-install), which silently
 # reverts them to stale snapshots. This guarantees the stack always reads the
@@ -88,6 +102,26 @@ set -u
     echo "ERROR: yaml symlinking failed - install space may serve STALE configs." >&2
     exit 1
 }
+
+# --- kick stale holders off the arduino port ---------------------------------
+# A leftover process from a crashed run holding $ARDUINO_PORT (possibly with
+# TIOCEXCL) blocks the arduino node from opening it. Kill every holder before
+# bringing up the stack. Plain fuser sees/kills all normal same-user holders
+# (stale nodes, serial monitors) but NOT the systemd-spawned heartbeat (its
+# /proc fds are unreadable without root - measured 07/13). sudo (used only when
+# it needs no password prompt, e.g. after 'sudo -v') additionally reaches the
+# heartbeat and root-owned holders like ModemManager; if it kills the
+# heartbeat, systemd (Restart=always) respawns it within ~1s - harmless.
+if [ -e "$ARDUINO_PORT" ]; then
+    if sudo -n true 2>/dev/null; then
+        sudo -n fuser -k "$ARDUINO_PORT" 2>/dev/null \
+            && echo ">>> Kicked processes holding $ARDUINO_PORT (sudo)"
+    else
+        fuser -k "$ARDUINO_PORT" 2>/dev/null \
+            && echo ">>> Kicked processes holding $ARDUINO_PORT"
+    fi
+    sleep 0.5   # let the port settle before anything re-opens it
+fi
 
 # --- neutralize thrusters ---------------------------------------------------
 # Sends a string of 1500s (one per thruster) straight to the Arduino serial

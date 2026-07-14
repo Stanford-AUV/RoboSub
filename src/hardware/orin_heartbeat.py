@@ -4,8 +4,10 @@ Orin -> Teensy heartbeat ticker  (pure stdlib: no pyserial / conda needed).
 
 Sends 'heartbeat <seq>\\n' to the Teensy once per second.  Survives the Teensy
 being unplugged / replugged / reflashed: on a write failure it drops the stale
-handle and keeps retrying every tick, re-opening whatever /dev/ttyACM* node
-the Teensy re-enumerates as.  (The Teensy is powered from the vehicle rail,
+handle and keeps retrying every tick, re-opening /dev/ttyACM_teensy (the
+udev symlink that follows the Teensy across re-enumeration; see
+/etc/udev/rules.d/99-teensy-acm.rules).  (The Teensy is powered from the
+vehicle rail,
 not USB, so pulling the USB cable does NOT reboot it -- its heartbeat
 watchdog stays armed and the red LED flashes until beats resume.)
 
@@ -18,8 +20,9 @@ firmware to see acks):
 
 Needs read/write access to the port (be in the 'dialout' group, or chmod it).
 Usage:  python3 heartbeat.py [interval_s] [duration_s] [port]
-        port defaults to auto-detect (first /dev/ttyACM*, re-checked on
-        every reconnect)
+        port defaults to /dev/ttyACM_teensy (re-checked on every reconnect;
+        falls back to the first bare /dev/ttyACM* with a warning if the
+        udev symlink is missing)
 """
 import glob
 import os
@@ -32,12 +35,26 @@ DURATION_S = float(sys.argv[2]) if len(sys.argv) > 2 else 5.0  # stop after 5 s 
 FORCED_PORT = sys.argv[3] if len(sys.argv) > 3 else None       # None = auto-detect
 
 
+TEENSY_SYMLINK = "/dev/ttyACM_teensy"  # udev-pinned (99-teensy-acm.rules)
+
+
 def find_port():
-    """First ttyACM node present, or the forced one if it exists."""
+    """The Teensy's udev symlink, or the forced one if it exists.
+
+    Falls back to the first bare ttyACM* only if the symlink is missing
+    (rule not installed) -- with a warning, because ttyACM numbers shuffle
+    on re-enumeration (07/13: a DaisySeed hydrophone board took ttyACM0)."""
     if FORCED_PORT:
         return FORCED_PORT if os.path.exists(FORCED_PORT) else None
+    if os.path.exists(TEENSY_SYMLINK):
+        return TEENSY_SYMLINK
     ports = sorted(glob.glob("/dev/ttyACM*"))
-    return ports[0] if ports else None
+    if ports:
+        print(f">>> WARNING: {TEENSY_SYMLINK} missing (udev rule not "
+              f"installed?); falling back to {ports[0]} which may NOT be "
+              f"the Teensy", flush=True)
+        return ports[0]
+    return None
 
 
 def open_port(port):

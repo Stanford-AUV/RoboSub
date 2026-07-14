@@ -59,9 +59,11 @@ class Arduino(Node):
         ]
 
         try:
-            # NOTE: If this fails, run the following command:
-            # sudo chmod a+rw /dev/ttyACM0
-            port = "/dev/ttyACM0"
+            # udev symlink (99-teensy-acm.rules) pinned to the Teensy's USB
+            # serial number. NEVER use a bare /dev/ttyACM<n>: re-enumeration
+            # shuffles the numbers and 07/13 put a DaisySeed hydrophone board
+            # on ttyACM0 -- PWMs would have streamed at the hydrophones.
+            port = "/dev/ttyACM_teensy"
             self.portName = serial.Serial(port, baudrate=9600, timeout=1, exclusive=True)
             self.get_logger().info(f"Serial port {port} opened successfully.")
         except serial.SerialException as e:

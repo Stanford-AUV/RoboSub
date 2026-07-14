@@ -9,6 +9,7 @@ from scipy.spatial.transform import Rotation
 from ament_index_python.packages import get_package_share_directory
 
 from planning.utils.bake import load_bake, source_hash
+from planning.utils.geometry import override_yaw
 from planning.utils.pursuit import arrived, pursuit_target, step_toward
 
 PURSUIT_V_MAX = 0.25  # m/s - matches create_path's max_velocity
@@ -53,6 +54,14 @@ class PathGenerator(Node):
         )
 
         self.publish_desired = self.create_publisher(Odometry, "/desired/pose", 10)
+
+        # Live yaw for yaw:free samples: publishing the measured yaw as the
+        # desired yaw gives the PID zero yaw error, so it applies no yaw
+        # torque while the mask is active (D-term still damps spin).
+        self.meas_yaw = None
+        self.create_subscription(
+            Odometry, "/odometry/filtered", self.on_odom, 10
+        )
 
         self.items = self.load_baked()
         self.item_index = 0
@@ -105,6 +114,14 @@ class PathGenerator(Node):
             raise SystemExit(1)
         return doc["items"]
 
+    def on_odom(self, msg: Odometry):
+        q = msg.pose.pose.orientation
+        self.meas_yaw = float(
+            Rotation.from_quat([q.x, q.y, q.z, q.w]).as_euler(
+                "xyz", degrees=True
+            )[2]
+        )
+
     def on_goal(self, object_id, msg: PointStamped):
         p = np.array([msg.point.x, msg.point.y, msg.point.z])
         if np.all(np.isfinite(p)):
@@ -137,6 +154,17 @@ class PathGenerator(Node):
             Rotation.from_quat(quat_xyzw).as_euler("xyz", degrees=True)[2]
         )
 
+    def leg_pose(self, item, i):
+        """Position + quat for leg sample i; releases yaw to the measured
+        yaw when the baked yaw_free mask marks the sample. Returns
+        (pos, quat_xyzw, yaw_free)."""
+        pose = item["poses"][i]
+        mask = item.get("yaw_free")
+        if not (mask and mask[i]):
+            return pose[:3], pose[3:], False
+        yaw = self.meas_yaw if self.meas_yaw is not None else self.cmd_yaw
+        return pose[:3], override_yaw(pose[3:], yaw), True
+
     def advance_item(self):
         self.item_index += 1
         self.item_start = None
@@ -168,6 +196,7 @@ class PathGenerator(Node):
         duration = max(item["duration"], 1e-9)
         if t < item["duration"]:
             i = min(int(t / duration * (n - 1)), n - 1)
+            pos, quat, yaw_free = self.leg_pose(item, i)
             tw = Twist()
             (
                 tw.linear.x,
@@ -177,7 +206,10 @@ class PathGenerator(Node):
                 tw.angular.y,
                 tw.angular.z,
             ) = [float(v) for v in twists[i]]
-            self.publish_cmd(poses[i][:3], poses[i][3:], tw)
+            if yaw_free:
+                # No angular feed-forward while yaw is released.
+                tw.angular.x = tw.angular.y = tw.angular.z = 0.0
+            self.publish_cmd(pos, quat, tw)
             return
         if t < item["duration"] + item["pause_after"]:
             # Station-keep on the leg's final pose with ZERO velocity
@@ -188,9 +220,11 @@ class PathGenerator(Node):
                     f"Item {self.item_index + 1}/{len(self.items)} done; "
                     f"pausing {item['pause_after']:.1f}s."
                 )
-            self.publish_cmd(poses[-1][:3], poses[-1][3:])
+            pos, quat, _ = self.leg_pose(item, n - 1)
+            self.publish_cmd(pos, quat)
             return
-        self.publish_cmd(poses[-1][:3], poses[-1][3:])
+        pos, quat, _ = self.leg_pose(item, n - 1)
+        self.publish_cmd(pos, quat)
         self.advance_item()
 
     def pursuit_tick(self, item):

@@ -15,7 +15,9 @@
 set -u
 
 # --- config (override via env) ----------------------------------------------
-ARDUINO_PORT="${ARDUINO_PORT:-/dev/ttyACM0}"
+# udev symlink pinned to the Teensy (99-teensy-acm.rules); bare ttyACM numbers
+# shuffle on USB re-enumeration (07/13: a DaisySeed landed on ttyACM0).
+ARDUINO_PORT="${ARDUINO_PORT:-/dev/ttyACM_teensy}"
 ARDUINO_BAUD="${ARDUINO_BAUD:-9600}"
 THRUSTER_COUNT="${THRUSTER_COUNT:-8}"
 NEUTRAL_PWM="${NEUTRAL_PWM:-1500}"

@@ -324,4 +324,5 @@ def create_path(
         angular_velocities,
         angular_accelerations,
         final_x[-1],
+        final_x,
     )

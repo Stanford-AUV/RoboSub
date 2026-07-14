@@ -12,7 +12,7 @@ segment_0:
     #   orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
 
     - position: {x: 2.3, y: 0.0, z: -0.6}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 90.0}
 
     - position: {x: 2.4, y: 0.0, z: -0.6}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
@@ -31,7 +31,7 @@ segment_0:
 
     - position: {x: 2.4, y: 0.0, z: -0.6}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-    - position: {x: 2.35, y: 0.0, z: -0.6}
+    - position: {x: 2.35, y: 1.0, z: -0.6}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 60.0}
     - position: {x: 2.3, y: 0.0, z: -0.6}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 120.0}
@@ -39,19 +39,26 @@ segment_0:
       orientation: {roll: 0.0, pitch: 0.0, yaw: 180.0}
     - position: {x: 2.3, y: 0.0, z: -0.6}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 240.0}
-    - position: {x: 2.35, y: 0.0, z: -0.6}
+    - position: {x: 2.35, y: 1.0, z: -0.6}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 300.0}
     - position: {x: 2.4, y: 0.0, z: -0.6}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
 
     # Start zigzag
     - position: {x: 2.5, y: 0.0, z: -0.6}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 50.0}
     - position: {x: 4.0, y: 1.5, z: -0.6}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
     - position: {x: 5.5, y: 0.0, z: -0.6}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 180.0}
+    - position: {x: 5.5, y: 0.0, z: -0.6}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 180.0}
+    - position: {x: 4.5, y: 0.0, z: -0.6}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 120.0}
+    - position: {x: 2.5, y: 1.0, z: -0.6}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 250.0}
+    - position: {x: 3.5, y: 1.5, z: -0.6}
+      orientation: {roll: 30.0, pitch: 30.0, yaw: 0.0}
     # - position: {x: 13.0, y: -1.0, z: -2.5}
     #   orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
     # - position: {x: 13.0, y: 1.0, z: -2.5}

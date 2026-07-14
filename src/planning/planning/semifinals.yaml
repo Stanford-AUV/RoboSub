@@ -1,0 +1,68 @@
+segment_0:
+  waypoints:
+  ### COIN FLIP ####
+    - position: {x: 0.0, y: 0.0, z: -0.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: free}  # submerge without fighting yaw
+    - position: {x: 0.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: free}
+    - position: {x: 0.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+
+  ### GO THROUGH GATE WITH "STYLE" ###
+    - position: {x: 2.5, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 3.931, y: -1.109, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+
+    ## start spin 1 ##
+    - position: {x: 5.991, y: -0.962, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 5.991, y: -0.962, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 120.0}
+    - position: {x: 5.991, y: -0.962, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 240.0}
+
+    ## start spin 2
+    - position: {x: 5.991, y: -0.962, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 5.991, y: -0.962, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 120.0}
+    - position: {x: 5.991, y: -0.962, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 240.0}
+    - position: {x: 5.991, y: -0.962, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+      pause: 5.0
+
+  ### SLALOM
+    - position: {x: 7.779, y: -0.968, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 11.005, y: -2.55, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 13.664, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+
+  ### OCTAGON
+    - position: {x: 15.296, y: 0.5, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 17.913, y: 0.5, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 17.913, y: 0.5, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 45.0}
+    - position: {x: 17.913, y: 0.5, z: -0.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 45.0}
+      pause: 5.0
+    - position: {x: 17.913, y: 0.5, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+
+  ### BACK HOME
+    - position: {x: 17.913, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 12.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 7.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 0.5, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+
+  concurrent_action: None
+  exit_on_reach: True

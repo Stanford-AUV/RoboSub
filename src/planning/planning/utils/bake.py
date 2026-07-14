@@ -21,14 +21,19 @@ def source_hash(yaml_path):
 
 
 def _wp_tuple(wp):
+    yaw = wp["orientation"]["yaw"]
+    yaw_free = isinstance(yaw, str)
+    if yaw_free and yaw != "free":
+        raise ValueError(f"orientation.yaw must be a number or 'free', got {yaw!r}")
     return (
         wp["position"]["x"],
         wp["position"]["y"],
         wp["position"]["z"],
         wp["orientation"]["roll"],
         wp["orientation"]["pitch"],
-        wp["orientation"]["yaw"],
+        0.0 if yaw_free else yaw,
         float(wp.get("pause", 0.0)),
+        yaw_free,
     )
 
 
@@ -46,6 +51,20 @@ def _split_legs(waypoints):
     return legs
 
 
+def _substitute_free_yaws(waypoints):
+    """Bake each free yaw flat at the NEXT controlled waypoint's yaw (0.0 if
+    the path never regains control), so the spline is continuous through the
+    free region; the runtime mask overrides these samples anyway."""
+    wps = [list(wp) for wp in waypoints]
+    next_yaw = 0.0
+    for wp in reversed(wps):
+        if wp[7]:
+            wp[5] = next_yaw
+        else:
+            next_yaw = wp[5]
+    return [tuple(wp) for wp in wps]
+
+
 def _bake_leg(leg_wps, pause_after):
     arrays = [np.array([wp[i] for wp in leg_wps]) for i in range(6)]
     (
@@ -56,6 +75,7 @@ def _bake_leg(leg_wps, pause_after):
         angular_velocities,
         _aacc,
         duration,
+        knots,
     ) = create_path(*arrays)
     quats = Rotation.from_euler("xyz", orientations, degrees=True).as_quat()
     poses = [
@@ -81,13 +101,24 @@ def _bake_leg(leg_wps, pause_after):
         ]
         for i in range(len(positions[0]))
     ]
-    return {
+    item = {
         "type": "leg",
         "duration": float(duration),
         "pause_after": float(pause_after),
         "poses": poses,
         "twists": twists,
     }
+    flags = [bool(wp[7]) for wp in leg_wps]
+    if any(flags):
+        # A sample is yaw-free iff the waypoint interval it falls in starts
+        # at a free waypoint (samples are uniform in [0, duration]; knots
+        # are the per-waypoint times).
+        t_fine = np.linspace(0.0, float(duration), len(poses))
+        idx = np.clip(
+            np.searchsorted(knots, t_fine, side="right") - 1, 0, len(flags) - 1
+        )
+        item["yaw_free"] = [int(flags[j]) for j in idx]
+    return item
 
 
 def _wp_list(wp):
@@ -110,7 +141,8 @@ def bake(yaml_path):
 
     def flush_pending():
         if len(pending) >= 2:
-            for leg_wps, pause_after in _split_legs(pending):
+            legs = _split_legs(_substitute_free_yaws(pending))
+            for leg_wps, pause_after in legs:
                 items.append(_bake_leg(leg_wps, pause_after))
         pending.clear()
 
@@ -147,7 +179,7 @@ def bake(yaml_path):
             )
             # The next spline leg starts at the declared exit waypoint - baked
             # offline, independent of wherever pursuit actually ends.
-            pending.append(tuple(exit_wp) + (0.0,))
+            pending.append(tuple(exit_wp) + (0.0, False))
         else:
             for wp in segment["waypoints"]:
                 pending.append(_wp_tuple(wp))

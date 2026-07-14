@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import pytest
+from scipy.spatial.transform import Rotation
 
 from planning.utils.bake import bake, load_bake, save_bake, source_hash
 
@@ -94,3 +95,51 @@ def test_save_load_roundtrip_and_hash(tmp_path):
     assert loaded["source_sha256"] == source_hash(src)
     assert loaded["items"][0]["type"] == "leg"
     assert np.allclose(loaded["items"][0]["poses"], doc["items"][0]["poses"])
+
+
+FREE_YAW_PREFIX = """
+segment_0:
+  waypoints:
+    - position: {x: 0.0, y: 0.0, z: 0.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: free}
+    - position: {x: 0.0, y: 0.0, z: -0.6}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 90.0}
+    - position: {x: 2.0, y: 0.0, z: -0.6}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 90.0}
+"""
+
+
+def test_bake_free_yaw_mask_covers_first_interval(tmp_path):
+    doc = bake(_write(str(tmp_path), FREE_YAW_PREFIX))
+    leg = doc["items"][0]
+    mask = leg["yaw_free"]
+    assert len(mask) == len(leg["poses"])
+    assert mask[0] == 1
+    assert mask[-1] == 0
+    # Free until the first controlled waypoint, contiguous prefix.
+    first_controlled = mask.index(0)
+    assert all(v == 1 for v in mask[:first_controlled])
+    assert all(v == 0 for v in mask[first_controlled:])
+    # Free yaws are baked flat at the next controlled yaw (90 deg).
+    yaws = [
+        Rotation.from_quat(p[3:]).as_euler("xyz", degrees=True)[2]
+        for p in leg["poses"]
+    ]
+    assert np.allclose(yaws, 90.0, atol=1e-6)
+
+
+def test_bake_all_waypoints_free(tmp_path):
+    text = FREE_YAW_PREFIX.replace("yaw: 90.0", "yaw: free")
+    doc = bake(_write(str(tmp_path), text))
+    assert all(v == 1 for v in doc["items"][0]["yaw_free"])
+
+
+def test_bake_no_free_yaw_omits_mask(tmp_path):
+    doc = bake(_write(str(tmp_path), SPLINE_ONLY))
+    assert all("yaw_free" not in i for i in doc["items"])
+
+
+def test_bake_rejects_bad_yaw_string(tmp_path):
+    bad = SPLINE_ONLY.replace("yaw: 0.0", "yaw: loose", 1)
+    with pytest.raises(ValueError):
+        bake(_write(str(tmp_path), bad))

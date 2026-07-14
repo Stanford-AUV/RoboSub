@@ -24,6 +24,8 @@ segment_0:
       pause: 6.0
     - position: {x: 5.0, y: 0.0, z: -0.6}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-      pause: 3.0
+      pause: 6.0
+    - position: {x: 0.0, y: 0.0, z: 0.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
   concurrent_action: None
   exit_on_reach: True
