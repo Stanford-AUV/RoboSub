@@ -3,6 +3,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import Imu
 from geometry_msgs.msg import TwistWithCovarianceStamped, AccelWithCovarianceStamped
 from nav_msgs.msg import Odometry
+from msgs.msg import SensorsStamped
 
 import matplotlib
 
@@ -49,17 +50,29 @@ class SensorsPlot(Node):
         self.desired_sub = self.create_subscription(
             Odometry, "/desired/pose", self.desired_callback, self.QUEUE_DEPTH
         )
+        # Raw hardware sensor bundle (temperatures, current, voltage) - same
+        # source the depth sensor node reads.
+        self.arduino_sub = self.create_subscription(
+            SensorsStamped, "/arduino/sensors", self.arduino_callback,
+            self.QUEUE_DEPTH,
+        )
 
-        self.fig = plt.figure(figsize=(24, 8))
+        self.fig = plt.figure(figsize=(24, 12))
 
-        # Top row: INPUTS + EKF rotation.  Bottom row: EKF outputs + desired pos.
-        self.ax_imu_in = self.fig.add_subplot(241)
-        self.ax_dvl_vel = self.fig.add_subplot(242)
-        self.ax_ekf_rot = self.fig.add_subplot(243)
-        self.ax_ekf_vel = self.fig.add_subplot(245)
-        self.ax_ekf_pos = self.fig.add_subplot(246)
-        self.ax_ekf_accel = self.fig.add_subplot(247)
-        self.ax_des_pos = self.fig.add_subplot(248)
+        # Row 1: INPUTS + EKF rotation + temperatures.
+        # Row 2: EKF outputs + desired pos.  Row 3: power electronics.
+        self.ax_imu_in = self.fig.add_subplot(341)
+        self.ax_dvl_vel = self.fig.add_subplot(342)
+        self.ax_ekf_rot = self.fig.add_subplot(343)
+        self.ax_temp = self.fig.add_subplot(344)
+        self.ax_ekf_vel = self.fig.add_subplot(345)
+        self.ax_ekf_pos = self.fig.add_subplot(346)
+        self.ax_ekf_accel = self.fig.add_subplot(347)
+        self.ax_power = self.fig.add_subplot(348)
+        self.ax_current = self.fig.add_subplot(349)
+        self.ax_voltage = self.fig.add_subplot(3, 4, 10)
+        self.ax_des_pos = self.fig.add_subplot(3, 4, 11)
+        self.ax_des_rot = self.fig.add_subplot(3, 4, 12)
 
         self.imu_in_time = []
         self.imu_in_roll_history = []
@@ -95,6 +108,17 @@ class SensorsPlot(Node):
         self.des_pos_x_history = []
         self.des_pos_y_history = []
         self.des_pos_z_history = []
+        self.des_rot_roll_history = []
+        self.des_rot_pitch_history = []
+        self.des_rot_yaw_history = []
+
+        self.arduino_time = []
+        self.ext_temp_history = []
+        self.int_temp1_history = []
+        self.int_temp2_history = []
+        self.current_history = []
+        self.voltage_history = []
+        self.power_history = []
 
         # Redraw on a timer, NOT in the message callbacks: savefig takes
         # ~1-2 s and doing it inline starved the subscriptions, dropping
@@ -160,6 +184,20 @@ class SensorsPlot(Node):
         self.des_pos_x_history.append(pos.x)
         self.des_pos_y_history.append(pos.y)
         self.des_pos_z_history.append(pos.z)
+        q = msg.pose.pose.orientation
+        r, p, y = self.quaternion_to_rpy(q.w, q.x, q.y, q.z)
+        self.des_rot_roll_history.append(r)
+        self.des_rot_pitch_history.append(p)
+        self.des_rot_yaw_history.append(y)
+
+    def arduino_callback(self, msg: SensorsStamped):
+        self.arduino_time.append(self._stamp(msg))
+        self.ext_temp_history.append(msg.external_temperature)
+        self.int_temp1_history.append(msg.internal_temperature1)
+        self.int_temp2_history.append(msg.internal_temperature2)
+        self.current_history.append(msg.current)
+        self.voltage_history.append(msg.voltage)
+        self.power_history.append(msg.voltage * msg.current)
 
     def quaternion_to_rpy(self, q_w, q_x, q_y, q_z):
         # Roll (x-axis)
@@ -190,6 +228,11 @@ class SensorsPlot(Node):
             self.ax_ekf_pos,
             self.ax_ekf_accel,
             self.ax_des_pos,
+            self.ax_temp,
+            self.ax_current,
+            self.ax_voltage,
+            self.ax_power,
+            self.ax_des_rot,
         ):
             ax.cla()
 
@@ -270,6 +313,53 @@ class SensorsPlot(Node):
         self.ax_des_pos.set_ylabel("Position (m)")
         self.ax_des_pos.grid(True)
         self.ax_des_pos.legend()
+
+        # ---- DESIRED: orientation setpoint (/desired/pose) ----
+        des_roll = np.unwrap(self.des_rot_roll_history)
+        des_pitch = np.unwrap(self.des_rot_pitch_history)
+        des_yaw = np.unwrap(self.des_rot_yaw_history)
+        self.ax_des_rot.set_title("Desired Orientation (/desired/pose)")
+        self.ax_des_rot.plot(self.des_pos_time, des_roll, "r-", label="ROLL")
+        self.ax_des_rot.plot(self.des_pos_time, des_pitch, "g-", label="PITCH")
+        self.ax_des_rot.plot(self.des_pos_time, des_yaw, "b-", label="YAW")
+        self.ax_des_rot.set_xlabel("Time (s)")
+        self.ax_des_rot.set_ylabel("Rotation (rad)")
+        self.ax_des_rot.grid(True)
+        self.ax_des_rot.legend()
+
+        # ---- HARDWARE: temperatures (/arduino/sensors) ----
+        self.ax_temp.set_title("Temperature (/arduino/sensors)")
+        self.ax_temp.plot(self.arduino_time, self.ext_temp_history, "b-", label="EXTERNAL")
+        self.ax_temp.plot(self.arduino_time, self.int_temp1_history, "r-", label="INTERNAL 1")
+        self.ax_temp.plot(self.arduino_time, self.int_temp2_history, "m-", label="INTERNAL 2")
+        self.ax_temp.set_xlabel("Time (s)")
+        self.ax_temp.set_ylabel("Temperature (°C)")
+        self.ax_temp.grid(True)
+        self.ax_temp.legend()
+
+        # ---- HARDWARE: battery current ----
+        self.ax_current.set_title("Current (/arduino/sensors)")
+        self.ax_current.plot(self.arduino_time, self.current_history, "r-", label="CURRENT")
+        self.ax_current.set_xlabel("Time (s)")
+        self.ax_current.set_ylabel("Current (A)")
+        self.ax_current.grid(True)
+        self.ax_current.legend()
+
+        # ---- HARDWARE: battery voltage ----
+        self.ax_voltage.set_title("Voltage (/arduino/sensors)")
+        self.ax_voltage.plot(self.arduino_time, self.voltage_history, "g-", label="VOLTAGE")
+        self.ax_voltage.set_xlabel("Time (s)")
+        self.ax_voltage.set_ylabel("Voltage (V)")
+        self.ax_voltage.grid(True)
+        self.ax_voltage.legend()
+
+        # ---- HARDWARE: power = voltage x current ----
+        self.ax_power.set_title("Power (V x I)")
+        self.ax_power.plot(self.arduino_time, self.power_history, "b-", label="POWER")
+        self.ax_power.set_xlabel("Time (s)")
+        self.ax_power.set_ylabel("Power (W)")
+        self.ax_power.grid(True)
+        self.ax_power.legend()
 
         plt.tight_layout()
         # Land the PNG in the repo root, NOT the launch CWD. ros2 launch starts
