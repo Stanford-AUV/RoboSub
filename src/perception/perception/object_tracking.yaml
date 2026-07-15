@@ -13,3 +13,26 @@
     filter_alpha: 0.3
     max_jump_m: 3.0
     stale_sec: 2.0
+    # Lock-on gate: need confirm_hits detections inside a sliding
+    # confirm_window_sec that agree within max(lock_radius_min_m,
+    # lock_radius_frac * range) before a goal is published to planning.
+    confirm_hits: 10
+    confirm_window_sec: 1.0
+    lock_radius_min_m: 0.05
+    lock_radius_frac: 0.03
+
+# Classical-CV ring fallback (nodes/circle_localizer.py). Publishes
+# detections3d with class "circle"; to make planning pursue it, set
+# object_id above to "circle" and use object_id: circle in the run yaml's
+# go_to_object item.
+/circle_localizer:
+  ros__parameters:
+    camera_key: "oak_0"
+    object_id: "circle"
+    circle_diameter_m: 0.30   # physical ring diameter - MEASURE AND SET
+    publish_all: false        # best ring only ("localize to one of them")
+    min_radius_px: 18
+    max_radius_px: 400
+    min_axis_ratio: 0.45
+    max_fit_residual: 0.045
+    min_contrast: 4.0

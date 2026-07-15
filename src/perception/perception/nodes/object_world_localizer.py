@@ -32,6 +32,10 @@ class ObjectWorldLocalizer(Node):
         self.declare_parameter("filter_alpha", 0.3)
         self.declare_parameter("max_jump_m", 3.0)
         self.declare_parameter("stale_sec", 2.0)
+        self.declare_parameter("confirm_hits", 10)
+        self.declare_parameter("confirm_window_sec", 1.0)
+        self.declare_parameter("lock_radius_min_m", 0.05)
+        self.declare_parameter("lock_radius_frac", 0.03)
 
         gp = self.get_parameter
         self.object_id = gp("object_id").get_parameter_value().string_value
@@ -53,11 +57,16 @@ class ObjectWorldLocalizer(Node):
             alpha=gp("filter_alpha").get_parameter_value().double_value,
             max_jump_m=gp("max_jump_m").get_parameter_value().double_value,
             stale_sec=gp("stale_sec").get_parameter_value().double_value,
+            confirm_hits=gp("confirm_hits").get_parameter_value().integer_value,
+            confirm_window_sec=gp("confirm_window_sec").get_parameter_value().double_value,
+            lock_radius_min_m=gp("lock_radius_min_m").get_parameter_value().double_value,
+            lock_radius_frac=gp("lock_radius_frac").get_parameter_value().double_value,
         )
 
         self.odom_pos = None
         self.odom_quat = None
         self.last_relative = None
+        self.was_publishing = False
 
         self.create_subscription(Odometry, "/odometry/filtered", self.on_odom, 10)
         self.create_subscription(
@@ -101,14 +110,26 @@ class ObjectWorldLocalizer(Node):
                 [c.x, c.y, c.z], self.cam_translation, self.cam_rpy_deg
             )
             p_odom = base_to_odom(p_base, self.odom_pos, self.odom_quat)
-            if self.filter.update(p_odom, self.now_sec()) is not None:
+            was_locked = self.filter.locked
+            if self.filter.update(p_odom, self.now_sec(), self.odom_pos) is not None:
                 self.last_relative = p_base
+            if self.filter.locked and not was_locked:
+                self.get_logger().info(
+                    f"LOCKED '{self.object_id}' at odom "
+                    f"[{p_odom[0]:.2f}, {p_odom[1]:.2f}, {p_odom[2]:.2f}]"
+                )
 
     def publish_goal(self):
         t = self.now_sec()
         goal = self.filter.get(t)
         if goal is None:
+            if self.was_publishing:
+                self.was_publishing = False
+                self.get_logger().warn(
+                    f"Lock on '{self.object_id}' lost; re-confirming."
+                )
             return
+        self.was_publishing = True
         msg = PointStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = "odom"
