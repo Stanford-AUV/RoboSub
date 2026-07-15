@@ -132,59 +132,113 @@ def _wp_list(wp):
     ]
 
 
-def bake(yaml_path):
-    with open(yaml_path, "r") as f:
-        data = yaml.safe_load(f)
+BRANCH_REQUIRED = ("topic", "listen_sec", "default", "branches", "exit")
 
-    items = []
-    pending = []  # waypoint tuples not yet baked into legs
 
-    def flush_pending():
-        if len(pending) >= 2:
-            legs = _split_legs(_substitute_free_yaws(pending))
-            for leg_wps, pause_after in legs:
-                items.append(_bake_leg(leg_wps, pause_after))
-        pending.clear()
+def _flush_pending(pending, items):
+    if len(pending) >= 2:
+        for leg_wps, pause_after in _split_legs(_substitute_free_yaws(pending)):
+            items.append(_bake_leg(leg_wps, pause_after))
+    pending.clear()
 
-    for key in data:
-        segment = data[key]
-        if segment.get("type") == "go_to_object":
-            if "object_id" not in segment or "exit" not in segment:
-                raise ValueError(
-                    f"go_to_object segment '{key}' needs object_id and exit"
-                )
-            flush_pending()
-            exit_wp = _wp_list(segment["exit"])
-            fallback = (
-                _wp_list(segment["fallback"])
-                if "fallback" in segment
-                else list(exit_wp)
+
+def _bake_go_to_object(key, segment, items, pending):
+    if "object_id" not in segment or "exit" not in segment:
+        raise ValueError(f"go_to_object segment '{key}' needs object_id and exit")
+    _flush_pending(pending, items)
+    exit_wp = _wp_list(segment["exit"])
+    fallback = (
+        _wp_list(segment["fallback"]) if "fallback" in segment else list(exit_wp)
+    )
+    items.append(
+        {
+            "type": "go_to_object",
+            "object_id": str(segment["object_id"]),
+            "standoff": float(
+                segment.get("standoff", PURSUIT_DEFAULTS["standoff"])
+            ),
+            "timeout": float(segment.get("timeout", PURSUIT_DEFAULTS["timeout"])),
+            "arrive_tol": float(
+                segment.get("arrive_tol", PURSUIT_DEFAULTS["arrive_tol"])
+            ),
+            "fallback": fallback,
+            "exit": exit_wp,
+        }
+    )
+    # The next spline leg starts at the declared exit waypoint - baked
+    # offline, independent of wherever pursuit actually ends.
+    pending.append(tuple(exit_wp) + (0.0, False))
+
+
+def _bake_branch(key, segment, items, pending):
+    missing = [k for k in BRANCH_REQUIRED if k not in segment]
+    if missing:
+        raise ValueError(f"branch segment '{key}' missing {missing}")
+    branches = segment["branches"]
+    if not isinstance(branches, dict) or len(branches) < 2:
+        raise ValueError(f"branch segment '{key}' needs >=2 named branches")
+    if segment["default"] not in branches:
+        raise ValueError(
+            f"branch segment '{key}' default '{segment['default']}' "
+            f"is not one of {sorted(branches)}"
+        )
+    exit_wp = _wp_list(segment["exit"])
+    # Seed each branch with the last pre-branch waypoint so its first leg
+    # splines continuously from the listening pose.
+    seed = pending[-1] if pending else None
+    _flush_pending(pending, items)
+    baked_branches = {}
+    for name, seg_map in branches.items():
+        b_items, b_pending = [], []
+        if seed is not None:
+            b_pending.append(seed)
+        _bake_segments(seg_map, b_items, b_pending, allow_branch=False)
+        end = b_pending[-1] if b_pending else None
+        _flush_pending(b_pending, b_items)
+        if not b_items:
+            raise ValueError(f"branch '{key}.{name}' produced no items")
+        if end is None or not all(
+            abs(end[i] - exit_wp[i]) <= 1e-6 for i in range(6)
+        ):
+            raise ValueError(
+                f"branch '{key}.{name}' must end at the declared exit "
+                f"waypoint {exit_wp}, got {end}"
             )
-            items.append(
-                {
-                    "type": "go_to_object",
-                    "object_id": str(segment["object_id"]),
-                    "standoff": float(
-                        segment.get("standoff", PURSUIT_DEFAULTS["standoff"])
-                    ),
-                    "timeout": float(
-                        segment.get("timeout", PURSUIT_DEFAULTS["timeout"])
-                    ),
-                    "arrive_tol": float(
-                        segment.get("arrive_tol", PURSUIT_DEFAULTS["arrive_tol"])
-                    ),
-                    "fallback": fallback,
-                    "exit": exit_wp,
-                }
-            )
-            # The next spline leg starts at the declared exit waypoint - baked
-            # offline, independent of wherever pursuit actually ends.
-            pending.append(tuple(exit_wp) + (0.0, False))
+        baked_branches[name] = b_items
+    items.append(
+        {
+            "type": "branch",
+            "topic": str(segment["topic"]),
+            "listen_sec": float(segment["listen_sec"]),
+            "default": str(segment["default"]),
+            "branches": baked_branches,
+        }
+    )
+    # Post-branch legs spline from the declared exit, independent of the
+    # branch taken (both branches are validated to end there).
+    pending.append(tuple(exit_wp) + (0.0, False))
+
+
+def _bake_segments(data, items, pending, allow_branch=True):
+    for key, segment in data.items():
+        kind = segment.get("type") if isinstance(segment, dict) else None
+        if kind == "go_to_object":
+            _bake_go_to_object(key, segment, items, pending)
+        elif kind == "branch":
+            if not allow_branch:
+                raise ValueError(f"nested branch segment '{key}' is not allowed")
+            _bake_branch(key, segment, items, pending)
         else:
             for wp in segment["waypoints"]:
                 pending.append(_wp_tuple(wp))
-    flush_pending()
 
+
+def bake(yaml_path):
+    with open(yaml_path, "r") as f:
+        data = yaml.safe_load(f)
+    items, pending = [], []
+    _bake_segments(data, items, pending)
+    _flush_pending(pending, items)
     if not items:
         raise ValueError(f"No trajectory items produced from '{yaml_path}'")
     return {"source_sha256": source_hash(yaml_path), "items": items}

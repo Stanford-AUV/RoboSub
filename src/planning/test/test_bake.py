@@ -143,3 +143,144 @@ def test_bake_rejects_bad_yaw_string(tmp_path):
     bad = SPLINE_ONLY.replace("yaw: 0.0", "yaw: loose", 1)
     with pytest.raises(ValueError):
         bake(_write(str(tmp_path), bad))
+
+
+WITH_BRANCH = """
+segment_0:
+  waypoints:
+    - position: {x: 0.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 2.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+segment_1:
+  type: branch
+  topic: /pinger/task
+  listen_sec: 4.0
+  default: torpedo_first
+  branches:
+    torpedo_first:
+      torpedo:
+        type: go_to_object
+        object_id: torpedo_target
+        standoff: 1.0
+        timeout: 30.0
+        exit:
+          position: {x: 4.0, y: 1.0, z: -1.0}
+          orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+      octagon:
+        waypoints:
+          - position: {x: 6.0, y: 0.0, z: -1.0}
+            orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    octagon_first:
+      octagon:
+        waypoints:
+          - position: {x: 5.0, y: -1.0, z: -1.0}
+            orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+          - position: {x: 6.0, y: 0.0, z: -1.0}
+            orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+  exit:
+    position: {x: 6.0, y: 0.0, z: -1.0}
+    orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+segment_2:
+  waypoints:
+    - position: {x: 8.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+"""
+
+
+def test_bake_branch_item_shape_and_both_branches(tmp_path):
+    doc = bake(_write(str(tmp_path), WITH_BRANCH))
+    types = [i["type"] for i in doc["items"]]
+    assert types == ["leg", "branch", "leg"]
+    br = doc["items"][1]
+    assert br["topic"] == "/pinger/task"
+    assert br["listen_sec"] == 4.0
+    assert br["default"] == "torpedo_first"
+    assert set(br["branches"]) == {"torpedo_first", "octagon_first"}
+    # torpedo_first: pursuit descriptor then a leg to the octagon point
+    tf = br["branches"]["torpedo_first"]
+    assert [i["type"] for i in tf] == ["go_to_object", "leg"]
+    assert tf[0]["object_id"] == "torpedo_target"
+    # octagon_first: pure spline legs
+    of = br["branches"]["octagon_first"]
+    assert all(i["type"] == "leg" for i in of)
+
+
+def test_bake_branch_seeding_and_exit(tmp_path):
+    doc = bake(_write(str(tmp_path), WITH_BRANCH))
+    br = doc["items"][1]
+    # Branch legs are seeded at the last pre-branch waypoint (2,0,-1).
+    of_first_pose = br["branches"]["octagon_first"][0]["poses"][0]
+    assert np.allclose(of_first_pose[:3], [2.0, 0.0, -1.0], atol=1e-6)
+    # Both branches end at the declared exit (6,0,-1).
+    for name in ("torpedo_first", "octagon_first"):
+        last_pose = br["branches"][name][-1]["poses"][-1]
+        assert np.allclose(last_pose[:3], [6.0, 0.0, -1.0], atol=1e-6)
+    # The post-branch leg starts at the exit, like pursuit exit seeding.
+    after = doc["items"][2]["poses"][0]
+    assert np.allclose(after[:3], [6.0, 0.0, -1.0], atol=1e-6)
+
+
+def test_bake_branch_validation_errors(tmp_path):
+    # default not in branches
+    bad = WITH_BRANCH.replace("default: torpedo_first", "default: nope")
+    with pytest.raises(ValueError):
+        bake(_write(str(tmp_path), bad))
+    # missing listen_sec
+    bad = WITH_BRANCH.replace("  listen_sec: 4.0\n", "")
+    with pytest.raises(ValueError):
+        bake(_write(str(tmp_path), bad))
+    # branch not ending at the declared exit
+    bad = WITH_BRANCH.replace(
+        """      octagon:
+        waypoints:
+          - position: {x: 5.0, y: -1.0, z: -1.0}
+            orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+          - position: {x: 6.0, y: 0.0, z: -1.0}
+            orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+""",
+        """      octagon:
+        waypoints:
+          - position: {x: 5.0, y: -1.0, z: -2.0}
+            orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+""",
+    )
+    with pytest.raises(ValueError):
+        bake(_write(str(tmp_path), bad))
+
+
+def test_bake_rejects_nested_branch(tmp_path):
+    nested = """
+segment_0:
+  waypoints:
+    - position: {x: 0.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 1.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+segment_1:
+  type: branch
+  topic: /pinger/task
+  listen_sec: 3.0
+  default: a
+  branches:
+    a:
+      inner:
+        type: branch
+        topic: /x
+        listen_sec: 1.0
+        default: c
+        branches: {c: {s: {waypoints: []}}}
+        exit:
+          position: {x: 2.0, y: 0.0, z: -1.0}
+          orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    b:
+      s:
+        waypoints:
+          - position: {x: 2.0, y: 0.0, z: -1.0}
+            orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+  exit:
+    position: {x: 2.0, y: 0.0, z: -1.0}
+    orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+"""
+    with pytest.raises(ValueError):
+        bake(_write(str(tmp_path), nested))
