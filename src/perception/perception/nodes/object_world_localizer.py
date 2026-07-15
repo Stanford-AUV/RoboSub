@@ -32,8 +32,8 @@ class ObjectWorldLocalizer(Node):
         self.declare_parameter("filter_alpha", 0.3)
         self.declare_parameter("max_jump_m", 3.0)
         self.declare_parameter("stale_sec", 2.0)
-        self.declare_parameter("confirm_hits", 10)
-        self.declare_parameter("confirm_window_sec", 1.0)
+        self.declare_parameter("confirm_hits", 5)
+        self.declare_parameter("confirm_window_sec", 2.0)
         self.declare_parameter("lock_radius_min_m", 0.05)
         self.declare_parameter("lock_radius_frac", 0.03)
 

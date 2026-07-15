@@ -16,8 +16,11 @@
     # Lock-on gate: need confirm_hits detections inside a sliding
     # confirm_window_sec that agree within max(lock_radius_min_m,
     # lock_radius_frac * range) before a goal is published to planning.
-    confirm_hits: 10
-    confirm_window_sec: 1.0
+    # Tuned on 07/14 wet_data replay: detections arrive ~4.3 Hz, so 10/1.0s
+    # could never lock; 5/2.0s locked only on real props, zero caustics locks.
+    # If live detections3d rate is >10 Hz, consider 10/2.0s for a harder gate.
+    confirm_hits: 5
+    confirm_window_sec: 2.0
     lock_radius_min_m: 0.05
     lock_radius_frac: 0.03
 
