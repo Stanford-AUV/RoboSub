@@ -6,9 +6,11 @@ from geometry_msgs.msg import PointStamped, Twist
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
 from scipy.spatial.transform import Rotation
+from std_msgs.msg import String
 from ament_index_python.packages import get_package_share_directory
 
 from planning.utils.bake import load_bake, source_hash
+from planning.utils.branching import choose_branch, iter_leaf_items
 from planning.utils.geometry import override_yaw
 from planning.utils.pursuit import arrived, arrival_pos, pursuit_target, step_toward
 
@@ -82,12 +84,26 @@ class PathGenerator(Node):
         self.ekf_fallback_logged = False
         self.goals = {}  # object_id -> (np.ndarray(3,), rclpy Time)
         for oid in {
-            i["object_id"] for i in self.items if i["type"] == "go_to_object"
+            i["object_id"]
+            for i in iter_leaf_items(self.items)
+            if i["type"] == "go_to_object"
         }:
             self.create_subscription(
                 PointStamped,
                 f"/object/{oid}/world_position",
                 lambda msg, oid=oid: self.on_goal(oid, msg),
+                10,
+            )
+
+        # Latest pinger classification per branch topic; consulted once,
+        # after the listen window at each branch item. Branch items can
+        # only appear at the top level (bake rejects nesting).
+        self.branch_msgs = {}  # topic -> str
+        for topic in {i["topic"] for i in self.items if i["type"] == "branch"}:
+            self.create_subscription(
+                String,
+                topic,
+                lambda msg, topic=topic: self.on_branch_msg(topic, msg),
                 10,
             )
 
@@ -130,6 +146,9 @@ class PathGenerator(Node):
         p = np.array([msg.point.x, msg.point.y, msg.point.z])
         if np.all(np.isfinite(p)):
             self.goals[object_id] = (p, self.get_clock().now())
+
+    def on_branch_msg(self, topic, msg: String):
+        self.branch_msgs[topic] = msg.data
 
     def fresh_goal(self, object_id):
         entry = self.goals.get(object_id)
@@ -187,6 +206,8 @@ class PathGenerator(Node):
             self.item_start = self.get_clock().now()
         if item["type"] == "leg":
             self.leg_tick(item)
+        elif item["type"] == "branch":
+            self.branch_tick(item)
         else:
             self.pursuit_tick(item)
 
@@ -306,6 +327,34 @@ class PathGenerator(Node):
                 self.advance_item()
         else:
             self.pursuit_arrived_at = None
+
+    def branch_tick(self, item):
+        # Station-keep on the last commanded pose while listening (zero
+        # twist - same rationale as pause handling in leg_tick).
+        if self.cmd_pos is None:
+            self.cmd_pos = np.zeros(3)
+        quat = Rotation.from_euler(
+            "xyz", [0.0, 0.0, self.cmd_yaw], degrees=True
+        ).as_quat()
+        self.publish_cmd(self.cmd_pos, quat)
+        if self.elapsed() < item["listen_sec"]:
+            return
+        name, branch_items, reason = choose_branch(
+            item, self.branch_msgs.get(item["topic"])
+        )
+        log = (
+            self.get_logger().info
+            if reason == "pinger"
+            else self.get_logger().warn
+        )
+        log(
+            f"Branch on '{item['topic']}': taking '{name}' ({reason}, "
+            f"{len(branch_items)} item(s))"
+        )
+        # Splice the chosen branch in place of the branch item; the next
+        # tick plays its first item from a fresh item_start.
+        self.items[self.item_index : self.item_index + 1] = branch_items
+        self.item_start = None
 
     def finish_tick(self):
         # All items done: hold the final commanded pose (zero twist - velocity
