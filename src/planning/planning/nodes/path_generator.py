@@ -10,7 +10,7 @@ from ament_index_python.packages import get_package_share_directory
 
 from planning.utils.bake import load_bake, source_hash
 from planning.utils.geometry import override_yaw
-from planning.utils.pursuit import arrived, pursuit_target, step_toward
+from planning.utils.pursuit import arrived, arrival_pos, pursuit_target, step_toward
 
 PURSUIT_V_MAX = 0.25  # m/s - matches create_path's max_velocity
 PURSUIT_GOAL_STALE_SEC = 2.0
@@ -59,6 +59,7 @@ class PathGenerator(Node):
         # desired yaw gives the PID zero yaw error, so it applies no yaw
         # torque while the mask is active (D-term still damps spin).
         self.meas_yaw = None
+        self.meas_pos = None
         self.create_subscription(
             Odometry, "/odometry/filtered", self.on_odom, 10
         )
@@ -78,6 +79,7 @@ class PathGenerator(Node):
         self.pursuit_target_yaw = None
         self.pursuit_arrived_at = None
         self.pursuit_fallback_logged = False
+        self.ekf_fallback_logged = False
         self.goals = {}  # object_id -> (np.ndarray(3,), rclpy Time)
         for oid in {
             i["object_id"] for i in self.items if i["type"] == "go_to_object"
@@ -115,6 +117,8 @@ class PathGenerator(Node):
         return doc["items"]
 
     def on_odom(self, msg: Odometry):
+        p = msg.pose.pose.position
+        self.meas_pos = np.array([p.x, p.y, p.z])
         q = msg.pose.pose.orientation
         self.meas_yaw = float(
             Rotation.from_quat([q.x, q.y, q.z, q.w]).as_euler(
@@ -280,7 +284,16 @@ class PathGenerator(Node):
         ).as_quat()
         self.publish_cmd(new_cmd, quat)
 
-        if arrived(new_cmd, self.pursuit_target_pos, item["arrive_tol"]):
+        if self.meas_pos is None and not self.ekf_fallback_logged:
+            self.ekf_fallback_logged = True
+            self.get_logger().warn(
+                "No /odometry/filtered yet; judging arrival from commanded pose."
+            )
+        if arrived(
+            arrival_pos(self.meas_pos, new_cmd),
+            self.pursuit_target_pos,
+            item["arrive_tol"],
+        ):
             if self.pursuit_arrived_at is None:
                 self.pursuit_arrived_at = now
                 self.get_logger().info(

@@ -45,3 +45,15 @@ def test_step_toward_does_not_overshoot():
 def test_arrived():
     assert arrived(np.array([1.0, 0.0, 0.0]), np.array([1.05, 0.0, 0.0]), tol=0.1)
     assert not arrived(np.array([1.0, 0.0, 0.0]), np.array([2.0, 0.0, 0.0]), tol=0.1)
+
+
+def test_arrival_uses_ekf_pose_when_available():
+    from planning.utils.pursuit import arrived, arrival_pos
+
+    target = [2.0, 0.0, -1.0]
+    cmd = [2.0, 0.0, -1.0]      # command already at target
+    ekf = [1.0, 0.0, -1.0]      # sub physically 1 m short
+    assert not arrived(arrival_pos(ekf, cmd), target, 0.3)
+    assert arrived(arrival_pos([1.9, 0.0, -1.0], cmd), target, 0.3)
+    # no EKF yet -> fall back to commanded pose
+    assert arrived(arrival_pos(None, cmd), target, 0.3)

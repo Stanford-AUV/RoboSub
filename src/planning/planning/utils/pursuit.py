@@ -29,5 +29,12 @@ def step_toward(current, target, v_max, dt):
     return current + d / dist * max_step
 
 
+def arrival_pos(ekf_pos, cmd_pos):
+    """Position to judge stage arrival from: the sub's real (EKF) position
+    when odometry is alive, else the commanded position so a dead EKF can't
+    wedge the run."""
+    return cmd_pos if ekf_pos is None else ekf_pos
+
+
 def arrived(current, target, tol):
     return float(np.linalg.norm(np.asarray(target) - np.asarray(current))) <= tol
