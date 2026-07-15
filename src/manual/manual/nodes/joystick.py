@@ -30,6 +30,12 @@ class JoystickNode(Node):
         self.kp = 3  # Proportional gain
         self.kd = 1  # Derivative gain
 
+        # Overall multiplier applied to every wrench component before publishing.
+        # Was a hardcoded `fac = 2`; now a ROS param so pilots can tune push
+        # without editing code:  ros2 run manual joystick --ros-args -p wrench_scale:=1.5
+        self.declare_parameter("wrench_scale", 2.0)
+        self.wrench_scale = float(self.get_parameter("wrench_scale").value)
+
         self.depth_subscription = self.create_subscription(
             Float32Stamped, "depth", self.depth_callback, 10
         )
@@ -83,8 +89,11 @@ class JoystickNode(Node):
             d_error = -self.depth_rate
             force_z = self.kp * error + self.kd * d_error
 
+            # Throttled so it doesn't flood the console at 20 Hz.
             self.get_logger().info(
-                f"Desired depth: {self.desired_depth}, Current depth: {self.depth}, {force_z}"
+                f"depth-hold: desired={self.desired_depth:.2f} "
+                f"current={self.depth:.2f} force_z={force_z:.2f}",
+                throttle_duration_sec=1.0,
             )
 
             wrench_msg.wrench.force.z = force_z
@@ -100,16 +109,13 @@ class JoystickNode(Node):
             wrench_msg.wrench.torque.y = 0.0
             wrench_msg.wrench.torque.z = 0.0
 
-        # self.get_logger().info(f"Publishing wrench: {wrench_msg.wrench}")
-        self.get_logger().info(f"{wrench_msg}")
-
-        fac = 2
-        wrench_msg.wrench.force.x = wrench_msg.wrench.force.x  * fac
-        wrench_msg.wrench.force.y = wrench_msg.wrench.force.y  * fac
-        wrench_msg.wrench.force.z = wrench_msg.wrench.force.z  * fac
-        wrench_msg.wrench.torque.x = wrench_msg.wrench.torque.x  * fac
-        wrench_msg.wrench.torque.y = wrench_msg.wrench.torque.y  * fac
-        wrench_msg.wrench.torque.z = wrench_msg.wrench.torque.z  * fac
+        fac = self.wrench_scale
+        wrench_msg.wrench.force.x *= fac
+        wrench_msg.wrench.force.y *= fac
+        wrench_msg.wrench.force.z *= fac
+        wrench_msg.wrench.torque.x *= fac
+        wrench_msg.wrench.torque.y *= fac
+        wrench_msg.wrench.torque.z *= fac
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, self.publish_wrench, wrench_msg)
 
