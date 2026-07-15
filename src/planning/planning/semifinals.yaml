@@ -51,69 +51,18 @@ segment_0:
     - position: {x: 15.635, y: -0.228, z: -0.8}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
 
-  concurrent_action: None
-  exit_on_reach: True
-
-### LISTEN POINT: settle + orient before the pinger window ###
-segment_listen:
-  waypoints:
-    - position: {x: 16.5, y: 0.0, z: -0.8}
+  ### OCTAGON
+    - position: {x: 18.828, y: 0.0, z: -0.7}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 18.828, y: 0.0, z: -0.7}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 45.0}
+    - position: {x: 18.828, y: 0.0, z: -0.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 45.0}
+      pause: 6.0
+    - position: {x: 18.828, y: 0.0, z: -0.7}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
 
-### PINGER BRANCH: torpedo-first vs octagon-first ###
-segment_pinger_branch:
-  type: branch
-  topic: /pinger/task
-  listen_sec: 4.0
-  default: torpedo_first
-  branches:
-    torpedo_first:
-      torpedo:
-        type: go_to_object
-        object_id: torpedo_target        # CONFIRM: perception class name
-        standoff: 1.0
-        timeout: 30.0
-        exit:
-          position: {x: 17.0, y: -1.5, z: -1.0}   # CONFIRM: torpedo area
-          orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-      octagon:
-        waypoints:
-          - position: {x: 18.828, y: 0.0, z: -0.7}
-            orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-          - position: {x: 18.828, y: 0.0, z: -0.7}
-            orientation: {roll: 0.0, pitch: 0.0, yaw: 45.0}
-          - position: {x: 18.828, y: 0.0, z: -0.0}
-            orientation: {roll: 0.0, pitch: 0.0, yaw: 45.0}
-            pause: 6.0
-          - position: {x: 18.828, y: 0.0, z: -0.7}
-            orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-    octagon_first:
-      octagon:
-        waypoints:
-          - position: {x: 18.828, y: 0.0, z: -0.7}
-            orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-          - position: {x: 18.828, y: 0.0, z: -0.7}
-            orientation: {roll: 0.0, pitch: 0.0, yaw: 45.0}
-          - position: {x: 18.828, y: 0.0, z: -0.0}
-            orientation: {roll: 0.0, pitch: 0.0, yaw: 45.0}
-            pause: 6.0
-          - position: {x: 18.828, y: 0.0, z: -0.7}
-            orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-      torpedo:
-        type: go_to_object
-        object_id: torpedo_target        # CONFIRM: perception class name
-        standoff: 1.0
-        timeout: 30.0
-        exit:
-          position: {x: 18.828, y: 0.0, z: -0.7}
-          orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-  exit:
-    position: {x: 18.828, y: 0.0, z: -0.7}
-    orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-
-### BACK HOME ###
-segment_home:
-  waypoints:
+  ### BACK HOME
     - position: {x: 14.358, y: 0.0, z: -1.0}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
     - position: {x: 12.448, y: 0.615, z: -1.0}
