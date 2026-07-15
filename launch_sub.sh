@@ -28,7 +28,7 @@ fi
 
 set -u
 
-WAYPOINTS_YAML="${1:-segments.yaml}"
+WAYPOINTS_YAML="${1:-semifinals.yaml}"
 
 # --- config -----------------------------------------------------------------
 # ROS 2 is provided by the active conda env (`conda activate robosub`), so no

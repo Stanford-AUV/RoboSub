@@ -201,3 +201,11 @@ real/
 
 tools/
 *.png
+
+# large binary data / datasets / model weights — kept out of git (no LFS)
+comp-data/
+images/
+models/
+Robosub Wet data.*/
+*.pt
+*.onnx

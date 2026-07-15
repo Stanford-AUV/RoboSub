@@ -22,27 +22,27 @@ oak_0:
     R: 
     t:
 
-# oak_0:
-#   ros__parameters:
-#     camera:
-#       i_mx_id: 19443010B17E1C1300
-#       i_pipeline_type: RGBD
-#     rgb:
-#       rgb_width: 640
-#       rgb_height: 480
-#       rgb_fps: 30
-#     stereo:
-#       i_depth_preset: FAST_ACCURACY
-#       i_depth_filter_size: 5
-#       i_extended_disp: true
-#       left:
-#         i_resolution: 400P
-#       right:
-#         i_resolution: 400P
-#   intrinsic_params:
-#     K: [[0,0],[0,0],[0,0]]
-#     R: 
-#     t:
+oak_1:
+  ros__parameters:
+    camera:
+      i_mx_id: 19443010B17E1C1300
+      i_pipeline_type: RGBD
+    rgb:
+      rgb_width: 640
+      rgb_height: 480
+      rgb_fps: 30
+    stereo:
+      i_depth_preset: FAST_ACCURACY
+      i_depth_filter_size: 5
+      i_extended_disp: true
+      left:
+        i_resolution: 400P
+      right:
+        i_resolution: 400P
+  intrinsic_params:
+    K: [[0,0],[0,0],[0,0]]
+    R: 
+    t:
     
 realsense_0:
   ros__parameters:
