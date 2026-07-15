@@ -31,7 +31,7 @@ RoboSub/                          # colcon workspace root (run build.sh here)
 ├── requirements.txt               # Python deps (python -m pip install -r into the conda env)
 ├── ORIN_SETUP.md                  # conda 'robosub' env setup + GPU torch + kinks
 ├── keyboard_local.sh              # Host keyboard → NATS (uses .local_venv + local_requirements.txt)
-├── joystick_local.sh
+├── teleop_remote.sh               # Sub-side joystick teleop: hardware + nats-server + manual/joystick (neutral-PWM on exit)
 ├── local_requirements.txt         # pynput, etc. for host teleop scripts
 ├── onboarding/                  # New-member tutorials (path YAML walkthrough)
 ├── SIMULATION.md                  # Gazebo Harmonic + host bridge
@@ -43,7 +43,7 @@ RoboSub/                          # colcon workspace root (run build.sh here)
     ├── control/                   # Wrench ↔ thrust allocation, PID controller, path tracking helpers
     ├── planning/                  # Path YAML loading, path streaming utilities
     ├── perception/                # Cameras, aligned depth, object detection / localizer
-    ├── manual/                    # NATS keyboard + joystick ROS nodes; keyboard_local / joystick_local
+    ├── manual/                    # NATS keyboard + joystick ROS nodes (joystick host lives in laptop repo robosub_local)
     ├── simulation/                # Gazebo-oriented bridge nodes (sensors, thrusters, path)
     └── gui/                       # Web HUD ↔ ROS bridge
 ```
@@ -168,7 +168,7 @@ flowchart LR
 | **control** | `thrust_generator` (`/wrench` → `/thrusts`), `controller` (`/odometry/filtered` + `waypoint` → `wrench`), `path_tracker`, PID and trajectory helpers. See [src/control/README.md](src/control/README.md). |
 | **planning** | `path_loader`, `path_streamer`, `path_generator` — YAML paths and streaming (see `planning/sample_path.yaml`). |
 | **perception** | RealSense / OAK pipelines, `AlignedDepthImage`, object detection and `object_local`. See [src/perception/README.md](src/perception/README.md). |
-| **manual** | **`keyboard`** and **`joystick`** nodes (NATS → `wrench`); host scripts **`keyboard_local.sh`** / **`joystick_local.sh`**. |
+| **manual** | **`keyboard`** and **`joystick`** nodes (NATS → `wrench`); keyboard host script **`keyboard_local.sh`**; joystick host lives in the standalone laptop repo **`robosub_local`** (sub side: **`teleop_remote.sh`**). |
 | **simulation** | Nodes to talk to Gazebo / sim bridges (`sensors`, `thrusters`, `path_bridge`). See [SIMULATION.md](SIMULATION.md). |
 | **gui** | `ros2 run gui bridge` — web HUD plumbing (`gui/auv_hud.html`, `gui/gui/ros2_gui_bridge.py`). |
 
@@ -315,7 +315,7 @@ Simulation is GUI-heavy and Gazebo-Harmonic-based; it is **not** part of the veh
 
 ## Optional: Joystick over NATS
 
-**`manual/joystick`** uses **`nats://localhost:4222`**, subject **`joystick`**. Run **`control/thrust_generator`** once (e.g. from **`hardware.py`** or **`manual.py`**), then **`ros2 run manual joystick`** and **`./joystick_local.sh`**. Do **not** run joystick/keyboard together with the **`main.py`** autonomy stack on the same bring-up if you want only controller wrenches on **`/wrench`**.
+**`manual/joystick`** uses **`nats://localhost:4222`**, subject **`joystick`**. On the sub run **`./teleop_remote.sh`** — it brings up **`hardware.py`** (thrust_generator + thrusters), **`nats-server`**, and the joystick node, and neutralizes thrusters on Ctrl+C. On the pilot laptop run the standalone **`robosub_local/run.sh --host <sub-tether-ip>`**. Do **not** run **`teleop_remote.sh`** together with **`launch_sub.sh`**/**`main.py`** (each brings up its own hardware + `thrust_generator`).
 
 ---
 

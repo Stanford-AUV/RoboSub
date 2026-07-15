@@ -10,7 +10,7 @@ ROS nodes and host helpers for **operator control** of the AUV: wrench commands 
 
 - **`manual/nodes/keyboard.py`** — **`KeyboardNode`**: subscribes to **NATS** subject **`keyboard`**, deserializes **`KeyboardState`** (`manual/utils/keyboard.py`), publishes **`WrenchStamped`** on **`wrench`**, and **`Int16`** on **`light`**, **`torpedo`**, **`dropper`**.
 - **`manual/keyboard_local.py`** — runs on a machine with a keyboard; uses **`pynput`** to track keys and **publishes** JSON to NATS **`keyboard`** (same broker URL as the node: **`nats://localhost:4222`** by default).
-- **`manual/nodes/joystick.py`** — same idea with subject **`joystick`** and **`joystick_local.py`** / **`joystick_local.sh`**.
+- **`manual/nodes/joystick.py`** — same idea with subject **`joystick`**; the host-side bridge lives in the standalone laptop repo **`robosub_local`**, and the sub side is launched via **`teleop_remote.sh`**.
 
 Inputs are no longer read from ROS node `stdin`; teleop requires **NATS + host script** (or another NATS client).
 
