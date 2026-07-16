@@ -94,3 +94,25 @@ def test_batch_throughput():
     t0 = time.monotonic()
     lib.getFrequencyMagnitudeBatch(blocks, 64, 1046.0, 0.01)
     assert time.monotonic() - t0 < 2.0
+
+
+@pytest.mark.parametrize("target", [25000.0, 30000.0, 35000.0, 40000.0])
+def test_homing_up_to_40khz(target):
+    """Competition pingers sit anywhere in 25-40 kHz; at 96 kHz sampling
+    (Nyquist 48 kHz) every such target must map to a valid FFT bin and be
+    strongly separable from tones a few bins away."""
+    lib = FFTLibrary(96000.0)
+    n = 64
+    # 1% tolerance window must stay inside the half spectrum (bin < 32)
+    upper_bin = int(np.float32(target * 1.01 * n) / np.float32(96000.0))
+    assert upper_bin < n // 2
+
+    t = np.arange(n) / 96000.0
+    on = (0.5 * np.sin(2 * np.pi * target * t)).astype(np.float32)
+    on_mag = lib.getFrequencyMagnitude(on, n, target, 0.01)
+
+    # Tones >= 4 bins (6 kHz) away must barely register in the target window
+    for off_freq in (target - 6000.0, min(target + 6000.0, 46000.0)):
+        off = (0.5 * np.sin(2 * np.pi * off_freq * t)).astype(np.float32)
+        off_mag = lib.getFrequencyMagnitude(off, n, target, 0.01)
+        assert on_mag > 5 * off_mag, (target, off_freq, on_mag, off_mag)
