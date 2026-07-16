@@ -29,6 +29,9 @@ import numpy as np
 WINDOW_S = 20.0
 # Backstop cap in case pruning falls behind (e.g. a stamp glitch).
 HISTORY_MAX = 50_000
+# Samples scrolling out of the window are archived at this coarse spacing
+# so the PNG can show the WHOLE run from t=0 (2 Hz x hours = tiny).
+ARCHIVE_DT = 0.5
 # Max points actually drawn per line: at dpi 70 a panel is ~560 px wide,
 # so 600 points is still >= 1 point per pixel; fewer points = faster
 # rasterization, which dominates the frame time.
@@ -196,6 +199,17 @@ class SensorsPlot(Node):
                              "voltage_history"],
             "pinger_time": ["pinger_front_history"],
         }
+
+        # Coarse full-run archive fed by the pruning in _snapshot_locked:
+        # the web dashboard shows the sliding window, the PNG shows
+        # archive + window = the whole run from t=0.
+        self._arch = {}
+        for tk, sks in self._groups.items():
+            self._arch[tk] = []
+            for sk in sks:
+                self._arch[sk] = []
+        self._arch_levels = [[], [], [], []]
+        self._arch_last = {tk: -1e9 for tk in self._groups}
 
         # ---- Persistent artists: titles/labels/legends/lines are created
         # ONCE here; each frame only calls set_data on the lines. Clearing
@@ -434,7 +448,17 @@ class SensorsPlot(Node):
         if self._drawing:
             return
         with self._lock:
-            snap = self._snapshot_locked()
+            win = self._snapshot_locked()
+            # PNG frame = coarse full-run archive + the current window.
+            snap = {"t_max": win["t_max"]}
+            for k, v in win.items():
+                if k in ("t_max", "pinger_levels_history"):
+                    continue
+                snap[k] = _decimate(self._arch.get(k, []) + v)
+            snap["pinger_levels_history"] = [
+                _decimate(a + w) for a, w in
+                zip(self._arch_levels, win["pinger_levels_history"])
+            ]
         self._drawing = True
         threading.Thread(target=self._draw, args=(snap,), daemon=True).start()
 
@@ -473,12 +497,19 @@ class SensorsPlot(Node):
             cols = [getattr(self, sk) for sk in series_keys]
             if tk == "pinger_time":
                 cols = cols + self.pinger_levels_history
-            # Prune everything that scrolled out of the window: it can
-            # never be shown again, so drop it from storage too.
+            # Prune everything that scrolled out of the window, keeping a
+            # coarse sample of it in the full-run archive for the PNG.
             while times and times[0] < t_left:
-                times.popleft()
-                for c in cols:
-                    c.popleft()
+                t0 = times.popleft()
+                vals = [c.popleft() for c in cols]
+                if t0 - self._arch_last[tk] >= ARCHIVE_DT:
+                    self._arch_last[tk] = t0
+                    self._arch[tk].append(t0)
+                    n = len(series_keys)
+                    for sk, v in zip(series_keys, vals[:n]):
+                        self._arch[sk].append(v)
+                    for lst, v in zip(self._arch_levels, vals[n:]):
+                        lst.append(v)
             snap[tk] = _decimate(times)
             for sk, c in zip(series_keys, cols):
                 snap[sk] = _decimate(c)
@@ -513,12 +544,13 @@ class SensorsPlot(Node):
         self._pinger_text.set_text(
             ("FRONT" if front[-1] else "BACK") if front else "")
 
-        # One shared time scale for every panel: a sliding WINDOW_S-second
-        # window ending at the newest stamp (fills 0..WINDOW_S at startup).
+        # One shared time scale for every panel. The PNG is the whole-run
+        # record: always from t=0 (the web dashboard is the one that
+        # scrolls a WINDOW_S sliding window).
         right = max(snap["t_max"], WINDOW_S)
         for ax, _, _ in self._panels:
-            ax.set_xlim(right - WINDOW_S, right)
-        self.ax_pinger.set_xlim(right - WINDOW_S, right)
+            ax.set_xlim(0.0, right)
+        self.ax_pinger.set_xlim(0.0, right)
 
         # tight_layout is expensive and the layout barely changes between
         # frames: compute it once (subplot positions persist afterwards).
@@ -532,6 +564,8 @@ class SensorsPlot(Node):
         out_dir = os.environ.get("ROBOSUB_DIR") or os.path.expanduser("~/RoboSub")
         if not os.path.isdir(out_dir):
             out_dir = os.getcwd()
+        out_dir = os.path.join(out_dir, "tmp")   # keep artifacts out of the repo root
+        os.makedirs(out_dir, exist_ok=True)
         out_path = os.path.join(out_dir, "sensors_plot.png")
         # dpi 70 (vs the 100 default) renders/encodes the PNG ~2x faster,
         # 1680x840 is still perfectly readable; compress_level 1 makes the

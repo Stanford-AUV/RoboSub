@@ -117,6 +117,8 @@ class Logger(Node):
         out_dir = os.environ.get("ROBOSUB_DIR") or os.path.expanduser("~/RoboSub")
         if not os.path.isdir(out_dir):
             out_dir = os.getcwd()
+        out_dir = os.path.join(out_dir, "tmp")   # keep artifacts out of the repo root
+        os.makedirs(out_dir, exist_ok=True)
         out_path = os.path.join(out_dir, "control_logger.png")
         self.fig.savefig(out_path)
         if not self._logged_out_path:

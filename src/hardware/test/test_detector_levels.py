@@ -13,8 +13,10 @@ def tone_block(freq=None, amp=0.5, rate=96000.0, n=64):
 
 
 def test_constants_match_firmware_test_config():
-    # Active Testing configuration from master_ros.cpp, verbatim.
-    assert detector.targetFrequency == 1046.0
+    # Structural constants from master_ros.cpp, verbatim. targetFrequency
+    # and baseThreshold are live calibration knobs ("WE CAN CHANGE"), so
+    # only require them to be sane (any pinger frequency below Nyquist).
+    assert 0.0 < detector.targetFrequency < detector.SAMPLE_RATE / 2
     assert detector.frequencyTolerance == 0.01
     # baseThreshold is a live calibration knob ("WE CAN CHANGE"), tuned in
     # the water — only require it to be a sane normalized level.
