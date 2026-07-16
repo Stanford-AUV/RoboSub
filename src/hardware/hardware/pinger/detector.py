@@ -36,7 +36,7 @@ multiplier = 100                # Amplification of signal (per sample)
 # Frequency Detection
 targetFrequency = 25000.0       # Target frequency to detect
 frequencyTolerance = 0.01       # Tolerance for frequency detection
-baseThreshold = 0.4            # Base threshold for frequency detection
+baseThreshold = 0.04            # Base threshold for frequency detection
 
 # Ping Detection (pinger fires a few ms every ~2 s, periodic)
 offThresholdMs = 1000           # Silence gap (ms) that re-arms a measurement
