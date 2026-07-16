@@ -74,10 +74,24 @@ segment_1:
     ## TORPEDO SECOND
       - position: {x: 16.161, y: 2.248, z: -1.0}
         orientation: {roll: 0.0, pitch: 0.0, yaw: -33.352}
+      # settle 2 s, then SHOOT LEFT (publish fires after the pause)
       - position: {x: 16.281, y: 3.807, z: -1.0}
         orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-        pause: 6.0
-        publish: /torpedo
+        pause: 2.0
+        publish: /torpedo_left
+      # wait 2 s after the left shot
+      - position: {x: 16.281, y: 3.807, z: -1.0}
+        orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+        pause: 2.0
+      # rise 20 cm (closer to the surface), settle 2 s, then SHOOT RIGHT
+      - position: {x: 16.281, y: 3.807, z: -0.8}
+        orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+        pause: 2.0
+        publish: /torpedo_right
+      # wait 2 s after the right shot (servo re-centers during this hold)
+      - position: {x: 16.281, y: 3.807, z: -0.8}
+        orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+        pause: 2.0
       - position: {x: 16.161, y: 2.248, z: -1.0}
         orientation: {roll: 0.0, pitch: 0.0, yaw: -33.352}
 
@@ -87,10 +101,24 @@ segment_1:
     ## TORPEDO FIRST
       - position: {x: 16.161, y: 2.248, z: -1.0}
         orientation: {roll: 0.0, pitch: 0.0, yaw: -33.352}
+      # settle 2 s, then SHOOT LEFT (publish fires after the pause)
       - position: {x: 16.281, y: 3.807, z: -1.0}
         orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-        pause: 6.0
-        publish: /torpedo
+        pause: 2.0
+        publish: /torpedo_left
+      # wait 2 s after the left shot
+      - position: {x: 16.281, y: 3.807, z: -1.0}
+        orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+        pause: 2.0
+      # rise 20 cm (closer to the surface), settle 2 s, then SHOOT RIGHT
+      - position: {x: 16.281, y: 3.807, z: -0.8}
+        orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+        pause: 2.0
+        publish: /torpedo_right
+      # wait 2 s after the right shot (servo re-centers during this hold)
+      - position: {x: 16.281, y: 3.807, z: -0.8}
+        orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+        pause: 2.0
       - position: {x: 16.161, y: 2.248, z: -1.0}
         orientation: {roll: 0.0, pitch: 0.0, yaw: -33.352}
     ## OCTAGON SECOND

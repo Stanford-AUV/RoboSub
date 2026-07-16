@@ -22,7 +22,7 @@ class Arduino(Node):
         # Torpedo firing sequence: left, gap, right, gap, re-center. Staged
         # as (due_time, command) so the 100 Hz update loop keeps streaming
         # PWMs between the shots instead of blocking through the gaps.
-        self.torpedo_gap = 1.0   # seconds between torpedo commands
+        self.torpedo_gap = 2.0   # seconds between torpedo commands
         self._torpedo_queue = []
 
         # Bench mode: NO_THRUST=1 (or ./launch_sub.sh --no-thrust) pins every
@@ -70,6 +70,16 @@ class Arduino(Node):
         self._torpedos_sub = self.create_subscription(
             String, "/torpedo", self.torpedos_callback, history_depth
         )
+        # Split triggers so the mission can MOVE between the two shots
+        # (semifinals yaml: shoot left, rise 20 cm, shoot right).
+        self._torpedo_left_sub = self.create_subscription(
+            String, "/torpedo_left", self.torpedo_left_callback,
+            history_depth
+        )
+        self._torpedo_right_sub = self.create_subscription(
+            String, "/torpedo_right", self.torpedo_right_callback,
+            history_depth
+        )
 
         # Raw sensor-frame data from the two BNO085 IMUs, one topic per unit.
         # Consumed by hardware/nodes/bno085.py, which handles the remount into
@@ -100,11 +110,23 @@ class Arduino(Node):
         return command
 
     def torpedos_callback(self, msg: String):
+        # Legacy single trigger: full sequence with gaps, no movement.
         now = time.monotonic()
         self._torpedo_queue = [
             (now, "t_left"),
             (now + self.torpedo_gap, "t_right"),
             (now + 2 * self.torpedo_gap, "t_zero"),
+        ]
+
+    def torpedo_left_callback(self, msg: String):
+        self._torpedo_queue.append((time.monotonic(), "t_left"))
+
+    def torpedo_right_callback(self, msg: String):
+        # Re-center torpedo_gap seconds after the right shot.
+        now = time.monotonic()
+        self._torpedo_queue += [
+            (now, "t_right"),
+            (now + self.torpedo_gap, "t_zero"),
         ]
 
     def pwms_callback(self, msg: PWMsStamped):
