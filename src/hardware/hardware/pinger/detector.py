@@ -59,7 +59,7 @@ multiplier = 100                  # Baked into stream_audio samples (kGain) -- N
 # Frequency Detection
 targetFrequency = 1046.0          # Target frequency to detect
 frequencyTolerance = 0.01         # Tolerance for frequency detection
-baseThreshold = 0.1               # Base threshold for frequency detection
+baseThreshold = 0.2               # Base threshold for frequency detection
 
 # Ping Detection (pinger fires a few ms every ~2 s, periodic)
 offThresholdMs = 1000             # Silence gap (ms) that re-arms a measurement
