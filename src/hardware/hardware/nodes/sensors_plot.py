@@ -3,7 +3,8 @@ from rclpy.node import Node
 from sensor_msgs.msg import Imu
 from geometry_msgs.msg import TwistWithCovarianceStamped, AccelWithCovarianceStamped
 from nav_msgs.msg import Odometry
-from msgs.msg import SensorsStamped
+from msgs.msg import PingerStamped, SensorsStamped
+from hardware.pinger import detector as pinger_detector
 
 import matplotlib
 
@@ -57,10 +58,15 @@ class SensorsPlot(Node):
             self.QUEUE_DEPTH,
         )
 
+        self.pinger_sub = self.create_subscription(
+            PingerStamped, "/pinger/levels", self.pinger_callback,
+            self.QUEUE_DEPTH,
+        )
+
         self.fig = plt.figure(figsize=(24, 12))
 
         # Row 1: INPUTS + EKF rotation + temperatures.
-        # Row 2: EKF outputs + desired pos.  Row 3: power electronics.
+        # Row 2: EKF outputs + pinger.  Row 3: power electronics + desired.
         self.ax_imu_in = self.fig.add_subplot(341)
         self.ax_dvl_vel = self.fig.add_subplot(342)
         self.ax_ekf_rot = self.fig.add_subplot(343)
@@ -68,7 +74,9 @@ class SensorsPlot(Node):
         self.ax_ekf_vel = self.fig.add_subplot(345)
         self.ax_ekf_pos = self.fig.add_subplot(346)
         self.ax_ekf_accel = self.fig.add_subplot(347)
-        self.ax_power = self.fig.add_subplot(348)
+        # Pinger: 4 hydrophone levels + front/back decision (power was
+        # dropped -- it is just the neighboring current x voltage panels).
+        self.ax_pinger = self.fig.add_subplot(348)
         self.ax_current = self.fig.add_subplot(349)
         self.ax_voltage = self.fig.add_subplot(3, 4, 10)
         self.ax_des_pos = self.fig.add_subplot(3, 4, 11)
@@ -118,7 +126,10 @@ class SensorsPlot(Node):
         self.int_temp2_history = []
         self.current_history = []
         self.voltage_history = []
-        self.power_history = []
+
+        self.pinger_time = []
+        self.pinger_levels_history = [[], [], [], []]
+        self.pinger_front_history = []
 
         # Redraw on a timer, NOT in the message callbacks: savefig takes
         # ~1-2 s and doing it inline starved the subscriptions, dropping
@@ -197,7 +208,12 @@ class SensorsPlot(Node):
         self.int_temp2_history.append(msg.internal_temperature2)
         self.current_history.append(msg.current)
         self.voltage_history.append(msg.voltage)
-        self.power_history.append(msg.voltage * msg.current)
+
+    def pinger_callback(self, msg: PingerStamped):
+        self.pinger_time.append(self._stamp(msg))
+        for i in range(4):
+            self.pinger_levels_history[i].append(msg.levels[i])
+        self.pinger_front_history.append(1.0 if msg.front else 0.0)
 
     def quaternion_to_rpy(self, q_w, q_x, q_y, q_z):
         # Roll (x-axis)
@@ -231,7 +247,7 @@ class SensorsPlot(Node):
             self.ax_temp,
             self.ax_current,
             self.ax_voltage,
-            self.ax_power,
+            self.ax_pinger,
             self.ax_des_rot,
         ):
             ax.cla()
@@ -353,13 +369,29 @@ class SensorsPlot(Node):
         self.ax_voltage.grid(True)
         self.ax_voltage.legend()
 
-        # ---- HARDWARE: power = voltage x current ----
-        self.ax_power.set_title("Power (V x I)")
-        self.ax_power.plot(self.arduino_time, self.power_history, "b-", label="POWER")
-        self.ax_power.set_xlabel("Time (s)")
-        self.ax_power.set_ylabel("Power (W)")
-        self.ax_power.grid(True)
-        self.ax_power.legend()
+        # ---- PINGER: hydrophone levels + front/back decision ----
+        self.ax_pinger.set_title(
+            f"Pinger levels @ {pinger_detector.targetFrequency:.0f} Hz")
+        for ch, color in enumerate(("b", "r", "m", "c")):
+            side = "front" if ch in pinger_detector.FRONT_CHANNELS else "back"
+            self.ax_pinger.plot(
+                self.pinger_time, self.pinger_levels_history[ch],
+                color + "-", label=f"ch{ch} ({side})")
+        self.ax_pinger.axhline(
+            pinger_detector.baseThreshold, color="k", linestyle="--",
+            linewidth=0.8, label="threshold")
+        self.ax_pinger.set_xlabel("Time (s)")
+        self.ax_pinger.set_ylabel("Normalized level")
+        self.ax_pinger.set_ylim(-0.05, 1.05)
+        self.ax_pinger.grid(True)
+        self.ax_pinger.legend(fontsize="x-small")
+        # Latched decision as a big bold label in the bottom-left corner.
+        if self.pinger_front_history:
+            self.ax_pinger.text(
+                0.02, 0.04,
+                "FRONT" if self.pinger_front_history[-1] else "BACK",
+                transform=self.ax_pinger.transAxes, fontsize=26,
+                fontweight="bold", verticalalignment="bottom")
 
         plt.tight_layout()
         # Land the PNG in the repo root, NOT the launch CWD. ros2 launch starts
