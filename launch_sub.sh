@@ -28,6 +28,20 @@ fi
 
 set -u
 
+# --no-thrust (anywhere in the args) or NO_THRUST=1: bench mode. The arduino
+# node pins every thruster PWM at neutral (1500 x8) while sensors, torpedo,
+# lights, and the whole rest of the stack run normally.
+NO_THRUST="${NO_THRUST:-0}"
+_args=()
+for _a in "$@"; do
+    if [ "$_a" = "--no-thrust" ]; then NO_THRUST=1; else _args+=("$_a"); fi
+done
+set -- ${_args[@]+"${_args[@]}"}
+export NO_THRUST
+if [ "$NO_THRUST" != "0" ]; then
+    echo ">>> NO-THRUST MODE: thruster PWMs pinned to neutral (1500) - motors will NOT spin"
+fi
+
 WAYPOINTS_YAML="${1:-segments.yaml}"
 
 echo ">>> Live dashboard (from the laptop): http://192.168.2.2:8080"
@@ -43,14 +57,6 @@ ARDUINO_PORT="/dev/ttyACM_teensy"
 ARDUINO_BAUD=9600
 THRUSTER_COUNT=8
 NEUTRAL_PWM=1500
-
-# The Orin->Teensy heartbeat (systemd: orin-heartbeat.service, runs as this
-# user) shares $ARDUINO_PORT with the arduino node and re-grabs it the instant
-# that node exits. During shutdown we freeze it with SIGSTOP so it can't
-# interleave 'heartbeat N' bytes with our neutral-PWM burst, then SIGCONT it.
-# Same-user signals need no sudo, and a stopped (not dead) process is NOT
-# respawned by systemd's Restart=always.
-HEARTBEAT_MATCH="orin_heartbeat.py"
 
 # Record everything to a rosbag so runs are reviewable. Set ROSBAG=0 to skip.
 ROSBAG="${ROSBAG:-1}"
@@ -124,11 +130,10 @@ fi
 # A leftover process from a crashed run holding $ARDUINO_PORT (possibly with
 # TIOCEXCL) blocks the arduino node from opening it. Kill every holder before
 # bringing up the stack. Plain fuser sees/kills all normal same-user holders
-# (stale nodes, serial monitors) but NOT the systemd-spawned heartbeat (its
-# /proc fds are unreadable without root - measured 07/13). sudo (used only when
-# it needs no password prompt, e.g. after 'sudo -v') additionally reaches the
-# heartbeat and root-owned holders like ModemManager; if it kills the
-# heartbeat, systemd (Restart=always) respawns it within ~1s - harmless.
+# (stale nodes, serial monitors) but NOT root-owned or systemd-spawned ones
+# (their /proc fds are unreadable without root - measured 07/13). sudo (used
+# only when it needs no password prompt, e.g. after 'sudo -v') additionally
+# reaches root-owned holders like ModemManager.
 if [ -e "$ARDUINO_PORT" ]; then
     if sudo -n true 2>/dev/null; then
         sudo -n fuser -k "$ARDUINO_PORT" 2>/dev/null \
@@ -175,8 +180,6 @@ baud = int(os.environ["ARDUINO_BAUD"])
 msg = os.environ["MSG"] + "\n"
 try:
     # exclusive=True (TIOCEXCL) so nothing else can re-open the port mid-burst.
-    # The heartbeat is SIGSTOP-frozen by the caller for the same reason; this is
-    # belt-and-suspenders against any other opener.
     with serial.Serial(port, baudrate=baud, timeout=1, exclusive=True) as ser:
         time.sleep(0.2)          # let the port settle after node released it
         for _ in range(10):      # repeat so the ESCs reliably latch neutral
@@ -232,15 +235,10 @@ shutdown() {
     # Each launch runs in its OWN process group ('set -m'), so we signal the
     # whole GROUP (negative PID) to reach every node it spawned.
     #
-    # Freeze the heartbeat FIRST so it can't grab $ARDUINO_PORT the moment the
-    # arduino node dies and corrupt our neutral burst. No-op if it isn't running.
-    pkill -STOP -f "$HEARTBEAT_MATCH" 2>/dev/null && echo ">>> Froze heartbeat (SIGSTOP)"
     if [ "${HW_PID:-}" ]; then
         kill_group "$HW_PID"
     fi
     kill_thrusters
-    # Let the heartbeat resume arming the Teensy watchdog now the port is free.
-    pkill -CONT -f "$HEARTBEAT_MATCH" 2>/dev/null && echo ">>> Resumed heartbeat (SIGCONT)"
 
     # Close the rosbag cleanly (SIGINT lets rosbag2 flush and write metadata.yaml;
     # a SIGKILL here would leave the bag unindexed/unreadable).
