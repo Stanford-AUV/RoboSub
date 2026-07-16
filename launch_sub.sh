@@ -379,7 +379,19 @@ sleep_interruptible "$IMU_SETTLE_DELAY"
 # IMU must abort the launch, not produce a quietly garbage run.
 if [ "$KILLED" -eq 0 ]; then
     echo ">>> Verifying /imu/orientation is publishing..."
-    if timeout 15 ros2 topic echo --once /imu/orientation >/dev/null 2>&1; then
+    # A single 'ros2 topic echo --once' can miss a live topic on a one-off DDS
+    # discovery race for the CLI's own throwaway participant (07/16: aborted a
+    # run where the IMU was fine the whole time -- the bag it had already
+    # started recording had 1865 /imu/orientation msgs). Retry a few short
+    # attempts instead of trusting one 15s shot before declaring it dead.
+    imu_ok=0
+    for _ in 1 2 3; do
+        if timeout 5 ros2 topic echo --once /imu/orientation >/dev/null 2>&1; then
+            imu_ok=1
+            break
+        fi
+    done
+    if [ "$imu_ok" -eq 1 ]; then
         echo ">>> IMU OK: /imu/orientation is live."
     else
         echo "ERROR: no data on /imu/orientation - Xsens driver likely failed" >&2
