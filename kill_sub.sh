@@ -108,4 +108,4 @@ for pat in \
     pkill -KILL -f "$pat" 2>/dev/null
 done
 
-echo ">>> Done. (Heartbeat/systemd services are left running.)"
+echo ">>> Done. (systemd services are left running.)"
