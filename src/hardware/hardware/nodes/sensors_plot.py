@@ -9,6 +9,10 @@ from hardware.pinger import detector as pinger_detector
 import matplotlib
 
 matplotlib.use("Agg")  # headless: write PNG to disk, no display forwarding needed
+# Aggressive path simplification: rasterizing the line paths dominates the
+# frame time on the Orin; visually lossless for time-series at this size.
+matplotlib.rcParams["path.simplify"] = True
+matplotlib.rcParams["path.simplify_threshold"] = 1.0
 import matplotlib.pyplot as plt
 import collections
 import math
@@ -18,13 +22,16 @@ from types import SimpleNamespace
 
 import numpy as np
 
-# Per-series storage cap: bounds memory AND keeps the snapshot copy cheap.
-# ~8 min of 400 Hz data; slower topics keep the whole run.
-HISTORY_MAX = 200_000
-# Max points actually drawn per line: keeps a redraw O(1) no matter how
-# long the run is (drawing 200k-point lines x 30 series took seconds and
-# was the main source of plot lag late in a run).
-PLOT_POINTS = 2000
+# The plot shows a sliding window of the last WINDOW_S seconds; samples
+# older than that are pruned at snapshot time (they can never be shown
+# again), so storage stays ~window-sized regardless of run length.
+WINDOW_S = 20.0
+# Backstop cap in case pruning falls behind (e.g. a stamp glitch).
+HISTORY_MAX = 50_000
+# Max points actually drawn per line: at dpi 70 a panel is ~560 px wide,
+# so 600 points is still >= 1 point per pixel; fewer points = faster
+# rasterization, which dominates the frame time.
+PLOT_POINTS = 600
 
 
 def _deque():
@@ -167,33 +174,124 @@ class SensorsPlot(Node):
         self.pinger_levels_history = [_deque(), _deque(), _deque(), _deque()]
         self.pinger_front_history = _deque()
 
-        self._series_keys = [
-            "imu_in_time", "imu_in_roll_history", "imu_in_pitch_history",
-            "imu_in_yaw_history",
-            "vel_time", "vel_x_history", "vel_y_history", "vel_z_history",
-            "rot_time", "rot_x_history", "rot_y_history", "rot_z_history",
-            "ekf_vel_time", "ekf_vel_x_history", "ekf_vel_y_history",
-            "ekf_vel_z_history",
-            "ekf_pos_time", "ekf_pos_x_history", "ekf_pos_y_history",
-            "ekf_pos_z_history",
-            "ekf_accel_time", "ekf_accel_x_history", "ekf_accel_y_history",
-            "ekf_accel_z_history",
-            "des_pos_time", "des_pos_x_history", "des_pos_y_history",
-            "des_pos_z_history", "des_rot_roll_history",
-            "des_rot_pitch_history", "des_rot_yaw_history",
-            "arduino_time", "ext_temp_history", "int_temp1_history",
-            "int_temp2_history", "current_history", "voltage_history",
-            "pinger_time", "pinger_front_history",
-        ]
-        self._time_keys = [
-            "imu_in_time", "vel_time", "rot_time", "ekf_vel_time",
-            "ekf_pos_time", "ekf_accel_time", "des_pos_time",
-            "arduino_time", "pinger_time",
-        ]
+        # time key -> the series that share its timestamps (appended
+        # together atomically, so lengths always match).
+        self._groups = {
+            "imu_in_time": ["imu_in_roll_history", "imu_in_pitch_history",
+                            "imu_in_yaw_history"],
+            "vel_time": ["vel_x_history", "vel_y_history", "vel_z_history"],
+            "rot_time": ["rot_x_history", "rot_y_history", "rot_z_history"],
+            "ekf_vel_time": ["ekf_vel_x_history", "ekf_vel_y_history",
+                             "ekf_vel_z_history"],
+            "ekf_pos_time": ["ekf_pos_x_history", "ekf_pos_y_history",
+                             "ekf_pos_z_history"],
+            "ekf_accel_time": ["ekf_accel_x_history", "ekf_accel_y_history",
+                               "ekf_accel_z_history"],
+            "des_pos_time": ["des_pos_x_history", "des_pos_y_history",
+                             "des_pos_z_history", "des_rot_roll_history",
+                             "des_rot_pitch_history", "des_rot_yaw_history"],
+            "arduino_time": ["ext_temp_history", "int_temp1_history",
+                             "int_temp2_history", "current_history",
+                             "voltage_history"],
+            "pinger_time": ["pinger_front_history"],
+        }
+
+        # ---- Persistent artists: titles/labels/legends/lines are created
+        # ONCE here; each frame only calls set_data on the lines. Clearing
+        # and re-plotting 12 panels (cla + plot + legend) cost ~1.5 s/frame
+        # on the Orin; updating line data is ~10x cheaper.
+        self._panels = []
+
+        def panel(ax, title, ylabel, time_key, series):
+            ax.set_title(title)
+            ax.set_ylabel(ylabel)
+            ax.set_xlabel("Time (s)")
+            ax.grid(True)
+            lines = [(ax.plot([], [], style, label=label)[0], key, unwrap)
+                     for key, style, label, unwrap in series]
+            ax.legend(loc="upper left", fontsize="x-small")
+            self._panels.append((ax, time_key, lines))
+
+        panel(self.ax_imu_in, "IMU Rotation IN (/imu/orientation)",
+              "Rotation (rad)", "imu_in_time",
+              [("imu_in_roll_history", "r-", "ROLL", True),
+               ("imu_in_pitch_history", "g-", "PITCH", True),
+               ("imu_in_yaw_history", "b-", "YAW", True)])
+        panel(self.ax_dvl_vel, "DVL Velocity (/velocity)",
+              "Velocity (m/s)", "vel_time",
+              [("vel_x_history", "r-", "X", False),
+               ("vel_y_history", "g-", "Y", False),
+               ("vel_z_history", "b-", "Z", False)])
+        panel(self.ax_ekf_rot, "EKF Rotation (/odometry/filtered)",
+              "Rotation (rad)", "rot_time",
+              [("rot_x_history", "r-", "ROLL", True),
+               ("rot_y_history", "g-", "PITCH", True),
+               ("rot_z_history", "b-", "YAW", True)])
+        panel(self.ax_ekf_vel, "EKF Velocity (/odometry/filtered)",
+              "Velocity (m/s)", "ekf_vel_time",
+              [("ekf_vel_x_history", "r-", "X", False),
+               ("ekf_vel_y_history", "g-", "Y", False),
+               ("ekf_vel_z_history", "b-", "Z", False)])
+        # Z is pinned by depth; X/Y dead-reckon from DVL velocity and drift
+        # with no absolute horizontal fix.
+        panel(self.ax_ekf_pos, "EKF Position (/odometry/filtered)",
+              "Position (m)", "ekf_pos_time",
+              [("ekf_pos_x_history", "r-", "X", False),
+               ("ekf_pos_y_history", "g-", "Y", False),
+               ("ekf_pos_z_history", "b-", "Z", False)])
+        panel(self.ax_ekf_accel, "EKF Acceleration (/accel/filtered)",
+              "Acceleration (m/s²)", "ekf_accel_time",
+              [("ekf_accel_x_history", "r-", "X", False),
+               ("ekf_accel_y_history", "g-", "Y", False),
+               ("ekf_accel_z_history", "b-", "Z", False)])
+        panel(self.ax_des_pos, "Desired Position (/desired/pose)",
+              "Position (m)", "des_pos_time",
+              [("des_pos_x_history", "r-", "X", False),
+               ("des_pos_y_history", "g-", "Y", False),
+               ("des_pos_z_history", "b-", "Z", False)])
+        panel(self.ax_des_rot, "Desired Orientation (/desired/pose)",
+              "Rotation (rad)", "des_pos_time",
+              [("des_rot_roll_history", "r-", "ROLL", True),
+               ("des_rot_pitch_history", "g-", "PITCH", True),
+               ("des_rot_yaw_history", "b-", "YAW", True)])
+        panel(self.ax_temp, "Temperature (/arduino/sensors)",
+              "Temperature (°C)", "arduino_time",
+              [("ext_temp_history", "b-", "EXTERNAL", False),
+               ("int_temp1_history", "r-", "INTERNAL 1", False),
+               ("int_temp2_history", "m-", "INTERNAL 2", False)])
+        panel(self.ax_current, "Current (/arduino/sensors)",
+              "Current (A)", "arduino_time",
+              [("current_history", "r-", "CURRENT", False)])
+        panel(self.ax_voltage, "Voltage (/arduino/sensors)",
+              "Voltage (V)", "arduino_time",
+              [("voltage_history", "g-", "VOLTAGE", False)])
+
+        # Pinger panel: 4 level lines + threshold + big bold FRONT/BACK.
+        self.ax_pinger.set_title(
+            f"Pinger levels @ {pinger_detector.targetFrequency:.0f} Hz")
+        self.ax_pinger.set_ylabel("Normalized level")
+        self.ax_pinger.set_xlabel("Time (s)")
+        self.ax_pinger.set_ylim(-0.05, 1.05)
+        self.ax_pinger.grid(True)
+        self._pinger_lines = []
+        for ch, color in enumerate(("b", "r", "m", "c")):
+            side = "front" if ch in pinger_detector.FRONT_CHANNELS else "back"
+            self._pinger_lines.append(self.ax_pinger.plot(
+                [], [], color + "-", label=f"ch{ch} ({side})")[0])
+        self.ax_pinger.axhline(
+            pinger_detector.baseThreshold, color="k", linestyle="--",
+            linewidth=0.8, label="threshold")
+        self.ax_pinger.legend(loc="upper left", fontsize="x-small")
+        self._pinger_text = self.ax_pinger.text(
+            0.02, 0.04, "", transform=self.ax_pinger.transAxes,
+            fontsize=26, fontweight="bold", verticalalignment="bottom")
 
         self._drawing = False
+        self._layout_done = False
         self._t0 = None  # first header stamp seen; time axis is relative to it
-        self.create_timer(2.0, self.request_draw)
+        # Fast tick: request_draw skips while a draw is in flight, so the
+        # effective frame rate self-throttles to the draw duration.
+        self.create_timer(0.5, self.request_draw)
 
     def _stamp(self, msg):
         """Seconds since start-of-run, from the message HEADER stamp (true
@@ -307,7 +405,27 @@ class SensorsPlot(Node):
         if self._drawing:
             return
         with self._lock:
-            snap = {k: _decimate(getattr(self, k)) for k in self._series_keys}
+            t_max = max(
+                (getattr(self, tk)[-1] for tk in self._groups
+                 if getattr(self, tk)),
+                default=0.0,
+            )
+            t_left = t_max - WINDOW_S
+            snap = {"t_max": t_max}
+            for tk, series_keys in self._groups.items():
+                times = getattr(self, tk)
+                cols = [getattr(self, sk) for sk in series_keys]
+                if tk == "pinger_time":
+                    cols = cols + self.pinger_levels_history
+                # Prune everything that scrolled out of the window: it can
+                # never be shown again, so drop it from storage too.
+                while times and times[0] < t_left:
+                    times.popleft()
+                    for c in cols:
+                        c.popleft()
+                snap[tk] = _decimate(times)
+                for sk, c in zip(series_keys, cols):
+                    snap[sk] = _decimate(c)
             snap["pinger_levels_history"] = [
                 _decimate(d) for d in self.pinger_levels_history
             ]
@@ -316,140 +434,43 @@ class SensorsPlot(Node):
 
     def _draw(self, snap):
         try:
-            self._draw_inner(SimpleNamespace(**snap))
+            self._draw_inner(snap)
         except Exception as e:  # a draw glitch must never kill the node
             self.get_logger().error(f"plot draw failed: {e}")
         finally:
             self._drawing = False
 
-    def _draw_inner(self, s):
-        axes = (
-            self.ax_imu_in,
-            self.ax_dvl_vel,
-            self.ax_ekf_rot,
-            self.ax_ekf_vel,
-            self.ax_ekf_pos,
-            self.ax_ekf_accel,
-            self.ax_des_pos,
-            self.ax_temp,
-            self.ax_current,
-            self.ax_voltage,
-            self.ax_pinger,
-            self.ax_des_rot,
-        )
-        for ax in axes:
-            ax.cla()
+    def _draw_inner(self, snap):
+        # Update line data in place (artists are created once in __init__).
+        for ax, time_key, lines in self._panels:
+            t = snap[time_key]
+            for ln, key, unwrap in lines:
+                y = snap[key]
+                ln.set_data(t, np.unwrap(y) if unwrap else y)
+            if t:  # rescale y to the data now in the window
+                ax.relim()
+                ax.autoscale_view(scalex=False)
 
-        # ---- INPUT: IMU absolute rotation fed to the EKF ----
-        self.ax_imu_in.set_title("IMU Rotation IN (/imu/orientation)")
-        self.ax_imu_in.plot(s.imu_in_time, np.unwrap(s.imu_in_roll_history), "r-", label="ROLL")
-        self.ax_imu_in.plot(s.imu_in_time, np.unwrap(s.imu_in_pitch_history), "g-", label="PITCH")
-        self.ax_imu_in.plot(s.imu_in_time, np.unwrap(s.imu_in_yaw_history), "b-", label="YAW")
-        self.ax_imu_in.set_ylabel("Rotation (rad)")
+        t = snap["pinger_time"]
+        for ln, y in zip(self._pinger_lines, snap["pinger_levels_history"]):
+            ln.set_data(t, y)
+        front = snap["pinger_front_history"]
+        self._pinger_text.set_text(
+            ("FRONT" if front[-1] else "BACK") if front else "")
 
-        # ---- INPUT: DVL velocity ----
-        self.ax_dvl_vel.set_title("DVL Velocity (/velocity)")
-        self.ax_dvl_vel.plot(s.vel_time, s.vel_x_history, "r-", label="X")
-        self.ax_dvl_vel.plot(s.vel_time, s.vel_y_history, "g-", label="Y")
-        self.ax_dvl_vel.plot(s.vel_time, s.vel_z_history, "b-", label="Z")
-        self.ax_dvl_vel.set_ylabel("Velocity (m/s)")
+        # One shared time scale for every panel: a sliding WINDOW_S-second
+        # window ending at the newest stamp (fills 0..WINDOW_S at startup).
+        right = max(snap["t_max"], WINDOW_S)
+        for ax, _, _ in self._panels:
+            ax.set_xlim(right - WINDOW_S, right)
+        self.ax_pinger.set_xlim(right - WINDOW_S, right)
 
-        # ---- OUTPUT: EKF rotation ----
-        self.ax_ekf_rot.set_title("EKF Rotation (/odometry/filtered)")
-        self.ax_ekf_rot.plot(s.rot_time, np.unwrap(s.rot_x_history), "r-", label="ROLL")
-        self.ax_ekf_rot.plot(s.rot_time, np.unwrap(s.rot_y_history), "g-", label="PITCH")
-        self.ax_ekf_rot.plot(s.rot_time, np.unwrap(s.rot_z_history), "b-", label="YAW")
-        self.ax_ekf_rot.set_ylabel("Rotation (rad)")
+        # tight_layout is expensive and the layout barely changes between
+        # frames: compute it once (subplot positions persist afterwards).
+        if not self._layout_done:
+            self.fig.tight_layout()
+            self._layout_done = True
 
-        # ---- OUTPUT: EKF velocity ----
-        self.ax_ekf_vel.set_title("EKF Velocity (/odometry/filtered)")
-        self.ax_ekf_vel.plot(s.ekf_vel_time, s.ekf_vel_x_history, "r-", label="X")
-        self.ax_ekf_vel.plot(s.ekf_vel_time, s.ekf_vel_y_history, "g-", label="Y")
-        self.ax_ekf_vel.plot(s.ekf_vel_time, s.ekf_vel_z_history, "b-", label="Z")
-        self.ax_ekf_vel.set_ylabel("Velocity (m/s)")
-
-        # ---- OUTPUT: EKF position ----
-        # Z is pinned by depth; X/Y dead-reckon from DVL velocity and drift
-        # with no absolute horizontal fix.
-        self.ax_ekf_pos.set_title("EKF Position (/odometry/filtered)")
-        self.ax_ekf_pos.plot(s.ekf_pos_time, s.ekf_pos_x_history, "r-", label="X")
-        self.ax_ekf_pos.plot(s.ekf_pos_time, s.ekf_pos_y_history, "g-", label="Y")
-        self.ax_ekf_pos.plot(s.ekf_pos_time, s.ekf_pos_z_history, "b-", label="Z")
-        self.ax_ekf_pos.set_ylabel("Position (m)")
-
-        # ---- OUTPUT: EKF acceleration ----
-        self.ax_ekf_accel.set_title("EKF Acceleration (/accel/filtered)")
-        self.ax_ekf_accel.plot(s.ekf_accel_time, s.ekf_accel_x_history, "r-", label="X")
-        self.ax_ekf_accel.plot(s.ekf_accel_time, s.ekf_accel_y_history, "g-", label="Y")
-        self.ax_ekf_accel.plot(s.ekf_accel_time, s.ekf_accel_z_history, "b-", label="Z")
-        self.ax_ekf_accel.set_ylabel("Acceleration (m/s²)")
-
-        # ---- DESIRED: position setpoint (/desired/pose) ----
-        self.ax_des_pos.set_title("Desired Position (/desired/pose)")
-        self.ax_des_pos.plot(s.des_pos_time, s.des_pos_x_history, "r-", label="X")
-        self.ax_des_pos.plot(s.des_pos_time, s.des_pos_y_history, "g-", label="Y")
-        self.ax_des_pos.plot(s.des_pos_time, s.des_pos_z_history, "b-", label="Z")
-        self.ax_des_pos.set_ylabel("Position (m)")
-
-        # ---- DESIRED: orientation setpoint (/desired/pose) ----
-        self.ax_des_rot.set_title("Desired Orientation (/desired/pose)")
-        self.ax_des_rot.plot(s.des_pos_time, np.unwrap(s.des_rot_roll_history), "r-", label="ROLL")
-        self.ax_des_rot.plot(s.des_pos_time, np.unwrap(s.des_rot_pitch_history), "g-", label="PITCH")
-        self.ax_des_rot.plot(s.des_pos_time, np.unwrap(s.des_rot_yaw_history), "b-", label="YAW")
-        self.ax_des_rot.set_ylabel("Rotation (rad)")
-
-        # ---- HARDWARE: temperatures (/arduino/sensors) ----
-        self.ax_temp.set_title("Temperature (/arduino/sensors)")
-        self.ax_temp.plot(s.arduino_time, s.ext_temp_history, "b-", label="EXTERNAL")
-        self.ax_temp.plot(s.arduino_time, s.int_temp1_history, "r-", label="INTERNAL 1")
-        self.ax_temp.plot(s.arduino_time, s.int_temp2_history, "m-", label="INTERNAL 2")
-        self.ax_temp.set_ylabel("Temperature (°C)")
-
-        # ---- HARDWARE: battery current ----
-        self.ax_current.set_title("Current (/arduino/sensors)")
-        self.ax_current.plot(s.arduino_time, s.current_history, "r-", label="CURRENT")
-        self.ax_current.set_ylabel("Current (A)")
-
-        # ---- HARDWARE: battery voltage ----
-        self.ax_voltage.set_title("Voltage (/arduino/sensors)")
-        self.ax_voltage.plot(s.arduino_time, s.voltage_history, "g-", label="VOLTAGE")
-        self.ax_voltage.set_ylabel("Voltage (V)")
-
-        # ---- PINGER: hydrophone levels + front/back decision ----
-        self.ax_pinger.set_title(
-            f"Pinger levels @ {pinger_detector.targetFrequency:.0f} Hz")
-        for ch, color in enumerate(("b", "r", "m", "c")):
-            side = "front" if ch in pinger_detector.FRONT_CHANNELS else "back"
-            self.ax_pinger.plot(
-                s.pinger_time, s.pinger_levels_history[ch],
-                color + "-", label=f"ch{ch} ({side})")
-        self.ax_pinger.axhline(
-            pinger_detector.baseThreshold, color="k", linestyle="--",
-            linewidth=0.8, label="threshold")
-        self.ax_pinger.set_ylabel("Normalized level")
-        self.ax_pinger.set_ylim(-0.05, 1.05)
-        # Latched decision as a big bold label in the bottom-left corner.
-        if s.pinger_front_history:
-            self.ax_pinger.text(
-                0.02, 0.04,
-                "FRONT" if s.pinger_front_history[-1] else "BACK",
-                transform=self.ax_pinger.transAxes, fontsize=26,
-                fontweight="bold", verticalalignment="bottom")
-
-        # One shared time scale for every panel: 0 .. newest stamp seen.
-        t_max = max(
-            (seq[-1] for seq in (getattr(s, k) for k in self._time_keys)
-             if seq),
-            default=1.0,
-        )
-        for ax in axes:
-            ax.set_xlim(0.0, max(t_max * 1.02, 1.0))
-            ax.set_xlabel("Time (s)")
-            ax.grid(True)
-            legend_size = "x-small" if ax is self.ax_pinger else None
-            ax.legend(fontsize=legend_size, loc="upper left")
-
-        self.fig.tight_layout()
         # Land the PNG in the repo root, NOT the launch CWD. ros2 launch starts
         # nodes from $HOME, so the old cwd-relative path wrote to ~/sensors_plot.png
         # where nobody was looking. Prefer $ROBOSUB_DIR, then ~/RoboSub, then cwd.
@@ -457,7 +478,14 @@ class SensorsPlot(Node):
         if not os.path.isdir(out_dir):
             out_dir = os.getcwd()
         out_path = os.path.join(out_dir, "sensors_plot.png")
-        self.fig.savefig(out_path)
+        # dpi 70 (vs the 100 default) renders/encodes the PNG ~2x faster,
+        # 1680x840 is still perfectly readable; compress_level 1 makes the
+        # PNG encode cheap (file is a bit larger, nobody cares).
+        try:
+            self.fig.savefig(out_path, dpi=70,
+                             pil_kwargs={"compress_level": 1})
+        except TypeError:  # older matplotlib without pil_kwargs
+            self.fig.savefig(out_path, dpi=70)
         if not getattr(self, "_logged_out_path", False):
             self.get_logger().info(f"writing sensors plot to {out_path}")
             self._logged_out_path = True
