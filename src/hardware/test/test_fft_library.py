@@ -66,3 +66,31 @@ def test_fft_matches_numpy():
     ref = np.fft.fft(x.astype(np.complex128))
     rel = np.max(np.abs(ours - ref)) / np.max(np.abs(ref))
     assert rel < 1e-4
+
+
+def test_batch_equals_scalar_exactly():
+    rng = np.random.default_rng(2)
+    lib = FFTLibrary(96000.0)
+    blocks = rng.standard_normal((50, 64)).astype(np.float32)
+    batch = lib.getFrequencyMagnitudeBatch(blocks, 64, 1046.0, 0.01)
+    scalar = np.array(
+        [lib.getFrequencyMagnitude(b, 64, 1046.0, 0.01) for b in blocks],
+        dtype=np.float32,
+    )
+    assert batch.dtype == np.float32
+    assert batch.shape == (50,)
+    # Same float32 op graph elementwise -> bitwise-equal results.
+    assert np.array_equal(batch, scalar)
+
+
+def test_batch_throughput():
+    # 1 second of 4-channel audio = 6000 blocks; must be far faster than
+    # real time. Generous bound: 2 s on the Orin.
+    import time
+
+    lib = FFTLibrary(96000.0)
+    blocks = np.random.default_rng(3).standard_normal((6000, 64)) \
+        .astype(np.float32)
+    t0 = time.monotonic()
+    lib.getFrequencyMagnitudeBatch(blocks, 64, 1046.0, 0.01)
+    assert time.monotonic() - t0 < 2.0

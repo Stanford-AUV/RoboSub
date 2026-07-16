@@ -74,6 +74,58 @@ class FFTLibrary:
         mags = np.abs(sig[lower_bin:upper_bin + 1]).astype(np.float32)
         return float(np.float32(mags.sum(dtype=np.float32)))
 
+    # ---- Batched variants: the SAME float32 op graph, vectorized over a
+    # leading batch axis. Every numpy op below is elementwise-identical to
+    # its scalar counterpart, so results are bitwise equal per block
+    # (asserted by test_batch_equals_scalar_exactly). Needed because the
+    # node runs 6000 x 64-pt FFTs/s, which the per-call scalar path cannot
+    # sustain in Python.
+
+    def fftBatch(self, signal):
+        """signal: complex64 array (..., N); FFT along the last axis."""
+        N = signal.shape[-1]
+        if N <= 1:
+            return signal
+        even = self.fftBatch(signal[..., 0::2])
+        odd = self.fftBatch(signal[..., 1::2])
+        k = np.arange(N // 2, dtype=np.float64)
+        ang = (-2.0 * np.pi * k / N).astype(np.float32)
+        t = (np.cos(ang) + 1j * np.sin(ang)).astype(np.complex64) * odd
+        return np.concatenate([even + t, even - t], axis=-1) \
+            .astype(np.complex64)
+
+    def getFrequencyMagnitudeBatch(self, blocks, buffer_size, target_freq,
+                                   tolerance=0.05):
+        """blocks: float32 (B, n) -> float32 (B,) magnitudes."""
+        blocks = np.asarray(blocks, dtype=np.float32)
+        B = blocks.shape[0]
+        sig = np.zeros((B, buffer_size), np.complex64)
+        n = min(blocks.shape[1], buffer_size)
+        sig[:, :n] = blocks[:, :n]
+
+        # Hanning window (broadcasts over the batch axis)
+        i = np.arange(buffer_size, dtype=np.float64)
+        ang = (2.0 * np.pi * i / (buffer_size - 1)).astype(np.float32)
+        window = (np.float32(0.5) * (np.float32(1.0) - np.cos(ang))) \
+            .astype(np.float32)
+        sig = (sig * window).astype(np.complex64)
+
+        sig = self.fftBatch(sig)
+
+        lower_freq = np.float32(target_freq) * np.float32(1.0 - tolerance)
+        upper_freq = np.float32(target_freq) * np.float32(1.0 + tolerance)
+        lower_bin = int(np.float32(lower_freq * buffer_size)
+                        / self.m_sampleRate)
+        upper_bin = int(np.float32(upper_freq * buffer_size)
+                        / self.m_sampleRate)
+        if lower_bin >= buffer_size // 2:
+            lower_bin = buffer_size // 2 - 1
+        if upper_bin >= buffer_size // 2:
+            upper_bin = buffer_size // 2 - 1
+
+        mags = np.abs(sig[:, lower_bin:upper_bin + 1]).astype(np.float32)
+        return mags.sum(axis=1, dtype=np.float32)
+
     # Pitch detection: peak bin + parabolic interpolation
     def detectPitch(self, audio_buffer, buffer_size):
         sig = np.zeros(buffer_size, np.complex64)
