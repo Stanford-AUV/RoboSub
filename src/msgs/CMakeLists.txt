@@ -47,6 +47,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Detection3DPoints.msg"
   "msg/Detection3DPointsArray.msg"
   "msg/AlignedDepthImage.msg"
+  "msg/PingerStamped.msg"
   "srv/GetWaypoints.srv"
   DEPENDENCIES geometry_msgs vision_msgs sensor_msgs nav_msgs nmea_msgs mavros_msgs std_msgs builtin_interfaces
 )
