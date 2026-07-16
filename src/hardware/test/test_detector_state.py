@@ -158,3 +158,20 @@ def test_levels_property_tracks_latest():
     det.process_block_levels(0, (0.2, 0.3), 0.0)
     det.process_block_levels(2, (0.4, 0.5), 0.0)
     assert det.levels == [0.2, 0.3, 0.4, 0.5]
+
+
+def test_decision_seq_counts_each_ping():
+    # One decided ping (threshold crossing up + down) = one seq bump, even
+    # when consecutive pings agree -- this feeds the branch tally.
+    det = PingerDetector()
+    assert det.decision_seq == 0
+    t = quiet(det, 0.0)
+    edge(det, 0, t)
+    drop(det, t + BLOCK_US)
+    t = quiet(det, t + 2 * BLOCK_US)
+    assert det.decision_seq == 1
+    edge(det, 0, t)                       # same side again
+    drop(det, t + BLOCK_US)
+    quiet(det, t + 2 * BLOCK_US)
+    assert det.decision_seq == 2
+    assert det.direction_front is True

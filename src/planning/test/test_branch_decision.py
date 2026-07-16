@@ -1,51 +1,34 @@
-"""branch_decision: vote on value CHANGES seen during the listen window.
+"""branch_decision: tally the messages received during the listen window.
 
-The decision topic (/pinger) publishes its latched value at 5 Hz, so raw
-samples are dominated by stickiness; what carries information is each
-switch. The first sample and every subsequent change count one vote for
-the value switched to; majority wins; ties go to the most recent value.
+The daisy node publishes ONE message per detected ping (levels crossing
+the threshold and dropping back = one detection = one message), so the
+branch decision is a simple majority tally of the codes received; ties go
+to the most recent message.
 """
 from planning.nodes.path_generator import branch_decision
 
 
-def stream(*runs):
-    """stream(("front", 5), ("back", 3), ...) -> flat sticky sample list."""
-    out = []
-    for value, n in runs:
-        out += [value] * n
-    return out
-
-
-def test_steady_value_wins():
-    code, votes = branch_decision(stream(("back", 50)))
-    assert code == "back"
-    assert votes == {"back": 1}
-
-
-def test_majority_of_switches_wins():
-    # Was front, then switched to front 3 times and back 2 times in the
-    # window -> front (the user's example).
-    s = stream(("front", 8), ("back", 4), ("front", 9), ("back", 2),
-               ("front", 11))
-    code, votes = branch_decision(s)
+def test_majority_tally_wins():
+    # 3 front detections + 2 back detections in the window -> front.
+    code, votes = branch_decision(
+        ["front", "back", "front", "back", "front"])
     assert votes == {"front": 3, "back": 2}
     assert code == "front"
 
 
-def test_back_majority():
-    s = stream(("back", 10), ("front", 3), ("back", 12))
-    code, votes = branch_decision(s)
-    assert votes == {"back": 2, "front": 1}
+def test_repeated_same_side_counts_every_time():
+    code, votes = branch_decision(["back", "back", "back", "front"])
+    assert votes == {"back": 3, "front": 1}
     assert code == "back"
 
 
 def test_tie_goes_to_most_recent():
-    code, _ = branch_decision(stream(("front", 20), ("back", 20)))
+    code, _ = branch_decision(["front", "back"])
     assert code == "back"
-    code, _ = branch_decision(stream(("back", 20), ("front", 20)))
+    code, _ = branch_decision(["back", "front", "back", "front"])
     assert code == "front"
 
 
-def test_single_sample():
+def test_single_detection():
     code, votes = branch_decision(["front"])
     assert code == "front" and votes == {"front": 1}

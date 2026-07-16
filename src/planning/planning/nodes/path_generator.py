@@ -22,20 +22,17 @@ BRANCH_LISTEN_SEC = 10.0
 
 
 def branch_decision(codes):
-    """Decide a branch from the sample buffer collected while listening.
+    """Decide a branch from the messages collected while listening.
 
-    The decision topic (/pinger) republishes its latched value at 5 Hz, so
-    raw samples are dominated by stickiness. What carries information is
-    each SWITCH: the first sample and every subsequent change count one
-    vote for the value switched to; the majority wins; a tie goes to the
-    most recent value. Returns (code, votes).
+    The decision topic (/pinger) carries ONE message per detected ping --
+    the hydrophone levels crossing the threshold and dropping back counts
+    as one detection -- so the decision is a simple majority tally of the
+    codes received; a tie goes to the most recent message. Returns
+    (code, votes).
     """
     votes = {}
-    prev = None
     for c in codes:
-        if c != prev:
-            votes[c] = votes.get(c, 0) + 1
-            prev = c
+        votes[c] = votes.get(c, 0) + 1
     best = max(votes.values())
     winners = [c for c, n in votes.items() if n == best]
     return (winners[0] if len(winners) == 1 else codes[-1]), votes
@@ -278,6 +275,15 @@ class PathGenerator(Node):
         # on the switches seen.
         self.hold_pose()
         if not self.branch_code or self.elapsed() < BRANCH_LISTEN_SEC:
+            # The decision topic only speaks when a ping is detected, so a
+            # silent pinger can stall us here -- make that visible.
+            if self.elapsed() > 2 * BRANCH_LISTEN_SEC and not self.branch_code \
+                    and not getattr(self, "_branch_warned", False):
+                self._branch_warned = True
+                self.get_logger().warn(
+                    f"Branch {item['decision']}: no detections after "
+                    f"{self.elapsed():.0f} s; still holding."
+                )
             return
         code, votes = branch_decision(self.branch_code)
         self.listen_publishers[item["decision"]].publish(String(data="stop"))

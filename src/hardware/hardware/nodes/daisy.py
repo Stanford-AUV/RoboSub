@@ -4,10 +4,10 @@ The two hydrophone boards run stream_audio.cpp (raw 96 kHz PCM over USB
 CDC); this node decodes both streams, runs the exact firmware detection
 (hardware/pinger/), and publishes:
 
-  /pinger         std_msgs/String  "front"/"back" every 200 ms -- sticky,
-                  exactly the firmware's hw.PrintLine mirror ("back" from
-                  boot until the first ping decides otherwise); planning's
-                  branch segments consume the codes as-is.
+  /pinger         std_msgs/String  ONE "front"/"back" message per DECIDED
+                  ping (levels crossed the threshold and the collection
+                  window closed); planning's branch tallies these during
+                  its listen window and takes the majority.
   /pinger/levels  msgs/PingerStamped  ~20 Hz -- per-channel PEAK normalized
                   level since the previous message + the latched direction;
                   sensors_plot's pinger panel and threshold calibration.
@@ -91,9 +91,7 @@ class Daisy(Node):
         for t in self._threads:
             t.start()
 
-        # Firmware mirror: latched direction every kPrintIntervalMs.
-        self.create_timer(detector.kPrintIntervalMs / 1000.0,
-                          self._publish_pinger)
+        self._pub_seq = 0   # detector.decision_seq already published
         self.create_timer(0.05, self._publish_levels)   # 20 Hz
         self.create_timer(FLUSH_S, self._recorder._flush)
 
@@ -154,6 +152,13 @@ class Daisy(Node):
             except queue.Empty:
                 continue
             self._detector.process_block_levels(first, levels, t_us)
+            # One /pinger message per decided ping: planning's branch
+            # tallies these (threshold crossing up + down = one detection).
+            if self._detector.decision_seq != self._pub_seq:
+                self._pub_seq = self._detector.decision_seq
+                self._pinger_pub.publish(String(
+                    data="front" if self._detector.direction_front
+                    else "back"))
             with self._peaks_lock:
                 for i, lvl in zip((first, first + 1), levels):
                     if lvl > self._peaks[i]:
@@ -196,10 +201,6 @@ class Daisy(Node):
             self.get_logger().error(f"debug plot failed: {e}")
 
     # ---- publishers ------------------------------------------------------
-    def _publish_pinger(self):
-        self._pinger_pub.publish(String(
-            data="front" if self._detector.direction_front else "back"))
-
     def _publish_levels(self):
         msg = PingerStamped()
         msg.header.stamp = self.get_clock().now().to_msg()

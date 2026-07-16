@@ -104,6 +104,7 @@ class PingerDetector:
 
     def __init__(self):
         self.direction_front = False   # latched decision (False = back)
+        self.decision_seq = 0          # bumps once per decided ping
         self.levels = [0.0, 0.0, 0.0, 0.0]
         self._measuring = False        # inside a collection window
         self._armed = False            # quiet long enough to measure
@@ -152,6 +153,7 @@ class PingerDetector:
                 self.direction_front = False
             else:   # tie -> earliest arrival
                 self.direction_front = self._order[0] in FRONT_CHANNELS
+            self.decision_seq += 1
             self._measuring = False   # disarmed until quiet again
 
         # Re-arm once the array has been quiet long enough
