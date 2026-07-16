@@ -102,6 +102,15 @@ class PathGenerator(Node):
             topic: self.create_publisher(String, topic, 10)
             for topic in self._publish_topics(self.items)
         }
+        # Branch listen-window signals: "<decision>/listening" carries
+        # "start" when the branch begins listening and "stop" when it
+        # commits, so the daisy node can save a debug plot of exactly that
+        # window. Pre-created for the same DDS-discovery reason as above.
+        self.listen_publishers = {
+            item["decision"]: self.create_publisher(
+                String, item["decision"] + "/listening", 10)
+            for item in self.items if item["type"] == "branch"
+        }
         self.item_index = 0
         self.item_start = None  # rclpy Time, set on first tick of each item
         self.pause_logged = set()
@@ -228,6 +237,8 @@ class PathGenerator(Node):
                     f"Branch: holding, listening on {item['decision']} "
                     f"for {BRANCH_LISTEN_SEC:.0f} s."
                 )
+                self.listen_publishers[item["decision"]].publish(
+                    String(data="start"))
             self.branch_tick(item)
 
     def elapsed(self):
@@ -253,6 +264,7 @@ class PathGenerator(Node):
         if not self.branch_code or self.elapsed() < BRANCH_LISTEN_SEC:
             return
         code, votes = branch_decision(self.branch_code)
+        self.listen_publishers[item["decision"]].publish(String(data="stop"))
         opt = self.select_option(item, code)
         self.get_logger().info(
             f"Branch {item['decision']}: switch votes {votes} -> "

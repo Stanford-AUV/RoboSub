@@ -15,10 +15,12 @@ matplotlib.use("Agg")  # headless: write PNG to disk, no display forwarding need
 matplotlib.rcParams["path.simplify"] = True
 matplotlib.rcParams["path.simplify_threshold"] = 1.0
 import matplotlib.pyplot as plt
+import bisect
 import collections
 import math
 import os
 import threading
+import time
 from types import SimpleNamespace
 
 import numpy as np
@@ -315,6 +317,16 @@ class SensorsPlot(Node):
             0.02, 0.04, "", transform=self.ax_pinger.transAxes,
             fontsize=26, fontweight="bold", verticalalignment="bottom")
 
+        # Plots land under plots/<session>/: full.png (whole run, from 0)
+        # plus window/<k>.png for every completed WINDOW_S-second chunk.
+        root = os.environ.get("ROBOSUB_DIR") or os.path.expanduser("~/RoboSub")
+        if not os.path.isdir(root):
+            root = os.getcwd()
+        self._plots_dir = os.path.join(
+            root, "plots", time.strftime("%Y_%m_%d_%H_%M_%S"))
+        os.makedirs(os.path.join(self._plots_dir, "window"), exist_ok=True)
+        self._chunks_done = 0
+
         self._drawing = False
         self._layout_done = False
         self._t0 = None  # first header stamp seen; time axis is relative to it
@@ -448,19 +460,51 @@ class SensorsPlot(Node):
         if self._drawing:
             return
         with self._lock:
+            # Completed WINDOW_S chunks since the last render (usually 0 or
+            # 1; more only if drawing stalled). Snapshot BEFORE pruning --
+            # _snapshot_locked never prunes past an unrendered chunk.
+            chunks = []
+            t_max = max(
+                (getattr(self, tk)[-1] for tk in self._groups
+                 if getattr(self, tk)),
+                default=0.0,
+            )
+            while t_max >= (self._chunks_done + 1) * WINDOW_S:
+                k = self._chunks_done
+                chunks.append((k, self._chunk_snapshot_locked(k)))
+                self._chunks_done += 1
             win = self._snapshot_locked()
-            # PNG frame = coarse full-run archive + the current window.
+            # Full-run frame = coarse archive + the current window.
             snap = {"t_max": win["t_max"]}
-            for k, v in win.items():
-                if k in ("t_max", "pinger_levels_history"):
+            for key, v in win.items():
+                if key in ("t_max", "pinger_levels_history"):
                     continue
-                snap[k] = _decimate(self._arch.get(k, []) + v)
+                snap[key] = _decimate(self._arch.get(key, []) + v)
             snap["pinger_levels_history"] = [
                 _decimate(a + w) for a, w in
                 zip(self._arch_levels, win["pinger_levels_history"])
             ]
         self._drawing = True
-        threading.Thread(target=self._draw, args=(snap,), daemon=True).start()
+        threading.Thread(target=self._draw, args=(snap, chunks),
+                         daemon=True).start()
+
+    def _chunk_snapshot_locked(self, k):
+        """Full-resolution copy of chunk k = [k*WINDOW_S, (k+1)*WINDOW_S)."""
+        lo, hi = k * WINDOW_S, (k + 1) * WINDOW_S
+        snap = {"t_max": hi}
+        for tk, series_keys in self._groups.items():
+            times = list(getattr(self, tk))
+            i0 = bisect.bisect_left(times, lo)
+            i1 = bisect.bisect_left(times, hi)
+            snap[tk] = _decimate(times[i0:i1])
+            for sk in series_keys:
+                snap[sk] = _decimate(list(getattr(self, sk))[i0:i1])
+            if tk == "pinger_time":
+                snap["pinger_levels_history"] = [
+                    _decimate(list(d)[i0:i1])
+                    for d in self.pinger_levels_history
+                ]
+        return snap
 
     def _web_data(self):
         """Payload for the dashboard's /data.json (called from the HTTP
@@ -484,13 +528,14 @@ class SensorsPlot(Node):
         }
 
     def _snapshot_locked(self):
-        """Prune + window + decimate every series; caller holds _lock."""
+        """Prune + window + decimate every series; caller holds _lock.
+        Never prunes into a chunk that window/<k>.png hasn't rendered."""
         t_max = max(
             (getattr(self, tk)[-1] for tk in self._groups
              if getattr(self, tk)),
             default=0.0,
         )
-        t_left = t_max - WINDOW_S
+        t_left = min(t_max - WINDOW_S, self._chunks_done * WINDOW_S)
         snap = {"t_max": t_max}
         for tk, series_keys in self._groups.items():
             times = getattr(self, tk)
@@ -498,7 +543,7 @@ class SensorsPlot(Node):
             if tk == "pinger_time":
                 cols = cols + self.pinger_levels_history
             # Prune everything that scrolled out of the window, keeping a
-            # coarse sample of it in the full-run archive for the PNG.
+            # coarse sample of it in the full-run archive for full.png.
             while times and times[0] < t_left:
                 t0 = times.popleft()
                 vals = [c.popleft() for c in cols]
@@ -518,22 +563,31 @@ class SensorsPlot(Node):
         ]
         return snap
 
-    def _draw(self, snap):
+    def _draw(self, snap, chunks):
         try:
-            self._draw_inner(snap)
+            for k, csnap in chunks:
+                self._apply_data(csnap)
+                self._set_xlim(k * WINDOW_S, (k + 1) * WINDOW_S)
+                self._save(os.path.join(self._plots_dir, "window",
+                                        f"{k}.png"))
+            self._apply_data(snap)
+            # full.png is the whole-run record: always from t=0 (the web
+            # dashboard is the one that scrolls a sliding window).
+            self._set_xlim(0.0, max(snap["t_max"], WINDOW_S))
+            self._save(os.path.join(self._plots_dir, "full.png"))
         except Exception as e:  # a draw glitch must never kill the node
             self.get_logger().error(f"plot draw failed: {e}")
         finally:
             self._drawing = False
 
-    def _draw_inner(self, snap):
+    def _apply_data(self, snap):
         # Update line data in place (artists are created once in __init__).
         for ax, time_key, lines in self._panels:
             t = snap[time_key]
             for ln, key, unwrap in lines:
                 y = snap[key]
                 ln.set_data(t, np.unwrap(y) if unwrap else y)
-            if t:  # rescale y to the data now in the window
+            if t:  # rescale y to the data now shown
                 ax.relim()
                 ax.autoscale_view(scalex=False)
 
@@ -544,39 +598,27 @@ class SensorsPlot(Node):
         self._pinger_text.set_text(
             ("FRONT" if front[-1] else "BACK") if front else "")
 
-        # One shared time scale for every panel. The PNG is the whole-run
-        # record: always from t=0 (the web dashboard is the one that
-        # scrolls a WINDOW_S sliding window).
-        right = max(snap["t_max"], WINDOW_S)
+    def _set_xlim(self, lo, hi):
         for ax, _, _ in self._panels:
-            ax.set_xlim(0.0, right)
-        self.ax_pinger.set_xlim(0.0, right)
+            ax.set_xlim(lo, hi)
+        self.ax_pinger.set_xlim(lo, hi)
 
+    def _save(self, path):
         # tight_layout is expensive and the layout barely changes between
         # frames: compute it once (subplot positions persist afterwards).
         if not self._layout_done:
             self.fig.tight_layout()
             self._layout_done = True
-
-        # Land the PNG in the repo root, NOT the launch CWD. ros2 launch starts
-        # nodes from $HOME, so the old cwd-relative path wrote to ~/sensors_plot.png
-        # where nobody was looking. Prefer $ROBOSUB_DIR, then ~/RoboSub, then cwd.
-        out_dir = os.environ.get("ROBOSUB_DIR") or os.path.expanduser("~/RoboSub")
-        if not os.path.isdir(out_dir):
-            out_dir = os.getcwd()
-        out_dir = os.path.join(out_dir, "tmp")   # keep artifacts out of the repo root
-        os.makedirs(out_dir, exist_ok=True)
-        out_path = os.path.join(out_dir, "sensors_plot.png")
         # dpi 70 (vs the 100 default) renders/encodes the PNG ~2x faster,
         # 1680x840 is still perfectly readable; compress_level 1 makes the
         # PNG encode cheap (file is a bit larger, nobody cares).
         try:
-            self.fig.savefig(out_path, dpi=70,
-                             pil_kwargs={"compress_level": 1})
+            self.fig.savefig(path, dpi=70, pil_kwargs={"compress_level": 1})
         except TypeError:  # older matplotlib without pil_kwargs
-            self.fig.savefig(out_path, dpi=70)
+            self.fig.savefig(path, dpi=70)
         if not getattr(self, "_logged_out_path", False):
-            self.get_logger().info(f"writing sensors plot to {out_path}")
+            self.get_logger().info(
+                f"writing sensor plots under {self._plots_dir}")
             self._logged_out_path = True
 
 

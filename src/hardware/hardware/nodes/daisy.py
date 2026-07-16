@@ -21,6 +21,7 @@ hardware/pinger/daisy_stream.py) -- NEVER by bare /dev/ttyACM<n>: 07/13 a
 re-enumeration shuffled the numbers. A missing board is retried forever; a
 dead stream reconnects without touching the other board.
 """
+import collections
 import glob
 import os
 import queue
@@ -34,6 +35,7 @@ from std_msgs.msg import String
 from msgs.msg import PingerStamped
 from hardware.pinger import detector
 from hardware.pinger.daisy_stream import BOARDS, Stream
+from hardware.pinger.debug_plot import render_debug
 from hardware.pinger.pump import pump_batches
 from hardware.pinger.recorder import SessionRecorder, resolve_root
 
@@ -58,12 +60,25 @@ class Daisy(Node):
         self._peaks = [0.0, 0.0, 0.0, 0.0]   # consumer-thread state,
         self._peaks_lock = threading.Lock()  # read by the levels timer
 
-        session = os.path.join(
+        self._session_dir = os.path.join(
             resolve_root(), "data", "semi_finals_audio",
             time.strftime("%Y_%m_%d_%H_%M_%S"))
         self._recorder = SessionRecorder(
-            session, RATE, log=self.get_logger().error)
-        self.get_logger().info(f"recording raw stream to {session}")
+            self._session_dir, RATE, log=self.get_logger().error)
+        self.get_logger().info(f"recording raw stream to {self._session_dir}")
+
+        # Debug plot of the branch listen window: planning publishes
+        # "start"/"stop" on <decision>/listening; we keep a ring of recent
+        # levels in BOARD SAMPLE-CLOCK time (the same clock the WAVs are
+        # written with) and render session_dir/debug.png on "stop", so the
+        # plot's x axis lines up with positions in raw/ch*/*.wav.
+        self._dbg_lock = threading.Lock()
+        self._dbg = {0: collections.deque(maxlen=90_000),   # ~60 s / board
+                     2: collections.deque(maxlen=90_000)}
+        self._last_t_us = {0: 0.0, 2: 0.0}
+        self._listen_start = None
+        self.create_subscription(
+            String, "/pinger/listening", self._on_listening, 10)
 
         self._stop = threading.Event()
         self._threads = [
@@ -143,6 +158,42 @@ class Daisy(Node):
                 for i, lvl in zip((first, first + 1), levels):
                     if lvl > self._peaks[i]:
                         self._peaks[i] = lvl
+            with self._dbg_lock:
+                self._dbg[first].append((t_us, levels[0], levels[1]))
+                self._last_t_us[first] = t_us
+
+    # ---- branch listen-window debug plot ---------------------------------
+    def _on_listening(self, msg):
+        if msg.data == "start":
+            with self._dbg_lock:
+                self._listen_start = dict(self._last_t_us)
+            self.get_logger().info("pinger listen window opened")
+        elif msg.data == "stop":
+            with self._dbg_lock:
+                end = dict(self._last_t_us)
+                # Missed "start" (e.g. node restarted mid-run): fall back
+                # to the nominal listen length + slack.
+                start = self._listen_start or {
+                    b: max(0.0, t - 12e6) for b, t in end.items()}
+                boards = {}
+                for first, dq in self._dbg.items():
+                    lo, hi = start.get(first, 0.0), end.get(first, 0.0)
+                    pts = [p for p in dq if lo <= p[0] <= hi]
+                    boards[first] = ([p[0] / 1e6 for p in pts],
+                                     [p[1] for p in pts],
+                                     [p[2] for p in pts])
+                self._listen_start = None
+            threading.Thread(target=self._render_debug, args=(boards,),
+                             daemon=True).start()
+
+    def _render_debug(self, boards):
+        path = os.path.join(self._session_dir, "debug.png")
+        try:
+            render_debug(path, boards, detector.baseThreshold,
+                         self._detector.direction_front)
+            self.get_logger().info(f"pinger listen debug plot -> {path}")
+        except Exception as e:
+            self.get_logger().error(f"debug plot failed: {e}")
 
     # ---- publishers ------------------------------------------------------
     def _publish_pinger(self):
