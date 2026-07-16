@@ -109,12 +109,14 @@ class SensorsPlot(Node):
         )
 
         # Mission stage from planning (e.g. "leg 2/4", "branch /pinger:
-        # listening") -- shown in the web status line and on the PNGs.
+        # listening") -- shown in the web status line and on the PNGs, and
+        # each TRANSITION is kept with its run-time so the dashboard can
+        # draw stage markers on the panels.
         from std_msgs.msg import String as _String
         self._stage = ""
+        self._stage_marks = []   # [t_rel, name] per transition
         self.stage_sub = self.create_subscription(
-            _String, "/mission/stage",
-            lambda m: setattr(self, "_stage", m.data), 10,
+            _String, "/mission/stage", self._on_stage, 10,
         )
 
         self.fig = plt.figure(figsize=(24, 12))
@@ -362,6 +364,14 @@ class SensorsPlot(Node):
 
         self.create_timer(5.0, self.request_draw)
 
+    def _on_stage(self, msg):
+        if msg.data == self._stage:
+            return
+        self._stage = msg.data
+        t = self.get_clock().now().nanoseconds * 1e-9
+        t_rel = t - self._t0 if self._t0 is not None else 0.0
+        self._stage_marks.append([round(t_rel, 2), msg.data])
+
     def _stamp(self, msg):
         """Seconds since start-of-run, from the message HEADER stamp (true
         sample time), not arrival time - arrival time smears samples that
@@ -540,6 +550,7 @@ class SensorsPlot(Node):
                               for lv in snap["pinger_levels_history"]],
             "front": bool(front[-1]) if front else None,
             "stage": self._stage,
+            "stage_marks": list(self._stage_marks),
         }
 
     def _snapshot_locked(self):
@@ -583,17 +594,40 @@ class SensorsPlot(Node):
             for k, csnap in chunks:
                 self._apply_data(csnap)
                 self._set_xlim(k * WINDOW_S, (k + 1) * WINDOW_S)
+                arts = self._draw_stage_marks(k * WINDOW_S,
+                                              (k + 1) * WINDOW_S)
                 self._save(os.path.join(self._plots_dir, "window",
                                         f"{k}.png"))
+                for a in arts:
+                    a.remove()
             self._apply_data(snap)
             # full.png is the whole-run record: always from t=0 (the web
             # dashboard is the one that scrolls a sliding window).
-            self._set_xlim(0.0, max(snap["t_max"], WINDOW_S))
+            right = max(snap["t_max"], WINDOW_S)
+            self._set_xlim(0.0, right)
+            arts = self._draw_stage_marks(0.0, right)
             self._save(os.path.join(self._plots_dir, "full.png"))
+            for a in arts:
+                a.remove()
         except Exception as e:  # a draw glitch must never kill the node
             self.get_logger().error(f"plot draw failed: {e}")
         finally:
             self._drawing = False
+
+    def _draw_stage_marks(self, lo, hi):
+        """Dotted red stage-transition markers on every panel; returns the
+        transient artists (caller removes them after savefig)."""
+        marks = [m for m in self._stage_marks if lo <= m[0] <= hi]
+        arts = []
+        axes = [ax for ax, _, _ in self._panels] + [self.ax_pinger]
+        for t, name in marks:
+            for ax in axes:
+                arts.append(ax.axvline(t, color="r", linestyle=":",
+                                       linewidth=0.9))
+                arts.append(ax.text(
+                    t, 0.99, " " + name, transform=ax.get_xaxis_transform(),
+                    fontsize=6, color="r", va="top", ha="left", clip_on=True))
+        return arts
 
     def _apply_data(self, snap):
         # Update line data in place (artists are created once in __init__).
