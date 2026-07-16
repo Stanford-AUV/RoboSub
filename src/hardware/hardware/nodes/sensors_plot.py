@@ -5,6 +5,7 @@ from geometry_msgs.msg import TwistWithCovarianceStamped, AccelWithCovarianceSta
 from nav_msgs.msg import Odometry
 from msgs.msg import PingerStamped, SensorsStamped
 from hardware.pinger import detector as pinger_detector
+from hardware.utils import dashboard
 
 import matplotlib
 
@@ -200,7 +201,13 @@ class SensorsPlot(Node):
         # ONCE here; each frame only calls set_data on the lines. Clearing
         # and re-plotting 12 panels (cla + plot + legend) cost ~1.5 s/frame
         # on the Orin; updating line data is ~10x cheaper.
+        # panel() also records a plain spec of itself so the web dashboard
+        # renders exactly the same panels from /data.json.
         self._panels = []
+        self._web_panels = []
+        self._unwrap_keys = set()
+        web_colors = {"r": "#f55", "g": "#5d5", "b": "#69f",
+                      "m": "#d6d", "c": "#4dd"}
 
         def panel(ax, title, ylabel, time_key, series):
             ax.set_title(title)
@@ -211,6 +218,14 @@ class SensorsPlot(Node):
                      for key, style, label, unwrap in series]
             ax.legend(loc="upper left", fontsize="x-small")
             self._panels.append((ax, time_key, lines))
+            self._web_panels.append({
+                "title": title, "time": time_key,
+                "series": [{"key": key, "label": label,
+                            "color": web_colors[style[0]]}
+                           for key, style, label, unwrap in series],
+            })
+            self._unwrap_keys.update(
+                key for key, _, _, unwrap in series if unwrap)
 
         panel(self.ax_imu_in, "IMU Rotation IN (/imu/orientation)",
               "Rotation (rad)", "imu_in_time",
@@ -289,9 +304,23 @@ class SensorsPlot(Node):
         self._drawing = False
         self._layout_done = False
         self._t0 = None  # first header stamp seen; time axis is relative to it
-        # Fast tick: request_draw skips while a draw is in flight, so the
-        # effective frame rate self-throttles to the draw duration.
-        self.create_timer(0.5, self.request_draw)
+
+        # Live web dashboard: the browser polls /data.json ~5x/s and does
+        # ALL the rendering, so it updates near-instantly while the Orin
+        # only serializes the window. The PNG below stays as a slow,
+        # crash-surviving record (and for anyone without a browser).
+        page = dashboard.build_page(self._web_panels, {
+            "title": f"Pinger levels @ {pinger_detector.targetFrequency:.0f} Hz",
+            "time": "pinger_time",
+            "labels": [f"ch{ch} ({'front' if ch in pinger_detector.FRONT_CHANNELS else 'back'})"
+                       for ch in range(4)],
+            "colors": ["#69f", "#f55", "#d6d", "#4dd"],
+            "threshold": pinger_detector.baseThreshold,
+        })
+        self._http = dashboard.start_server(
+            page, self._web_data, self.get_logger().info)
+
+        self.create_timer(5.0, self.request_draw)
 
     def _stamp(self, msg):
         """Seconds since start-of-run, from the message HEADER stamp (true
@@ -405,32 +434,58 @@ class SensorsPlot(Node):
         if self._drawing:
             return
         with self._lock:
-            t_max = max(
-                (getattr(self, tk)[-1] for tk in self._groups
-                 if getattr(self, tk)),
-                default=0.0,
-            )
-            t_left = t_max - WINDOW_S
-            snap = {"t_max": t_max}
-            for tk, series_keys in self._groups.items():
-                times = getattr(self, tk)
-                cols = [getattr(self, sk) for sk in series_keys]
-                if tk == "pinger_time":
-                    cols = cols + self.pinger_levels_history
-                # Prune everything that scrolled out of the window: it can
-                # never be shown again, so drop it from storage too.
-                while times and times[0] < t_left:
-                    times.popleft()
-                    for c in cols:
-                        c.popleft()
-                snap[tk] = _decimate(times)
-                for sk, c in zip(series_keys, cols):
-                    snap[sk] = _decimate(c)
-            snap["pinger_levels_history"] = [
-                _decimate(d) for d in self.pinger_levels_history
-            ]
+            snap = self._snapshot_locked()
         self._drawing = True
         threading.Thread(target=self._draw, args=(snap,), daemon=True).start()
+
+    def _web_data(self):
+        """Payload for the dashboard's /data.json (called from the HTTP
+        server threads). Same window/pruning as the PNG."""
+        with self._lock:
+            snap = self._snapshot_locked()
+        series = {}
+        for key, val in snap.items():
+            if key in ("t_max", "pinger_levels_history"):
+                continue
+            if key in self._unwrap_keys:
+                val = np.unwrap(val).tolist()
+            series[key] = [round(float(v), 4) for v in val]
+        front = snap["pinger_front_history"]
+        return {
+            "t": snap["t_max"],
+            "series": series,
+            "pinger_levels": [[round(float(v), 4) for v in lv]
+                              for lv in snap["pinger_levels_history"]],
+            "front": bool(front[-1]) if front else None,
+        }
+
+    def _snapshot_locked(self):
+        """Prune + window + decimate every series; caller holds _lock."""
+        t_max = max(
+            (getattr(self, tk)[-1] for tk in self._groups
+             if getattr(self, tk)),
+            default=0.0,
+        )
+        t_left = t_max - WINDOW_S
+        snap = {"t_max": t_max}
+        for tk, series_keys in self._groups.items():
+            times = getattr(self, tk)
+            cols = [getattr(self, sk) for sk in series_keys]
+            if tk == "pinger_time":
+                cols = cols + self.pinger_levels_history
+            # Prune everything that scrolled out of the window: it can
+            # never be shown again, so drop it from storage too.
+            while times and times[0] < t_left:
+                times.popleft()
+                for c in cols:
+                    c.popleft()
+            snap[tk] = _decimate(times)
+            for sk, c in zip(series_keys, cols):
+                snap[sk] = _decimate(c)
+        snap["pinger_levels_history"] = [
+            _decimate(d) for d in self.pinger_levels_history
+        ]
+        return snap
 
     def _draw(self, snap):
         try:
