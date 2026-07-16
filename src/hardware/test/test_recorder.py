@@ -85,3 +85,16 @@ def test_float_conversion_saturates(tmp_path):
     np.testing.assert_array_equal(got, [32767, 32767])
     got, _ = read_wav(str(tmp_path / "raw" / "ch1" / "0.wav"))
     np.testing.assert_array_equal(got, [-32768, -32768])
+
+
+def test_write_after_close_is_noop(tmp_path):
+    # Shutdown race: reader threads may still call write() after the node
+    # closed the recorder -- must not create new fragment files.
+    rec = SessionRecorder(str(tmp_path), 96000)
+    a = np.array([1, 2, 3], "<i2")
+    rec.write(0, stereo(a, a))
+    rec.close()
+    rec.write(0, stereo(a, a))
+    import os
+    assert sorted(os.listdir(tmp_path / "raw" / "ch0")) == ["0.wav"]
+    assert rec.enabled is False

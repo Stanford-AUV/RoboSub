@@ -116,6 +116,10 @@ class SessionRecorder:
             self._log(f"pinger recording disabled: {e}")
 
     def close(self):
+        # Permanently disable FIRST: reader threads still draining during
+        # shutdown must not re-create writers (that used to leave junk
+        # 0.1 s / 0-byte fragment files at every Ctrl-C).
+        self.enabled = False
         for w in list(self._writers.values()):
             try:
                 w.close()

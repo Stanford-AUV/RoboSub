@@ -84,7 +84,11 @@ class Daisy(Node):
 
     # ---- board reader threads -------------------------------------------
     def _board_loop(self, serial_no, first_channel):
-        while not self._stop.is_set():
+        # rclpy.ok() catches SIGINT/SIGTERM teardown even when
+        # destroy_node never gets to run (launch kills us mid-shutdown);
+        # without it this loop reconnected during teardown and recorded
+        # junk 0.1 s fragments.
+        while not self._stop.is_set() and rclpy.ok():
             hits = glob.glob(f"/dev/serial/by-id/*{serial_no}*")
             if not hits:
                 self.get_logger().warning(
