@@ -108,6 +108,15 @@ class SensorsPlot(Node):
             self.QUEUE_DEPTH,
         )
 
+        # Mission stage from planning (e.g. "leg 2/4", "branch /pinger:
+        # listening") -- shown in the web status line and on the PNGs.
+        from std_msgs.msg import String as _String
+        self._stage = ""
+        self.stage_sub = self.create_subscription(
+            _String, "/mission/stage",
+            lambda m: setattr(self, "_stage", m.data), 10,
+        )
+
         self.fig = plt.figure(figsize=(24, 12))
 
         # Row 1: inputs + desired setpoints.
@@ -317,6 +326,11 @@ class SensorsPlot(Node):
             0.02, 0.04, "", transform=self.ax_pinger.transAxes,
             fontsize=26, fontweight="bold", verticalalignment="bottom")
 
+        # Mission stage stamped on every saved PNG (top-left corner).
+        self._stage_text = self.fig.text(
+            0.005, 0.998, "", va="top", ha="left",
+            fontsize=13, fontweight="bold")
+
         # Plots land under plots/<session>/: full.png (whole run, from 0)
         # plus window/<k>.png for every completed WINDOW_S-second chunk.
         root = os.environ.get("ROBOSUB_DIR") or os.path.expanduser("~/RoboSub")
@@ -525,6 +539,7 @@ class SensorsPlot(Node):
             "pinger_levels": [[round(float(v), 4) for v in lv]
                               for lv in snap["pinger_levels_history"]],
             "front": bool(front[-1]) if front else None,
+            "stage": self._stage,
         }
 
     def _snapshot_locked(self):
@@ -597,6 +612,7 @@ class SensorsPlot(Node):
         front = snap["pinger_front_history"]
         self._pinger_text.set_text(
             ("FRONT" if front[-1] else "BACK") if front else "")
+        self._stage_text.set_text(self._stage)
 
     def _set_xlim(self, lo, hi):
         for ax, _, _ in self._panels:

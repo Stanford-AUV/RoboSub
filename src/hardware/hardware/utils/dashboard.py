@@ -28,7 +28,7 @@ _PAGE = """<!DOCTYPE html>
   .panel h3 { margin: 0 0 2px; font-size: 12px; font-weight: normal;
               color: #aaa; white-space: nowrap; overflow: hidden; }
   canvas { width: 100%; height: 170px; display: block; }
-  #status { font-size: 11px; color: #777; margin: 4px 2px; }
+  #status { font-size: 15px; color: #cda; margin: 4px 2px; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -142,7 +142,8 @@ async function tickInner() {
     d = await r.json();
     lastOk = Date.now();
     document.getElementById("status").textContent =
-      "live - t = " + d.t.toFixed(1) + " s";
+      "live - t = " + d.t.toFixed(1) + " s"
+      + (d.stage ? "   |   stage: " + d.stage : "");
   } catch (e) {
     if (Date.now() - lastOk > 3000)
       document.getElementById("status").textContent = "no data (node down?)";

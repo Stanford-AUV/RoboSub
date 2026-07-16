@@ -121,11 +121,24 @@ class PathGenerator(Node):
         self.cmd_pos = None  # np.ndarray(3,) - last commanded position
         self.cmd_yaw = 0.0  # deg
 
+        # Mission stage for dashboards/plots: published on every change
+        # plus a 1 Hz keepalive so late-starting subscribers catch up.
+        self.stage_pub = self.create_publisher(String, "/mission/stage", 10)
+        self._stage = ""
+        self.create_timer(1.0, lambda: self._stage and
+                          self.stage_pub.publish(String(data=self._stage)))
+
         self.create_timer(1.0 / TICK_HZ, self.tick)
         self.get_logger().info(
             f"Playing baked path: {len(self.items)} item(s) "
             f"({sum(1 for i in self.items if i['type'] == 'leg')} leg(s))"
         )
+
+    def set_stage(self, stage):
+        if stage != self._stage:
+            self._stage = stage
+            self.stage_pub.publish(String(data=stage))
+            self.get_logger().info(f"Stage: {stage}")
 
     def load_baked(self):
         base, _ = os.path.splitext(self.waypoints_path)
@@ -221,12 +234,14 @@ class PathGenerator(Node):
 
     def tick(self):
         if self.item_index >= len(self.items):
+            self.set_stage("mission done")
             self.finish_tick()
             return
         item = self.items[self.item_index]
         if self.item_start is None:
             self.item_start = self.get_clock().now()
         if item["type"] == "leg":
+            self.set_stage(f"leg {self.item_index + 1}/{len(self.items)}")
             self.leg_tick(item)
         elif item["type"] == "branch":
             if self.branch_subscriber is None:
@@ -239,6 +254,7 @@ class PathGenerator(Node):
                 )
                 self.listen_publishers[item["decision"]].publish(
                     String(data="start"))
+            self.set_stage(f"branch {item['decision']}: listening")
             self.branch_tick(item)
 
     def elapsed(self):
