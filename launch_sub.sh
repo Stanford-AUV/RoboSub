@@ -30,6 +30,8 @@ set -u
 
 WAYPOINTS_YAML="${1:-segments.yaml}"
 
+echo ">>> Live dashboard (from the laptop): http://192.168.2.2:8080"
+
 # --- config -----------------------------------------------------------------
 # ROS 2 is provided by the active conda env (`conda activate robosub`), so no
 # system setup file is sourced by default. For a native apt ROS install instead,
