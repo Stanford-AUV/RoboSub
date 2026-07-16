@@ -274,24 +274,25 @@ class PathGenerator(Node):
         # listen window (and until at least one sample arrived), then vote
         # on the switches seen.
         self.hold_pose()
-        if not self.branch_code or self.elapsed() < BRANCH_LISTEN_SEC:
-            # The decision topic only speaks when a ping is detected, so a
-            # silent pinger can stall us here -- make that visible.
-            if self.elapsed() > 2 * BRANCH_LISTEN_SEC and not self.branch_code \
-                    and not getattr(self, "_branch_warned", False):
-                self._branch_warned = True
-                self.get_logger().warn(
-                    f"Branch {item['decision']}: no detections after "
-                    f"{self.elapsed():.0f} s; still holding."
-                )
+        # Decide after EXACTLY the listen window, detections or not.
+        if self.elapsed() < BRANCH_LISTEN_SEC:
             return
-        code, votes = branch_decision(self.branch_code)
         self.listen_publishers[item["decision"]].publish(String(data="stop"))
-        opt = self.select_option(item, code)
-        self.get_logger().info(
-            f"Branch {item['decision']}: switch votes {votes} -> "
-            f"code {code!r}, playing option with {len(opt['items'])} leg(s)."
-        )
+        if self.branch_code:
+            code, votes = branch_decision(self.branch_code)
+            opt = self.select_option(item, code)
+            self.get_logger().info(
+                f"Branch {item['decision']}: detection tally {votes} -> "
+                f"code {code!r}, playing option with {len(opt['items'])} "
+                "leg(s)."
+            )
+        else:
+            opt = item["options"][0]
+            self.get_logger().warn(
+                f"Branch {item['decision']}: NO detections in "
+                f"{BRANCH_LISTEN_SEC:.0f} s -> defaulting to first option "
+                f"({opt['code']!r})."
+            )
         # Splice the chosen option's legs in right after this branch item, then
         # advance onto the first of them - leg_tick handles them from here.
         self.items[self.item_index + 1 : self.item_index + 1] = opt["items"]

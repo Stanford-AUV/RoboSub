@@ -19,7 +19,11 @@ class Arduino(Node):
         self.zero_thrust = 1500
         self.light_changed = False
         self.light = 1100
-        self.shoot_torpedo = False
+        # Torpedo firing sequence: left, gap, right, gap, re-center. Staged
+        # as (due_time, command) so the 100 Hz update loop keeps streaming
+        # PWMs between the shots instead of blocking through the gaps.
+        self.torpedo_gap = 1.0   # seconds between torpedo commands
+        self._torpedo_queue = []
 
         # Bench mode: NO_THRUST=1 (or ./launch_sub.sh --no-thrust) pins every
         # thruster PWM at neutral no matter what /pwms commands, so the full
@@ -96,7 +100,12 @@ class Arduino(Node):
         return command
 
     def torpedos_callback(self, msg: String):
-        self.shoot_torpedo = True
+        now = time.monotonic()
+        self._torpedo_queue = [
+            (now, "t_left"),
+            (now + self.torpedo_gap, "t_right"),
+            (now + 2 * self.torpedo_gap, "t_zero"),
+        ]
 
     def pwms_callback(self, msg: PWMsStamped):
         self.pwms: List[float] = msg.pwms.tolist()
@@ -120,18 +129,15 @@ class Arduino(Node):
             self.get_logger().error(f"Failed to write to serial port: {e}")
         self.portName.readline().decode().strip()
     
-    def send_torpedo(self):
-        # One /torpedo trigger fires BOTH torpedoes -- left, then right --
-        # then re-centers the shared servo. torpedoMoveTo on the Teensy is
-        # BLOCKING and only acks after the servo finished moving, so no
-        # host-side delay is needed between commands. The acks are logged
-        # so a run can be verified (expect "Torpedo left shot!" /
-        # "Torpedo right shot!" / "Torpedo zeroed").
+    def send_torpedo(self, command):
+        # One staged torpedo command per call (see torpedos_callback for
+        # the sequence). The ack is logged so a run can be verified
+        # (expect "Torpedo left shot!" / "Torpedo right shot!" /
+        # "Torpedo zeroed").
         try:
-            for command in ("t_left", "t_right", "t_zero"):
-                self.portName.write((command + "\n").encode())
-                ack = self.portName.readline().decode().strip()
-                self.get_logger().info(f"torpedo: {command} -> {ack!r}")
+            self.portName.write((command + "\n").encode())
+            ack = self.portName.readline().decode().strip()
+            self.get_logger().info(f"torpedo: {command} -> {ack!r}")
         except serial.SerialException as e:
             self.get_logger().error(f"Failed to write to serial port: {e}")
 
@@ -163,9 +169,9 @@ class Arduino(Node):
                     f"No /pwms for >{self.pwms_timeout}s - failsafe: driving neutral"
                 )
         try:
-            if self.shoot_torpedo:
-                self.send_torpedo()
-                self.shoot_torpedo = False
+            if (self._torpedo_queue
+                    and time.monotonic() >= self._torpedo_queue[0][0]):
+                self.send_torpedo(self._torpedo_queue.pop(0)[1])
             if self.light_changed:
                 self.send_light()
                 self.light_changed = False
