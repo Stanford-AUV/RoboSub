@@ -13,7 +13,7 @@ CDC); this node decodes both streams, runs the exact firmware detection
                   sensors_plot's pinger panel and threshold calibration.
 
 All four channels are also recorded to
-<root>/data/semi_finals_audio/<session>/raw/ch<C>/<N>.wav (fragment <N>
+<root>/data/audio_pingers/<session>/raw/ch<C>/<N>.wav (fragment <N>
 increments per reconnect; whisper_ivc-compatible layout).
 
 Boards are found by USB serial under /dev/serial/by-id (BOARDS in
@@ -61,7 +61,7 @@ class Daisy(Node):
         self._peaks_lock = threading.Lock()  # read by the levels timer
 
         self._session_dir = os.path.join(
-            resolve_root(), "data", "semi_finals_audio",
+            resolve_root(), "data", "audio_pingers",
             time.strftime("%Y_%m_%d_%H_%M_%S"))
         self._recorder = SessionRecorder(
             self._session_dir, RATE, log=self.get_logger().error)
