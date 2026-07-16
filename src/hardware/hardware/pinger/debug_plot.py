@@ -37,14 +37,14 @@ def render_debug(path, boards, threshold, decision_front,
     for t, front in detections:
         color = "#0a0" if front else "#d00"
         ax.axvline(t, color=color, linewidth=1.2, alpha=0.7)
-        ax.text(t, 1.005, "FRONT" if front else "BACK",
+        ax.text(t, 0.97, "FRONT" if front else "BACK",
                 transform=ax.get_xaxis_transform(), color=color,
-                fontsize=9, fontweight="bold", ha="center", va="bottom",
-                clip_on=False)
+                fontsize=9, fontweight="bold", ha="center", va="top",
+                clip_on=True)
     if tmin is not None and tmax > tmin:
         ax.set_xlim(tmin, tmax)
     ax.set_ylim(-0.05, 1.05)
-    ax.set_xlabel("Time into board stream (s) = position in raw/ch*/*.wav")
+    ax.set_xlabel("Time into board stream (s) = position in ch*.wav")
     ax.set_ylabel("Normalized level")
     ax.set_title("Pinger branch listen window -> "
                  + ("FRONT" if decision_front else "BACK"))
