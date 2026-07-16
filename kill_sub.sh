@@ -21,7 +21,6 @@ ARDUINO_PORT="${ARDUINO_PORT:-/dev/ttyACM_teensy}"
 ARDUINO_BAUD="${ARDUINO_BAUD:-9600}"
 THRUSTER_COUNT="${THRUSTER_COUNT:-8}"
 NEUTRAL_PWM="${NEUTRAL_PWM:-1500}"
-HEARTBEAT_MATCH="orin_heartbeat.py"
 
 # pyserial (for the neutral-PWM burst) lives in the robosub conda env; pull it in
 # if we're not already inside it. Harmless if conda isn't present.
@@ -50,9 +49,6 @@ fi
 
 # --- 2. neutralize thrusters ------------------------------------------------
 echo ">>> [2/3] Neutralizing thrusters..."
-# Freeze the Orin->Teensy heartbeat so it can't re-grab the serial port the
-# instant the arduino node dies and corrupt our neutral burst.
-pkill -STOP -f "$HEARTBEAT_MATCH" 2>/dev/null && echo ">>> froze heartbeat (SIGSTOP)"
 # The arduino node holds $ARDUINO_PORT exclusively — kill it so we can open it.
 pkill -KILL -f "hardware.nodes.arduino" 2>/dev/null
 pkill -KILL -f "install/lib/hardware/arduino" 2>/dev/null
@@ -95,9 +91,6 @@ PY
 else
     echo ">>> WARNING: $ARDUINO_PORT not present; cannot neutralize thrusters." >&2
 fi
-
-# Let the heartbeat resume arming the Teensy watchdog now the port is free.
-pkill -CONT -f "$HEARTBEAT_MATCH" 2>/dev/null && echo ">>> resumed heartbeat (SIGCONT)"
 
 # --- 3. hard-kill the rest of the stack -------------------------------------
 echo ">>> [3/3] Killing the rest of the stack..."
