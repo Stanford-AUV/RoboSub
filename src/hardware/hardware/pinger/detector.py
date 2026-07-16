@@ -88,3 +88,73 @@ def compute_levels(blocks, channel):
         blocks, kFftSize, targetFrequency, frequencyTolerance)
     mx = np.float32(HYDROPHONE_MAXES[channel])
     return np.minimum(mags, mx) / mx
+
+
+class PingerDetector:
+    """Line-faithful port of master_ros.cpp's main-loop state machine.
+
+    One call per 64-sample block per board; each board covers two channels
+    (first_channel 0 or 2) and supplies its own sample-clock time in us.
+    The pinger fires a few ms every ~2 s: the FIRST channel to cross
+    threshold opens a collection window; over withinThresholdUs we record
+    which channels fire and in what order, then vote front {0,3} vs back
+    {1,2}, tie broken by the earliest arrival. The decision is sticky and
+    starts as back (False), exactly like the firmware.
+    """
+
+    def __init__(self):
+        self.direction_front = False   # latched decision (False = back)
+        self.levels = [0.0, 0.0, 0.0, 0.0]
+        self._measuring = False        # inside a collection window
+        self._armed = False            # quiet long enough to measure
+        self._collect_start_us = 0.0
+        self._fired = [False, False, False, False]
+        self._order = []               # channel indices in arrival order
+        self._was_above = [False, False, False, False]
+        # cpp: lastCrossMs = System::GetNow() at boot -> arming needs
+        # offThresholdMs of quiet from stream start too.
+        self._last_cross_us = 0.0
+
+    def process_block_levels(self, first_channel, pair_levels, t_us):
+        chans = (first_channel, first_channel + 1)
+        for ch, lvl in zip(chans, pair_levels):
+            self.levels[ch] = float(lvl)
+
+        # Rising-edge detection (cpp loops i=0..3 each cycle; only this
+        # board's two channels can have changed, and within one block the
+        # lower channel index is checked first, like the cpp loop order).
+        for ch in chans:
+            is_above = self.levels[ch] >= baseThreshold
+            if is_above and not self._was_above[ch]:
+                self._last_cross_us = t_us
+                if self._armed and not self._measuring:
+                    # First detection of a new ping -> start collecting
+                    self._measuring = True
+                    self._armed = False
+                    self._collect_start_us = t_us
+                    self._fired = [False, False, False, False]
+                    self._order = []
+                if self._measuring and not self._fired[ch]:
+                    self._fired[ch] = True
+                    self._order.append(ch)
+            self._was_above[ch] = is_above
+
+        # Close the collection window and decide direction
+        if self._measuring and (t_us - self._collect_start_us
+                                >= withinThresholdUs):
+            front = sum(1 for i in range(4)
+                        if self._fired[i] and i in FRONT_CHANNELS)
+            back = sum(1 for i in range(4)
+                       if self._fired[i] and i not in FRONT_CHANNELS)
+            if front > back:
+                self.direction_front = True
+            elif back > front:
+                self.direction_front = False
+            else:   # tie -> earliest arrival
+                self.direction_front = self._order[0] in FRONT_CHANNELS
+            self._measuring = False   # disarmed until quiet again
+
+        # Re-arm once the array has been quiet long enough
+        if (not self._measuring and not self._armed
+                and t_us - self._last_cross_us >= offThresholdMs * 1000.0):
+            self._armed = True
