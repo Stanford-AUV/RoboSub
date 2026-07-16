@@ -105,22 +105,22 @@ class SensorsPlot(Node):
 
         self.fig = plt.figure(figsize=(24, 12))
 
-        # Row 1: INPUTS + EKF rotation + temperatures.
-        # Row 2: EKF outputs + pinger.  Row 3: power electronics + desired.
+        # Row 1: inputs + desired setpoints.
+        # Row 2: EKF outputs.
+        # Row 3: power electronics + temperatures + pinger.
         self.ax_imu_in = self.fig.add_subplot(341)
         self.ax_dvl_vel = self.fig.add_subplot(342)
-        self.ax_ekf_rot = self.fig.add_subplot(343)
-        self.ax_temp = self.fig.add_subplot(344)
-        self.ax_ekf_vel = self.fig.add_subplot(345)
-        self.ax_ekf_pos = self.fig.add_subplot(346)
-        self.ax_ekf_accel = self.fig.add_subplot(347)
-        # Pinger: 4 hydrophone levels + front/back decision (power was
-        # dropped -- it is just the neighboring current x voltage panels).
-        self.ax_pinger = self.fig.add_subplot(348)
+        self.ax_des_pos = self.fig.add_subplot(343)
+        self.ax_des_rot = self.fig.add_subplot(344)
+        self.ax_ekf_rot = self.fig.add_subplot(345)
+        self.ax_ekf_accel = self.fig.add_subplot(346)
+        self.ax_ekf_vel = self.fig.add_subplot(347)
+        self.ax_ekf_pos = self.fig.add_subplot(348)
         self.ax_current = self.fig.add_subplot(349)
         self.ax_voltage = self.fig.add_subplot(3, 4, 10)
-        self.ax_des_pos = self.fig.add_subplot(3, 4, 11)
-        self.ax_des_rot = self.fig.add_subplot(3, 4, 12)
+        self.ax_temp = self.fig.add_subplot(3, 4, 11)
+        # Pinger: 4 hydrophone levels + front/back decision.
+        self.ax_pinger = self.fig.add_subplot(3, 4, 12)
 
         # Series storage: appended by subscription callbacks (executor
         # thread) under _lock; snapshotted by the draw request.
@@ -237,11 +237,26 @@ class SensorsPlot(Node):
               [("vel_x_history", "r-", "X", False),
                ("vel_y_history", "g-", "Y", False),
                ("vel_z_history", "b-", "Z", False)])
+        panel(self.ax_des_pos, "Desired Position (/desired/pose)",
+              "Position (m)", "des_pos_time",
+              [("des_pos_x_history", "r-", "X", False),
+               ("des_pos_y_history", "g-", "Y", False),
+               ("des_pos_z_history", "b-", "Z", False)])
+        panel(self.ax_des_rot, "Desired Orientation (/desired/pose)",
+              "Rotation (rad)", "des_pos_time",
+              [("des_rot_roll_history", "r-", "ROLL", True),
+               ("des_rot_pitch_history", "g-", "PITCH", True),
+               ("des_rot_yaw_history", "b-", "YAW", True)])
         panel(self.ax_ekf_rot, "EKF Rotation (/odometry/filtered)",
               "Rotation (rad)", "rot_time",
               [("rot_x_history", "r-", "ROLL", True),
                ("rot_y_history", "g-", "PITCH", True),
                ("rot_z_history", "b-", "YAW", True)])
+        panel(self.ax_ekf_accel, "EKF Acceleration (/accel/filtered)",
+              "Acceleration (m/s²)", "ekf_accel_time",
+              [("ekf_accel_x_history", "r-", "X", False),
+               ("ekf_accel_y_history", "g-", "Y", False),
+               ("ekf_accel_z_history", "b-", "Z", False)])
         panel(self.ax_ekf_vel, "EKF Velocity (/odometry/filtered)",
               "Velocity (m/s)", "ekf_vel_time",
               [("ekf_vel_x_history", "r-", "X", False),
@@ -254,32 +269,17 @@ class SensorsPlot(Node):
               [("ekf_pos_x_history", "r-", "X", False),
                ("ekf_pos_y_history", "g-", "Y", False),
                ("ekf_pos_z_history", "b-", "Z", False)])
-        panel(self.ax_ekf_accel, "EKF Acceleration (/accel/filtered)",
-              "Acceleration (m/s²)", "ekf_accel_time",
-              [("ekf_accel_x_history", "r-", "X", False),
-               ("ekf_accel_y_history", "g-", "Y", False),
-               ("ekf_accel_z_history", "b-", "Z", False)])
-        panel(self.ax_des_pos, "Desired Position (/desired/pose)",
-              "Position (m)", "des_pos_time",
-              [("des_pos_x_history", "r-", "X", False),
-               ("des_pos_y_history", "g-", "Y", False),
-               ("des_pos_z_history", "b-", "Z", False)])
-        panel(self.ax_des_rot, "Desired Orientation (/desired/pose)",
-              "Rotation (rad)", "des_pos_time",
-              [("des_rot_roll_history", "r-", "ROLL", True),
-               ("des_rot_pitch_history", "g-", "PITCH", True),
-               ("des_rot_yaw_history", "b-", "YAW", True)])
-        panel(self.ax_temp, "Temperature (/arduino/sensors)",
-              "Temperature (°C)", "arduino_time",
-              [("ext_temp_history", "b-", "EXTERNAL", False),
-               ("int_temp1_history", "r-", "INTERNAL 1", False),
-               ("int_temp2_history", "m-", "INTERNAL 2", False)])
         panel(self.ax_current, "Current (/arduino/sensors)",
               "Current (A)", "arduino_time",
               [("current_history", "r-", "CURRENT", False)])
         panel(self.ax_voltage, "Voltage (/arduino/sensors)",
               "Voltage (V)", "arduino_time",
               [("voltage_history", "g-", "VOLTAGE", False)])
+        panel(self.ax_temp, "Temperature (/arduino/sensors)",
+              "Temperature (°C)", "arduino_time",
+              [("ext_temp_history", "b-", "EXTERNAL", False),
+               ("int_temp1_history", "r-", "INTERNAL 1", False),
+               ("int_temp2_history", "m-", "INTERNAL 2", False)])
 
         # Pinger panel: 4 level lines + threshold + big bold FRONT/BACK.
         self.ax_pinger.set_title(
