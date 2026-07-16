@@ -142,7 +142,7 @@ depth_0:
     - [1.0e9, 0.0,   0.0  ]
     - [0.0,   1.0e9, 0.0  ]
     - [0.0,   0.0,   0.001 ]
-  position: 3
+  position: 0
   rotation: 0
   velocity: 0
   angular: 0

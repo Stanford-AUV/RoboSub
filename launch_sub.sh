@@ -300,7 +300,14 @@ launch_group() {
     for lf in "$@"; do
         # The planning launch takes the waypoint yaml chosen on our command line.
         local extra=()
-        [ "$lf" = "planning" ] && extra=("waypoints_path:=${WAYPOINTS_YAML}")
+        if [ "$lf" = "planning" ]; then
+            extra=("waypoints_path:=${WAYPOINTS_YAML}")
+            # Pinger missions read the task order off the hydrophones; enable
+            # the pinger node so it publishes /pinger/task for the branch.
+            case "$WAYPOINTS_YAML" in
+                *pinger*) extra+=("pinger:=true") ;;
+            esac
+        fi
         echo ">>> ros2 launch main ${lf}.py ${extra[*]:-}  (log: $LOG_DIR/${lf}.log)"
         ros2 launch main "${lf}.py" ${extra[@]:+"${extra[@]}"} </dev/null >"$LOG_DIR/${lf}.log" 2>&1 &
         local pid="$!"

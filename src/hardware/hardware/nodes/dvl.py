@@ -63,15 +63,16 @@ class DVL(GenericSensor):
 
     @staticmethod
     def _fresh_water_speed_of_sound(temp_c):
-        """Marczak (1997) pure-water (0 ppt) speed of sound in m/s."""
-        return (
-            1.402385e3
-            + 5.038813 * temp_c
-            - 5.799136e-2 * temp_c**2
-            + 3.287156e-4 * temp_c**3
-            - 1.398845e-6 * temp_c**4
-            + 2.787860e-9 * temp_c**5
-        )
+        # """Marczak (1997) pure-water (0 ppt) speed of sound in m/s."""
+        # return (
+        #     1.402385e3
+        #     + 5.038813 * temp_c
+        #     - 5.799136e-2 * temp_c**2
+        #     + 3.287156e-4 * temp_c**3
+        #     - 1.398845e-6 * temp_c**4
+        #     + 2.787860e-9 * temp_c**5
+        # )
+        return 1490
 
     def _wait_for_water_temperature(self, timeout=5.0):
         """Grab one Bar02 water temperature from /arduino/sensors, or None."""

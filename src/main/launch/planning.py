@@ -1,5 +1,6 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, Shutdown
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -15,6 +16,21 @@ def generate_launch_description():
                 default_value="segments.yaml",
                 description="Waypoint yaml for path_generator (must be baked "
                 "first: python tools/bake_path.py <yaml>)",
+            ),
+            # Run the hydrophone pinger node (publishes /pinger/task from the
+            # Daisy boards' front/back verdict). Only for pinger missions --
+            # it holds both Daisy serial ports open. launch_sub.sh enables it
+            # automatically when the waypoints yaml name contains "pinger".
+            DeclareLaunchArgument(
+                "pinger",
+                default_value="false",
+                description="Launch the hydrophone pinger task-order node",
+            ),
+            Node(
+                package="hardware",
+                executable="pinger",
+                output="screen",
+                condition=IfCondition(LaunchConfiguration("pinger")),
             ),
             Node(
                 package="planning",

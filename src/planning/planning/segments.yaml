@@ -6,26 +6,27 @@ segment_0:
   waypoints:
     - position: {x: 0.0, y: 0.0, z: 0.0}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-    - position: {x: 0.0, y: 0.0, z: -0.6}
+    - position: {x: 0.0, y: 0.0, z: -0.3}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
       pause: 6.0
 
-    - position: {x: 1.0, y: 0.0, z: -0.6}
+    - position: {x: 1.0, y: 0.0, z: -0.3}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
       pause: 6.0
-    - position: {x: 2.0, y: 0.0, z: -0.6}
+    - position: {x: 2.0, y: 0.0, z: -0.3}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
       pause: 6.0
-    - position: {x: 3.0, y: 0.0, z: -0.6}
+    - position: {x: 3.0, y: 0.0, z: -0.3}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
       pause: 6.0
-    - position: {x: 4.0, y: 0.0, z: -0.6}
+    - position: {x: 4.0, y: 0.0, z: -0.3}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
       pause: 6.0
-    - position: {x: 5.0, y: 0.0, z: -0.6}
+    - position: {x: 5.0, y: 0.0, z: -0.3}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
       pause: 6.0
-    - position: {x: 0.0, y: 0.0, z: 0.0}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 12.0, y: 0.0, z: -0.3}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: -45.0}
+      pause: 40.0
   concurrent_action: None
   exit_on_reach: True
