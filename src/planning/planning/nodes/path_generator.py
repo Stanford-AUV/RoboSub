@@ -16,7 +16,29 @@ from planning.utils.pursuit import arrived, pursuit_target, step_toward
 TICK_HZ = 60.0
 # Decision samples to collect before committing to a branch option; we take
 # the mode so a few noisy perception frames can't flip the choice.
-BRANCH_MIN_SAMPLES = 10
+# Branch decisions: station-keep and listen to the decision topic this long,
+# then vote on the value CHANGES seen (see branch_decision below).
+BRANCH_LISTEN_SEC = 10.0
+
+
+def branch_decision(codes):
+    """Decide a branch from the sample buffer collected while listening.
+
+    The decision topic (/pinger) republishes its latched value at 5 Hz, so
+    raw samples are dominated by stickiness. What carries information is
+    each SWITCH: the first sample and every subsequent change count one
+    vote for the value switched to; the majority wins; a tie goes to the
+    most recent value. Returns (code, votes).
+    """
+    votes = {}
+    prev = None
+    for c in codes:
+        if c != prev:
+            votes[c] = votes.get(c, 0) + 1
+            prev = c
+    best = max(votes.values())
+    winners = [c for c, n in votes.items() if n == best]
+    return (winners[0] if len(winners) == 1 else codes[-1]), votes
 
 
 class PathGenerator(Node):
@@ -203,8 +225,8 @@ class PathGenerator(Node):
                     String, item["decision"], self.on_branch, 10
                 )
                 self.get_logger().info(
-                    f"Branch: holding, waiting on {item['decision']} "
-                    f"({BRANCH_MIN_SAMPLES} samples)."
+                    f"Branch: holding, listening on {item['decision']} "
+                    f"for {BRANCH_LISTEN_SEC:.0f} s."
                 )
             self.branch_tick(item)
 
@@ -224,16 +246,17 @@ class PathGenerator(Node):
         return item["options"][0]
 
     def branch_tick(self, item):
-        # Station-keep on the pose we entered the branch with until we have
-        # enough decision samples to commit.
+        # Station-keep on the pose we entered the branch with for the full
+        # listen window (and until at least one sample arrived), then vote
+        # on the switches seen.
         self.hold_pose()
-        if len(self.branch_code) < BRANCH_MIN_SAMPLES:
+        if not self.branch_code or self.elapsed() < BRANCH_LISTEN_SEC:
             return
-        code = max(set(self.branch_code), key=self.branch_code.count)
+        code, votes = branch_decision(self.branch_code)
         opt = self.select_option(item, code)
         self.get_logger().info(
-            f"Branch {item['decision']}: code {code!r} -> "
-            f"playing option with {len(opt['items'])} leg(s)."
+            f"Branch {item['decision']}: switch votes {votes} -> "
+            f"code {code!r}, playing option with {len(opt['items'])} leg(s)."
         )
         # Splice the chosen option's legs in right after this branch item, then
         # advance onto the first of them - leg_tick handles them from here.
