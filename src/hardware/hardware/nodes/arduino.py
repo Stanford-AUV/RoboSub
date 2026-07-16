@@ -30,8 +30,9 @@ class Arduino(Node):
         # Failsafe: if the /pwms publisher (thrusters node) freezes or dies we
         # must not keep driving its last command forever (07/12 bag: node froze
         # 157s, sub kept spinning open-loop). No fresh /pwms within this window
-        # -> latch neutral until messages resume. The Teensy heartbeat can't
-        # catch this case: it keeps running while a ROS node is frozen.
+        # -> latch neutral until messages resume. This is the only such
+        # failsafe: the old Orin->Teensy heartbeat was retired 07/16 (it
+        # interfered with the DaisySeed USB audio streams).
         self.pwms_timeout = 0.5
         self.last_pwms_time = None
         self.pwms_stale = False
@@ -109,14 +110,17 @@ class Arduino(Node):
         self.portName.readline().decode().strip()
     
     def send_torpedo(self):
-        command1 = f"t_right"
-        command2 = f"t_left"
+        # One /torpedo trigger fires BOTH torpedoes -- left, then right --
+        # then re-centers the shared servo. torpedoMoveTo on the Teensy is
+        # BLOCKING and only acks after the servo finished moving, so no
+        # host-side delay is needed between commands. The acks are logged
+        # so a run can be verified (expect "Torpedo left shot!" /
+        # "Torpedo right shot!" / "Torpedo zeroed").
         try:
-            self.portName.write((command1 + "\n").encode())
-            self.portName.readline().decode().strip()
-            self.portName.write((command2 + "\n").encode())
-            self.portName.readline().decode().strip()
-
+            for command in ("t_left", "t_right", "t_zero"):
+                self.portName.write((command + "\n").encode())
+                ack = self.portName.readline().decode().strip()
+                self.get_logger().info(f"torpedo: {command} -> {ack!r}")
         except serial.SerialException as e:
             self.get_logger().error(f"Failed to write to serial port: {e}")
 
