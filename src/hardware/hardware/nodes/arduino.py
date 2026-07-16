@@ -18,6 +18,7 @@ class Arduino(Node):
         self.zero_thrust = 1500
         self.light_changed = False
         self.light = 1100
+        self.shoot_torpedo = False
 
         self.declare_parameter("history_depth", 10)
         self.declare_parameter("thruster_count", 8)
@@ -50,6 +51,10 @@ class Arduino(Node):
             SensorsStamped, "/arduino/sensors", history_depth
         )
 
+        self._torpedos_sub = self.create_subscription(
+            String, "/torpedo", self.torpedos_callback, history_depth
+        )
+
         # Raw sensor-frame data from the two BNO085 IMUs, one topic per unit.
         # Consumed by hardware/nodes/bno085.py, which handles the remount into
         # base_link -- publish exactly what the firmware reports here.
@@ -78,6 +83,9 @@ class Arduino(Node):
         command = f"{pwm}"
         return command
 
+    def torpedos_callback(self, msg: String):
+        self.shoot_torpedo = True
+
     def pwms_callback(self, msg: PWMsStamped):
         self.pwms: List[float] = msg.pwms.tolist()
         self.last_pwms_time = time.monotonic()
@@ -99,6 +107,18 @@ class Arduino(Node):
         except serial.SerialException as e:
             self.get_logger().error(f"Failed to write to serial port: {e}")
         self.portName.readline().decode().strip()
+    
+    def send_torpedo(self):
+        command1 = f"t_right"
+        command2 = f"t_left"
+        try:
+            self.portName.write((command1 + "\n").encode())
+            self.portName.readline().decode().strip()
+            self.portName.write((command2 + "\n").encode())
+            self.portName.readline().decode().strip()
+
+        except serial.SerialException as e:
+            self.get_logger().error(f"Failed to write to serial port: {e}")
 
     def send_pwms(self):
         commands = []
@@ -126,6 +146,9 @@ class Arduino(Node):
                     f"No /pwms for >{self.pwms_timeout}s - failsafe: driving neutral"
                 )
         try:
+            if self.shoot_torpedo:
+                self.send_torpedo()
+                self.shoot_torpedo = False
             if self.light_changed:
                 self.send_light()
                 self.light_changed = False

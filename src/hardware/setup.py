@@ -31,6 +31,7 @@ setup(
             "imu = hardware.nodes.imu:main",
             "bno085_0 = hardware.nodes.bno085:main_0",
             "bno085_1 = hardware.nodes.bno085:main_1",
+            "daisy = hardware.nodes.daisy:main",
             "imu_plot_orientation = hardware.nodes.imu_plot_orientation:main",
             "dvl = hardware.nodes.dvl:main",
             "sensors = hardware.nodes.sensors:main",

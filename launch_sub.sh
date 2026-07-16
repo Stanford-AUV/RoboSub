@@ -72,7 +72,7 @@ export ROS_LOCALHOST_ONLY=1
 #      wait PATH_DELAY so the EKF converges and thrusters idle at neutral.
 #   3. The path / planning nodes that issue setpoints.
 LAUNCHES_IMU=(imu)
-LAUNCHES_BASE=(hardware localization perception control)
+LAUNCHES_BASE=(hardware localization control)
 LAUNCHES_PATH=(planning)
 IMU_SETTLE_DELAY="${IMU_SETTLE_DELAY:-20}"
 PATH_DELAY="${PATH_DELAY:-5}"

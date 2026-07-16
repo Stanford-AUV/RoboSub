@@ -41,6 +41,10 @@ def generate_launch_description():
             ),
             Node(
                 package="hardware",
+                executable="daisy",
+            ),
+            Node(
+                package="hardware",
                 executable="depth",
             ),
             Node(

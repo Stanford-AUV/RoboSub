@@ -12,7 +12,6 @@ from scipy.spatial.transform import Rotation
 
 from planning.utils.create_path import create_path
 
-PURSUIT_DEFAULTS = {"standoff": 0.0, "timeout": 30.0, "arrive_tol": 0.25}
 
 
 def source_hash(yaml_path):
@@ -34,20 +33,23 @@ def _wp_tuple(wp):
         0.0 if yaw_free else yaw,
         float(wp.get("pause", 0.0)),
         yaw_free,
+        wp.get("publish"),
     )
 
 
 def _split_legs(waypoints):
     """Split at pause>0 waypoints; the pausing waypoint seeds the next leg.
-    Same logic as the old in-node generation."""
+    Each leg carries the publish topic (or None) of its terminal waypoint -
+    the runtime fires it once the leg's pause elapses. Same splitting logic
+    as the old in-node generation."""
     legs, current = [], []
     for wp in waypoints:
         current.append(wp)
         if wp[6] > 0.0:
-            legs.append((current, wp[6]))
+            legs.append((current, wp[6], wp[8]))
             current = [wp]
     if len(current) > 1 or not legs:
-        legs.append((current, 0.0))
+        legs.append((current, 0.0, wp[8]))
     return legs
 
 
@@ -65,7 +67,7 @@ def _substitute_free_yaws(waypoints):
     return [tuple(wp) for wp in wps]
 
 
-def _bake_leg(leg_wps, pause_after):
+def _bake_leg(leg_wps, pause_after, publish):
     arrays = [np.array([wp[i] for wp in leg_wps]) for i in range(6)]
     (
         positions,
@@ -108,6 +110,8 @@ def _bake_leg(leg_wps, pause_after):
         "poses": poses,
         "twists": twists,
     }
+    if publish:
+        item["publish"] = str(publish)
     flags = [bool(wp[7]) for wp in leg_wps]
     if any(flags):
         # A sample is yaw-free iff the waypoint interval it falls in starts
@@ -132,6 +136,18 @@ def _wp_list(wp):
     ]
 
 
+def _bake_waypoint_legs(wp_tuples):
+    """Bake a flat list of waypoint tuples into leg items (free-yaw + pause
+    splitting applied). Shared by ordinary segments and each branch option."""
+    out = []
+    if len(wp_tuples) >= 2:
+        for leg_wps, pause_after, publish in _split_legs(
+            _substitute_free_yaws(wp_tuples)
+        ):
+            out.append(_bake_leg(leg_wps, pause_after, publish))
+    return out
+
+
 def bake(yaml_path):
     with open(yaml_path, "r") as f:
         data = yaml.safe_load(f)
@@ -140,46 +156,37 @@ def bake(yaml_path):
     pending = []  # waypoint tuples not yet baked into legs
 
     def flush_pending():
-        if len(pending) >= 2:
-            legs = _split_legs(_substitute_free_yaws(pending))
-            for leg_wps, pause_after in legs:
-                items.append(_bake_leg(leg_wps, pause_after))
+        items.extend(_bake_waypoint_legs(pending))
         pending.clear()
 
     for key in data:
         segment = data[key]
-        if segment.get("type") == "go_to_object":
-            if "object_id" not in segment or "exit" not in segment:
-                raise ValueError(
-                    f"go_to_object segment '{key}' needs object_id and exit"
-                )
+        if segment.get("type") == "branch":
+            if "decision" not in segment:
+                raise ValueError(f"branch segment '{key}' needs a decision topic")
             flush_pending()
-            exit_wp = _wp_list(segment["exit"])
-            fallback = (
-                _wp_list(segment["fallback"])
-                if "fallback" in segment
-                else list(exit_wp)
-            )
+            options = []
+            for opt_key in segment:
+                if not opt_key.startswith("waypoints"):
+                    continue
+                opt = segment[opt_key]
+                if "code" not in opt:
+                    raise ValueError(
+                        f"branch option '{key}.{opt_key}' needs a code"
+                    )
+                wp_tuples = [_wp_tuple(wp) for wp in opt["waypoints"]]
+                options.append(
+                    {"code": opt["code"], "items": _bake_waypoint_legs(wp_tuples)}
+                )
+            if not options:
+                raise ValueError(f"branch segment '{key}' has no waypoint options")
             items.append(
                 {
-                    "type": "go_to_object",
-                    "object_id": str(segment["object_id"]),
-                    "standoff": float(
-                        segment.get("standoff", PURSUIT_DEFAULTS["standoff"])
-                    ),
-                    "timeout": float(
-                        segment.get("timeout", PURSUIT_DEFAULTS["timeout"])
-                    ),
-                    "arrive_tol": float(
-                        segment.get("arrive_tol", PURSUIT_DEFAULTS["arrive_tol"])
-                    ),
-                    "fallback": fallback,
-                    "exit": exit_wp,
+                    "type": "branch",
+                    "decision": str(segment["decision"]),
+                    "options": options,
                 }
             )
-            # The next spline leg starts at the declared exit waypoint - baked
-            # offline, independent of wherever pursuit actually ends.
-            pending.append(tuple(exit_wp) + (0.0, False))
         else:
             for wp in segment["waypoints"]:
                 pending.append(_wp_tuple(wp))
@@ -198,3 +205,47 @@ def save_bake(doc, out_path):
 def load_bake(path):
     with open(path, "r") as f:
         return yaml.safe_load(f)
+
+
+def main(argv=None):
+    """CLI: bake a waypoint YAML into <name>.baked.yaml next to the source.
+
+    Run ON SHORE (no spline math happens in the water):
+        python -m planning.utils.bake src/planning/planning/segments.yaml
+    """
+    import sys
+
+    argv = sys.argv[1:] if argv is None else argv
+    if len(argv) != 1:
+        print("usage: bake.py <waypoints.yaml>")
+        sys.exit(2)
+    src = argv[0]
+    out = (src[: -len(".yaml")] if src.endswith(".yaml") else src) + ".baked.yaml"
+
+    # Cache: if an existing bake already matches the source hash, the splines
+    # are identical - skip the recompute.
+    try:
+        if load_bake(out).get("source_sha256") == source_hash(src):
+            print(f"{out} is up to date (source unchanged) - nothing to do")
+            return
+    except (OSError, FileNotFoundError, TypeError):
+        pass  # missing/unreadable bake: regenerate
+
+    doc = bake(src)
+    save_bake(doc, out)
+    legs = sum(1 for i in doc["items"] if i["type"] == "leg")
+    branches = sum(1 for i in doc["items"] if i["type"] == "branch")
+    branch_legs = sum(
+        len(o["items"])
+        for i in doc["items"]
+        if i["type"] == "branch"
+        for o in i["options"]
+    )
+    print(
+        f"Baked {out}: {legs} leg(s), {branches} branch(es) "
+        f"({branch_legs} option leg(s))"
+    )
+
+
+if __name__ == "__main__":
+    main()

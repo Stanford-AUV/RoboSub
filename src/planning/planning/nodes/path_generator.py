@@ -3,6 +3,7 @@ import os
 import numpy as np
 import rclpy
 from geometry_msgs.msg import PointStamped, Twist
+from std_msgs.msg import String
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
 from scipy.spatial.transform import Rotation
@@ -12,16 +13,15 @@ from planning.utils.bake import load_bake, source_hash
 from planning.utils.geometry import override_yaw
 from planning.utils.pursuit import arrived, pursuit_target, step_toward
 
-PURSUIT_V_MAX = 0.25  # m/s - matches create_path's max_velocity
-PURSUIT_GOAL_STALE_SEC = 2.0
-PURSUIT_ARRIVE_HOLD_SEC = 1.0
 TICK_HZ = 60.0
+# Decision samples to collect before committing to a branch option; we take
+# the mode so a few noisy perception frames can't flip the choice.
+BRANCH_MIN_SAMPLES = 10
 
 
 class PathGenerator(Node):
     """Plays a baked trajectory (tools/bake_path.py): spline legs sampled on
-    shore, plus go_to_object pursuit segments servoing on the live world goal
-    from perception. No spline math happens at runtime."""
+    shore. No spline math happens at runtime."""
 
     def __init__(self):
         super().__init__("path_generator")
@@ -62,8 +62,24 @@ class PathGenerator(Node):
         self.create_subscription(
             Odometry, "/odometry/filtered", self.on_odom, 10
         )
+        # Branch playback: while sitting on a branch item we subscribe to its
+        # decision topic and buffer the reported codes here until we have
+        # enough to commit. The chosen option's legs are then spliced into
+        # self.items, so leg_tick plays them like any other leg.
+        self.branch_subscriber = None
+        self.branch_code = []
 
         self.items = self.load_baked()
+        # Actuator triggers: a leg can carry a `publish` topic (baked from a
+        # waypoint's `publish:` key). Pre-create a String publisher for every
+        # such topic - including those inside branch options, whose legs are
+        # spliced in at runtime - so DDS discovery is already complete when a
+        # leg finishes and fires. Create-publish-then-destroy would drop the
+        # message: the actuator node hasn't matched the publisher yet.
+        self.trigger_publishers = {
+            topic: self.create_publisher(String, topic, 10)
+            for topic in self._publish_topics(self.items)
+        }
         self.item_index = 0
         self.item_start = None  # rclpy Time, set on first tick of each item
         self.pause_logged = set()
@@ -73,21 +89,6 @@ class PathGenerator(Node):
         # Pursuit state
         self.cmd_pos = None  # np.ndarray(3,) - last commanded position
         self.cmd_yaw = 0.0  # deg
-        self.pursuit_entry_pos = None
-        self.pursuit_target_pos = None
-        self.pursuit_target_yaw = None
-        self.pursuit_arrived_at = None
-        self.pursuit_fallback_logged = False
-        self.goals = {}  # object_id -> (np.ndarray(3,), rclpy Time)
-        for oid in {
-            i["object_id"] for i in self.items if i["type"] == "go_to_object"
-        }:
-            self.create_subscription(
-                PointStamped,
-                f"/object/{oid}/world_position",
-                lambda msg, oid=oid: self.on_goal(oid, msg),
-                10,
-            )
 
         self.create_timer(1.0 / TICK_HZ, self.tick)
         self.get_logger().info(
@@ -114,6 +115,19 @@ class PathGenerator(Node):
             raise SystemExit(1)
         return doc["items"]
 
+    @staticmethod
+    def _publish_topics(items):
+        """All `publish` topics reachable from these items, recursing into
+        branch options (their legs get spliced in at runtime)."""
+        topics = set()
+        for item in items:
+            if item["type"] == "leg" and item.get("publish"):
+                topics.add(item["publish"])
+            elif item["type"] == "branch":
+                for opt in item["options"]:
+                    topics |= PathGenerator._publish_topics(opt["items"])
+        return topics
+
     def on_odom(self, msg: Odometry):
         q = msg.pose.pose.orientation
         self.meas_yaw = float(
@@ -122,19 +136,17 @@ class PathGenerator(Node):
             )[2]
         )
 
-    def on_goal(self, object_id, msg: PointStamped):
-        p = np.array([msg.point.x, msg.point.y, msg.point.z])
-        if np.all(np.isfinite(p)):
-            self.goals[object_id] = (p, self.get_clock().now())
+    def on_branch(self, msg: String):
+        self.branch_code.append(msg.data)
 
-    def fresh_goal(self, object_id):
-        entry = self.goals.get(object_id)
-        if entry is None:
-            return None
-        p, t = entry
-        if (self.get_clock().now() - t).nanoseconds / 1e9 > PURSUIT_GOAL_STALE_SEC:
-            return None
-        return p
+    def hold_pose(self):
+        """Station-keep on the last commanded pose with zero velocity."""
+        if self.cmd_pos is None:
+            return
+        quat = Rotation.from_euler(
+            "xyz", [0.0, 0.0, self.cmd_yaw], degrees=True
+        ).as_quat()
+        self.publish_cmd(self.cmd_pos, quat)
 
     def publish_cmd(self, pos, quat_xyzw, twist=None):
         odom = Odometry()
@@ -168,11 +180,13 @@ class PathGenerator(Node):
     def advance_item(self):
         self.item_index += 1
         self.item_start = None
-        self.pursuit_entry_pos = None
-        self.pursuit_target_pos = None
-        self.pursuit_target_yaw = None
-        self.pursuit_arrived_at = None
-        self.pursuit_fallback_logged = False
+        # Tear down any branch decision subscription and clear its buffer so
+        # the next branch starts fresh (no-op for leg items).
+        if self.branch_subscriber is not None:
+            self.destroy_subscription(self.branch_subscriber)
+            self.branch_subscriber = None
+        self.branch_code = []
+
 
     def tick(self):
         if self.item_index >= len(self.items):
@@ -183,11 +197,48 @@ class PathGenerator(Node):
             self.item_start = self.get_clock().now()
         if item["type"] == "leg":
             self.leg_tick(item)
-        else:
-            self.pursuit_tick(item)
+        elif item["type"] == "branch":
+            if self.branch_subscriber is None:
+                self.branch_subscriber = self.create_subscription(
+                    String, item["decision"], self.on_branch, 10
+                )
+                self.get_logger().info(
+                    f"Branch: holding, waiting on {item['decision']} "
+                    f"({BRANCH_MIN_SAMPLES} samples)."
+                )
+            self.branch_tick(item)
 
     def elapsed(self):
         return (self.get_clock().now() - self.item_start).nanoseconds / 1e9
+
+    def select_option(self, item, code):
+        """Pick the option whose code matches the decision; codes are compared
+        as strings so an Int-in-YAML and a String message still match."""
+        for opt in item["options"]:
+            if str(opt["code"]) == str(code):
+                return opt
+        self.get_logger().warn(
+            f"Branch {item['decision']}: code {code!r} matched no option; "
+            "using the first."
+        )
+        return item["options"][0]
+
+    def branch_tick(self, item):
+        # Station-keep on the pose we entered the branch with until we have
+        # enough decision samples to commit.
+        self.hold_pose()
+        if len(self.branch_code) < BRANCH_MIN_SAMPLES:
+            return
+        code = max(set(self.branch_code), key=self.branch_code.count)
+        opt = self.select_option(item, code)
+        self.get_logger().info(
+            f"Branch {item['decision']}: code {code!r} -> "
+            f"playing option with {len(opt['items'])} leg(s)."
+        )
+        # Splice the chosen option's legs in right after this branch item, then
+        # advance onto the first of them - leg_tick handles them from here.
+        self.items[self.item_index + 1 : self.item_index + 1] = opt["items"]
+        self.advance_item()
 
     def leg_tick(self, item):
         t = self.elapsed()
@@ -225,74 +276,11 @@ class PathGenerator(Node):
             return
         pos, quat, _ = self.leg_pose(item, n - 1)
         self.publish_cmd(pos, quat)
+        topic = item.get("publish")
+        if topic:
+            self.trigger_publishers[topic].publish(String(data="pub"))
+            self.get_logger().info(f"Leg done; fired trigger on {topic}.")
         self.advance_item()
-
-    def pursuit_tick(self, item):
-        now = self.get_clock().now()
-        dt = 1.0 / TICK_HZ
-        if self.cmd_pos is None:
-            # Pursuit as the first item: no commanded pose yet - hold origin
-            # until a goal shows up (control holds current pose anyway).
-            self.cmd_pos = np.zeros(3)
-        if self.pursuit_entry_pos is None:
-            self.pursuit_entry_pos = self.cmd_pos.copy()
-            self.get_logger().info(
-                f"go_to_object '{item['object_id']}' "
-                f"(standoff={item['standoff']}m timeout={item['timeout']}s)"
-            )
-
-        goal = self.fresh_goal(item["object_id"])
-        if goal is not None:
-            # Approach line anchored at the ENTRY position so the standoff
-            # point doesn't slide as the sub moves.
-            target, yaw = pursuit_target(
-                goal, self.pursuit_entry_pos, item["standoff"]
-            )
-            self.pursuit_target_pos, self.pursuit_target_yaw = target, yaw
-        elif (
-            self.pursuit_target_pos is None
-            and self.elapsed() > item["timeout"]
-        ):
-            # Never saw it: give up and drive to the fallback waypoint.
-            if not self.pursuit_fallback_logged:
-                self.pursuit_fallback_logged = True
-                self.get_logger().warn(
-                    f"'{item['object_id']}' not seen in {item['timeout']:.0f}s; "
-                    "driving to fallback waypoint."
-                )
-            fb = item["fallback"]
-            self.pursuit_target_pos = np.array(fb[:3])
-            self.pursuit_target_yaw = fb[5]
-
-        if self.pursuit_target_pos is None:
-            # Waiting for first detection: hold the entry pose.
-            quat = Rotation.from_euler(
-                "xyz", [0.0, 0.0, self.cmd_yaw], degrees=True
-            ).as_quat()
-            self.publish_cmd(self.pursuit_entry_pos, quat)
-            return
-
-        new_cmd = step_toward(
-            self.cmd_pos, self.pursuit_target_pos, PURSUIT_V_MAX, dt
-        )
-        quat = Rotation.from_euler(
-            "xyz", [0.0, 0.0, self.pursuit_target_yaw], degrees=True
-        ).as_quat()
-        self.publish_cmd(new_cmd, quat)
-
-        if arrived(new_cmd, self.pursuit_target_pos, item["arrive_tol"]):
-            if self.pursuit_arrived_at is None:
-                self.pursuit_arrived_at = now
-                self.get_logger().info(
-                    f"Arrived at '{item['object_id']}' target; holding "
-                    f"{PURSUIT_ARRIVE_HOLD_SEC:.0f}s."
-                )
-            elif (
-                now - self.pursuit_arrived_at
-            ).nanoseconds / 1e9 >= PURSUIT_ARRIVE_HOLD_SEC:
-                self.advance_item()
-        else:
-            self.pursuit_arrived_at = None
 
     def finish_tick(self):
         # All items done: hold the final commanded pose (zero twist - velocity
