@@ -73,6 +73,14 @@ BAG_ROOT="${REPO_DIR}/bags"
 # Override by exporting FASTRTPS_DEFAULT_PROFILES_FILE before running.
 export FASTRTPS_DEFAULT_PROFILES_FILE="${FASTRTPS_DEFAULT_PROFILES_FILE:-${REPO_DIR}/config/fastdds_async.xml}"
 export ROS_LOCALHOST_ONLY=1
+# Pin the domain explicitly and kill any stale 'ros2' CLI daemon left over
+# from a prior session with a DIFFERENT domain id (07/16: a daemon stuck on
+# domain 17 from an earlier session made 'ros2 topic echo' -- used by the IMU
+# verify gate below -- blind to every topic on this run's domain 0, aborting
+# a launch where the IMU was actually fine). A fresh daemon auto-starts on
+# the right domain the next time a ros2 CLI command runs.
+export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-0}"
+ros2 daemon stop >/dev/null 2>&1 || true
 # Three-phase bringup:
 #   1. IMU + Xsens driver ONLY, then wait IMU_SETTLE_DELAY so the Xsens onboard
 #      filter (AHS heading + orientation) converges before anything consumes it.
