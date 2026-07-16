@@ -626,7 +626,8 @@ class SensorsPlot(Node):
                                        linewidth=0.9))
                 arts.append(ax.text(
                     t, 0.99, " " + name, transform=ax.get_xaxis_transform(),
-                    fontsize=6, color="r", va="top", ha="left", clip_on=True))
+                    fontsize=12, fontweight="bold", color="r",
+                    va="top", ha="left", clip_on=True))
         return arts
 
     def _apply_data(self, snap):

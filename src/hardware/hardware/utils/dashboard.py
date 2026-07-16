@@ -124,12 +124,13 @@ function drawStageMarks(g, w, h, x0, x1, marks) {
   g.save();
   g.strokeStyle = "#f44"; g.fillStyle = "#f66";
   g.setLineDash([3, 3]); g.lineWidth = 1;
-  g.font = "8px sans-serif"; g.textAlign = "left"; g.textBaseline = "top";
+  g.font = "bold 14px sans-serif";
+  g.textAlign = "left"; g.textBaseline = "top";
   for (const [t, name] of marks) {
     if (t < x0 || t > x1) continue;
     const x = M.l + (t - x0) / (x1 - x0) * (w - M.l - M.r);
     g.beginPath(); g.moveTo(x, M.t); g.lineTo(x, h - M.b); g.stroke();
-    g.fillText(name, Math.min(x + 2, w - 60), M.t + 1);
+    g.fillText(name, Math.min(x + 3, w - 110), M.t + 2);
   }
   g.restore();
 }
