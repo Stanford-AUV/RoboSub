@@ -1,3 +1,4 @@
+import os
 import time
 
 import serial
@@ -19,6 +20,16 @@ class Arduino(Node):
         self.light_changed = False
         self.light = 1100
         self.shoot_torpedo = False
+
+        # Bench mode: NO_THRUST=1 (or ./launch_sub.sh --no-thrust) pins every
+        # thruster PWM at neutral no matter what /pwms commands, so the full
+        # stack can run with all sensors live without spinning motors dry.
+        # Torpedo/dropper/lights still work.
+        self.no_thrust = os.environ.get("NO_THRUST", "0") not in ("", "0")
+        if self.no_thrust:
+            self.get_logger().warn(
+                "NO_THRUST mode: all thruster PWMs pinned to neutral "
+                f"({self.zero_thrust})")
 
         self.declare_parameter("history_depth", 10)
         self.declare_parameter("thruster_count", 8)
@@ -131,9 +142,11 @@ class Arduino(Node):
         #         pwm += (pwm - 1497) * 0.05
         #         pwm = int(pwm)
         #     commands.append(self.get_servo_command(index=i, pwm=pwm))
+        pwms = ([self.zero_thrust] * self.thruster_count
+                if self.no_thrust else self.pwms)
         commands = [
             self.get_servo_command(index=i, pwm=np.clip(pwm, 1250, 1750))
-            for i, pwm in enumerate(self.pwms)
+            for i, pwm in enumerate(pwms)
         ]
         message = " ".join(commands)
         try:
