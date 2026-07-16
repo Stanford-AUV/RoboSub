@@ -25,3 +25,12 @@ def test_render_debug_empty_window(tmp_path):
     render_debug(out, {0: ([], [], []), 2: ([], [], [])},
                  threshold=0.2, decision_front=False)
     assert open(out, "rb").read(8) == b"\x89PNG\r\n\x1a\n"
+
+
+def test_render_debug_labels_detections(tmp_path):
+    t = np.linspace(10.0, 20.0, 200)
+    boards = {0: (t.tolist(), [0.02] * 200, [0.02] * 200)}
+    out = str(tmp_path / "debug.png")
+    render_debug(out, boards, threshold=0.2, decision_front=True,
+                 detections=[(12.5, True), (15.0, False), (18.2, True)])
+    assert open(out, "rb").read(8) == b"\x89PNG\r\n\x1a\n"

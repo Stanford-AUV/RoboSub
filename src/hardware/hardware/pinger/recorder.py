@@ -1,8 +1,7 @@
 """Crash-safe raw-stream recording for the pinger node.
 
-Layout mirrors whisper_ivc's stream_transcribe sessions so the offline
-tools read it directly: <session>/raw/ch<C>/<N>.wav, one mono 16-bit WAV
-per channel, fragment <N> incremented per stream (re)connect.
+Flat layout: <session>/ch<C>.wav, one mono 16-bit WAV per channel for the
+whole session (a mid-run reconnect keeps appending to the same file).
 
 WAV headers are written with placeholder sizes and patched in place on
 every flush (the node flushes ~every 2 s), so a crash or power cut leaves
@@ -66,16 +65,12 @@ class SessionRecorder:
         self._log = log
         self.enabled = True
         self._writers = {}      # channel -> _WavWriter
-        self._fragment = {}     # channel -> next fragment index
 
     def _writer(self, ch):
         if ch not in self._writers:
-            frag = self._fragment.get(ch, 0)
-            d = os.path.join(self._dir, "raw", f"ch{ch}")
-            os.makedirs(d, exist_ok=True)
+            os.makedirs(self._dir, exist_ok=True)
             self._writers[ch] = _WavWriter(
-                os.path.join(d, f"{frag}.wav"), self._rate)
-            self._fragment[ch] = frag + 1
+                os.path.join(self._dir, f"ch{ch}.wav"), self._rate)
         return self._writers[ch]
 
     def write(self, first_channel, pcm):
@@ -93,16 +88,6 @@ class SessionRecorder:
         except (OSError, ValueError) as e:
             self.enabled = False
             self._log(f"pinger recording disabled: {e}")
-
-    def next_fragment(self, first_channel):
-        """Close the board's writers; next write opens fragment N+1."""
-        for idx in (0, 1):
-            w = self._writers.pop(first_channel + idx, None)
-            if w is not None:
-                try:
-                    w.close()
-                except (OSError, ValueError):
-                    pass
 
     def _flush(self):
         """Patch all headers in place (called ~every 2 s by the node)."""

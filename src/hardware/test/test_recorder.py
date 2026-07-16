@@ -30,8 +30,8 @@ def test_roundtrip_bit_exact(tmp_path):
     b = np.array([5, -5, 100, -100, 0, 42], "<i2")
     rec.write(0, stereo(a, b))
     rec.close()
-    got_a, rate = read_wav(str(tmp_path / "raw" / "ch0" / "0.wav"))
-    got_b, _ = read_wav(str(tmp_path / "raw" / "ch1" / "0.wav"))
+    got_a, rate = read_wav(str(tmp_path / "ch0.wav"))
+    got_b, _ = read_wav(str(tmp_path / "ch1.wav"))
     assert rate == 96000
     np.testing.assert_array_equal(got_a, a)
     np.testing.assert_array_equal(got_b, b)
@@ -44,22 +44,21 @@ def test_readable_mid_stream_without_close(tmp_path):
     a = np.arange(1000, dtype="<i2")
     rec.write(2, stereo(a, a))
     rec._flush()                      # what the periodic patcher calls
-    got, _ = read_wav(str(tmp_path / "raw" / "ch2" / "0.wav"))
+    got, _ = read_wav(str(tmp_path / "ch2.wav"))
     np.testing.assert_array_equal(got, a)
     rec.close()
 
 
-def test_fragments_on_reconnect(tmp_path):
+def test_reconnect_appends_same_file(tmp_path):
+    # Flat layout: a mid-run reconnect keeps appending to <session>/chN.wav.
     rec = SessionRecorder(str(tmp_path), 96000)
     a = np.array([1, 2, 3], "<i2")
     rec.write(0, stereo(a, a))
-    rec.next_fragment(0)
     rec.write(0, stereo(a * 10, a * 10))
     rec.close()
     np.testing.assert_array_equal(
-        read_wav(str(tmp_path / "raw" / "ch0" / "0.wav"))[0], a)
-    np.testing.assert_array_equal(
-        read_wav(str(tmp_path / "raw" / "ch0" / "1.wav"))[0], a * 10)
+        read_wav(str(tmp_path / "ch0.wav"))[0],
+        np.concatenate([a, a * 10]))
 
 
 def test_write_failure_disables_without_raising(tmp_path):
@@ -81,9 +80,9 @@ def test_float_conversion_saturates(tmp_path):
     pcm = np.array([[1.5, -1.5], [1.0, -1.0]], np.float32)  # out of range
     rec.write(0, pcm)
     rec.close()
-    got, _ = read_wav(str(tmp_path / "raw" / "ch0" / "0.wav"))
+    got, _ = read_wav(str(tmp_path / "ch0.wav"))
     np.testing.assert_array_equal(got, [32767, 32767])
-    got, _ = read_wav(str(tmp_path / "raw" / "ch1" / "0.wav"))
+    got, _ = read_wav(str(tmp_path / "ch1.wav"))
     np.testing.assert_array_equal(got, [-32768, -32768])
 
 
@@ -96,5 +95,5 @@ def test_write_after_close_is_noop(tmp_path):
     rec.close()
     rec.write(0, stereo(a, a))
     import os
-    assert sorted(os.listdir(tmp_path / "raw" / "ch0")) == ["0.wav"]
+    assert sorted(os.listdir(tmp_path)) == ["ch0.wav", "ch1.wav"]
     assert rec.enabled is False

@@ -13,8 +13,8 @@ CDC); this node decodes both streams, runs the exact firmware detection
                   sensors_plot's pinger panel and threshold calibration.
 
 All four channels are also recorded to
-<root>/data/audio_pingers/<session>/raw/ch<C>/<N>.wav (fragment <N>
-increments per reconnect; whisper_ivc-compatible layout).
+<root>/data/audio_pingers/<session>/ch<C>.wav (one file per channel for
+the whole session; debug.png lands in the same dir).
 
 Boards are found by USB serial under /dev/serial/by-id (BOARDS in
 hardware/pinger/daisy_stream.py) -- NEVER by bare /dev/ttyACM<n>: 07/13 a
@@ -128,7 +128,6 @@ class Daisy(Node):
             finally:
                 if stream is not None:
                     stream.close()
-                self._recorder.next_fragment(first_channel)
             time.sleep(RETRY_S)
 
     def _enqueue(self, first_channel, pair_levels, t_us):
@@ -188,14 +187,21 @@ class Daisy(Node):
                                      [p[1] for p in pts],
                                      [p[2] for p in pts])
                 self._listen_start = None
-            threading.Thread(target=self._render_debug, args=(boards,),
-                             daemon=True).start()
+            # Every decided ping inside the window, labeled front/back
+            # (same decision logic that feeds /pinger).
+            lo = min(start.values(), default=0.0)
+            hi = max(end.values(), default=0.0)
+            dets = [(t / 1e6, front) for t, front in
+                    list(self._detector.decisions) if lo <= t <= hi]
+            threading.Thread(target=self._render_debug,
+                             args=(boards, dets), daemon=True).start()
 
-    def _render_debug(self, boards):
+    def _render_debug(self, boards, detections):
         path = os.path.join(self._session_dir, "debug.png")
         try:
             render_debug(path, boards, detector.baseThreshold,
-                         self._detector.direction_front)
+                         self._detector.direction_front,
+                         detections=detections)
             self.get_logger().info(f"pinger listen debug plot -> {path}")
         except Exception as e:
             self.get_logger().error(f"debug plot failed: {e}")
