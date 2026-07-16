@@ -105,6 +105,17 @@ else
 fi
 set -u
 
+# Abort if any tracked .py under src/ is newer than the built copy under
+# build/ (colcon copies sources at build time, so edits after the last build
+# never take effect -- 07/16: a detector.py fix was made but not rebuilt, so
+# the OLD/broken copy in build/ kept crashing the daisy node every launch).
+STALE_PY="$(find src -name '*.py' -newer "$WS_SETUP" 2>/dev/null | grep -v '/launch/' | head -1 || true)"
+if [ -n "$STALE_PY" ]; then
+    echo "ERROR: $STALE_PY is newer than the last build ($WS_SETUP)." >&2
+    echo "       Run 'colcon build --symlink-install' before launching." >&2
+    exit 1
+fi
+
 # (Re)bake the chosen waypoint yaml so path_generator never hits a missing or
 # stale bake. bake_path.py skips the recompute when the bake is already fresh.
 WAYPOINTS_SRC="${REPO_DIR}/src/planning/planning/${WAYPOINTS_YAML}"
@@ -294,6 +305,18 @@ LOG_DIR="${REPO_DIR}/logs/run_$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$LOG_DIR"
 echo ">>> Node output -> $LOG_DIR/<launch>.log  (tail -f to watch)"
 
+# Node output goes to files, not this terminal (see LOG_DIR comment above), so
+# a crashed node (07/16: daisy died on a detector.py SyntaxError at import,
+# silently recording zero pinger audio for the whole run) is otherwise
+# invisible until someone thinks to grep logs after the fact. Surface it live.
+check_for_crashes() {
+    local log="$1"
+    if grep -q "process has died" "$log" 2>/dev/null; then
+        echo "!!! CRASH in $log:" >&2
+        grep -B1 "process has died" "$log" >&2
+    fi
+}
+
 # Launch one group of ros2 launch files, staggering each by 2s and recording
 # its PID (== process group id, thanks to 'set -m') for shutdown.
 launch_group() {
@@ -309,6 +332,7 @@ launch_group() {
         # first and neutralize the thrusters before anything else.
         [ "$lf" = "hardware" ] && HW_PID="$pid"
         sleep 2   # stagger so nodes come up cleanly one at a time
+        check_for_crashes "$LOG_DIR/${lf}.log"
     done
 }
 

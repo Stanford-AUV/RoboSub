@@ -20,50 +20,52 @@ import numpy as np
 from hardware.pinger.fft_library import FFTLibrary
 
 # ////////////////////////////// Competition Configuration (WE CAN CHANGE) /////////////////////////////////////////
-# # Hydrophone normalization (manually calibrate)
-# hydrophone_0_max = 4.0
-# hydrophone_1_max = 4.0
-# hydrophone_2_max = 4.0          # ch 2/3 from slave.cpp: the host computes
-# hydrophone_3_max = 4.0          # them from raw PCM, so they need maxes too
-#
-# # FFT
-# kFftSize = 64                   # Higher = better frequency resolution
-# kBlockSize = 64                 # Block size for audio processing
-#
-# # RMS
-# multiplier = 100                # Amplification of signal (per sample)
-#
-# # Frequency Detection
-# targetFrequency = 25000.0       # Target frequency to detect
-# frequencyTolerance = 0.01       # Tolerance for frequency detection
-# baseThreshold = 0.04            # Base threshold for frequency detection
-#
-# # Ping Detection (pinger fires a few ms every ~2 s, periodic)
-# offThresholdMs = 1000           # Silence gap (ms) that re-arms a measurement
-# withinThresholdUs = 3000        # Collection-window length (us) after the first detection
-
-# ////////////////////////////// Testing Configuration (WE CAN CHANGE) /////////////////////////////////////////
 # Hydrophone normalization (manually calibrate)
 hydrophone_0_max = 4.0
 hydrophone_1_max = 4.0
-hydrophone_2_max = 4.0            # ch 2/3 from slave.cpp: the host computes
-hydrophone_3_max = 4.0            # them from raw PCM, so they need maxes too
+hydrophone_2_max = 4.0          # ch 2/3 from slave.cpp: the host computes
+hydrophone_3_max = 4.0          # them from raw PCM, so they need maxes too
 
 # FFT
-kFftSize = 64                     # Higher = better frequency resolution
-kBlockSize = 64                   # Block size for audio processing
+kFftSize = 64                   # Higher = better frequency resolution
+kBlockSize = 64                 # Block size for audio processing
 
 # RMS
-multiplier = 100                  # Baked into stream_audio samples (kGain) -- NOT reapplied here
+multiplier = 100                # Amplification of signal (per sample)
 
 # Frequency Detection
-targetFrequency = 1046.0          # Target frequency to detect
-frequencyTolerance = 0.01         # Tolerance for frequency detection
-baseThreshold = 0.2               # Base threshold for frequency detection
+targetFrequency = 25000.0       # Target frequency to detect
+frequencyTolerance = 0.01       # Tolerance for frequency detection
+baseThreshold = 0.4            # Base threshold for frequency detection
 
 # Ping Detection (pinger fires a few ms every ~2 s, periodic)
-offThresholdMs = 1000             # Silence gap (ms) that re-arms a measurement
-withinThresholdUs = 3000          # Collection-window length (us) after the first detection
+offThresholdMs = 1000           # Silence gap (ms) that re-arms a measurement
+withinThresholdUs = 3000        # Collection-window length (us) after the first detection
+
+# # ////////////////////////////// Testing Configuration (WE CAN CHANGE) /////////////////////////////////////////
+# # Hydrophone normalization (manually calibrate)
+# hydrophone_0_max = 4.0
+# hydrophone_1_max = 4.0
+# hydrophone_2_max = 4.0            # ch 2/3 from slave.cpp: the host computes
+# hydrophone_3_max = 4.0            # them from raw PCM, so they need maxes too
+
+# # FFT
+# kFftSize = 64                     # Higher = better frequency resolution
+# kBlockSize = 64                   # Block size for audio processing
+
+# # RMS
+# multiplier = 100                  # Baked into stream_audio samples (kGain) -- NOT reapplied here
+
+# # Frequency Detection
+# targetFrequency = 1046.0          # Target frequency to detect
+# frequencyTolerance = 0.01         # Tolerance for frequency detection
+# baseThreshold = 0.2               # Base threshold for frequency detection
+
+# # Ping Detection (pinger fires a few ms every ~2 s, periodic)
+# offThresholdMs = 1000             # Silence gap (ms) that re-arms a measurement
+# withinThresholdUs = 3000          # Collection-window length (us) after the first detection
+
+
 
 # Output
 kPrintIntervalMs = 200            # Sticky front/back is published every this many ms

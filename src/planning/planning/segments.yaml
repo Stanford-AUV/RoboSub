@@ -16,15 +16,15 @@ segment_0:
     - position: {x: 2.0, y: 0.0, z: -0.6}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
       pause: 6.0
-    - position: {x: 3.0, y: 0.0, z: -0.6}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-      pause: 6.0
-    - position: {x: 4.0, y: 0.0, z: -0.6}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-      pause: 6.0
-    - position: {x: 5.0, y: 0.0, z: -0.6}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-      pause: 6.0
+    # - position: {x: 3.0, y: 0.0, z: -0.6}
+    #   orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    #   pause: 6.0
+    # - position: {x: 4.0, y: 0.0, z: -0.6}
+    #   orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    #   pause: 6.0
+    # - position: {x: 5.0, y: 0.0, z: -0.6}
+    #   orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+      # pause: 6.0
     - position: {x: 0.0, y: 0.0, z: 0.0}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
 
@@ -40,8 +40,12 @@ segment_1:
         orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
       - position: {x: 2.0, y: 1.0, z: -0.6}
         orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-        pause: 6.0
-        publish: /torpedo
+        pause: 3.0
+        publish: /torpedo_left
+      - position: {x: 2.0, y: 1.2, z: -0.6}
+        orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+        pause: 3.0
+        publish: /torpedo_right
       - position: {x: 1.0, y: 0.0, z: -0.6}
         orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
   waypoints_1:
@@ -51,10 +55,14 @@ segment_1:
         orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
       - position: {x: 2.0, y: -1.0, z: -0.6}
         orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+        pause: 3.0
+        publish: /torpedo_right
+      - position: {x: 2.0, y: -1.2, z: -0.6}
+        orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+        pause: 3.0
+        publish: /torpedo_left
       - position: {x: 1.0, y: 0.0, z: -0.6}
         orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-        pause: 6.0
-        publish: /torpedo
 
 segment_2:
   waypoints:
@@ -64,21 +72,21 @@ segment_2:
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
       pause: 6.0
 
-    - position: {x: 1.0, y: 0.0, z: -0.6}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-      pause: 6.0
-    - position: {x: 2.0, y: 0.0, z: -0.6}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-      pause: 6.0
-    - position: {x: 3.0, y: 0.0, z: -0.6}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-      pause: 6.0
-    - position: {x: 4.0, y: 0.0, z: -0.6}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-      pause: 6.0
-    - position: {x: 5.0, y: 0.0, z: -0.6}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-      pause: 6.0
-    - position: {x: 0.0, y: 0.0, z: 0.0}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    # - position: {x: 1.0, y: 0.0, z: -0.6}
+    #   orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    #   pause: 6.0
+    # - position: {x: 2.0, y: 0.0, z: -0.6}
+    #   orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    #   pause: 6.0
+    # - position: {x: 3.0, y: 0.0, z: -0.6}
+    #   orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    #   pause: 6.0
+    # - position: {x: 4.0, y: 0.0, z: -0.6}
+    #   orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    #   pause: 6.0
+    # - position: {x: 5.0, y: 0.0, z: -0.6}
+    #   orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    #   pause: 6.0
+    # - position: {x: 0.0, y: 0.0, z: 0.0}
+    #   orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
 
