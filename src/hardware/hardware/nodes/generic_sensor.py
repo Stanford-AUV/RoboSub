@@ -32,7 +32,14 @@ class GenericSensor(Node):
         super().__init__(node_name)
 
         if yaml_path is None:
-            yaml_path = os.path.join(os.path.dirname(__file__), "..", "sensors.yaml")
+            # sensors.yaml is installed to the package share dir (see setup.py),
+            # which works under any install layout (symlink or merge/copy); the
+            # old __file__-relative path broke on clean copy installs.
+            from ament_index_python.packages import get_package_share_directory
+
+            yaml_path = os.path.join(
+                get_package_share_directory("hardware"), "sensors.yaml"
+            )
         self.yaml_path = os.path.normpath(yaml_path)
 
         self.sensor_name = sensor_name

@@ -1,8 +1,62 @@
 imu_0:
+  # Xsens MTi-200 VRU on-board filter. rotation_covariance (rad^2, diag) from a
+  # 12h static log (tools/allan_variance/data/imu_static_20260710_021600, 400Hz):
+  #   roll/pitch measured std ~0.06 deg (var ~1.2e-6) -- gravity-referenced, tight.
+  #     Bumped to 1e-5 (~0.18 deg) to budget for in-water thruster vibration that
+  #     the static test did not see. Still ~100x tighter than the old 0.001.
+  #   yaw is UNREFERENCED (no mag) and random-walked -3096 deg over the 12h log,
+  #     so the empirical static variance (265 rad^2) is drift-dominated and useless
+  #     as a measurement cov. Short-term yaw noise is tiny (gyro N=1.4e-4
+  #     rad/s/sqrt Hz), but absolute heading drifts, so keep a moderate 0.05
+  #     (~12.8 deg) trust -- it is the only heading source, just not fully trusted.
   rotation_covariance:
+    - [1.0e-5, 0.0,    0.0 ]
+    - [0.0,    1.0e-5, 0.0 ]
+    - [0.0,    0.0,    0.05]
+  angular_covariance:
     - [0.01, 0.0, 0.0]
     - [0.0, 0.01, 0.0]
     - [0.0, 0.0, 0.01]
+  # Accel noise density on the MTi-200 is far below this, but 0.45 m/s^2 std
+  # deliberately budgets for thruster vibration + gravity-removal residual
+  # (attitude error leaks ~g*err into the body-frame accel). Isotropic, so it
+  # is unchanged by the R_sensor_to_base rotation.
+  accel_covariance:
+    - [0.2, 0.0, 0.0]
+    - [0.0, 0.2, 0.0]
+    - [0.0, 0.0, 0.2]
+  sensor_pos_in_base: #x, y, z on (base) robot frame
+  # 3x3 rotation matrix: sensor frame → base (robot) frame.
+  # IDENTITY since 2026-07-11: the mount rotation is burned into the MTi itself
+  # (RotSensor alignment, tools/xsens_align/set_alignment.py), so ALL driver
+  # topics (quaternion/euler/gyro/accel/mag) already arrive in the vehicle
+  # frame. The old software remount was [[0,0,-1],[-1,0,0],[0,1,0]] — device
+  # holds its inverse per Xsens RotSensor convention (verified live: roll/pitch
+  # ~0 with the sub level on the bench). If the IMU is ever remounted, re-burn
+  # with the tool rather than editing this matrix.
+  R_sensor_to_base:
+    - [1, 0, 0]
+    - [0, 1, 0]
+    - [0, 0, 1]
+  # Now for sensor info, 0 if none, 123 depending on what it has
+  position: 0
+  rotation: 123
+  velocity: 0
+  # angular enabled: ekf.yaml fuses /angular (twist1) but this flag kept the
+  # topic from ever publishing, so the EKF ran with no gyro at all.
+  angular: 0
+  accel: 0
+
+# Bosch BNO085 IMUs read via the Arduino (hardware/nodes/bno085.py).
+# Covariances copied from imu_0 as starting points -- retune once real data
+# is plotted. The BNO085 rotation vector IS magnetometer-referenced, so yaw
+# may deserve more trust than the Xsens VRU's drifting yaw; keep 0.05 until
+# verified in the enclosure (magnetic distortion from thrusters/ESCs likely).
+bno085_0:
+  rotation_covariance:
+    - [0.001, 0.0,   0.0]
+    - [0.0,   0.001, 0.0]
+    - [0.0,   0.0,   0.05]
   angular_covariance:
     - [0.01, 0.0, 0.0]
     - [0.0, 0.01, 0.0]
@@ -11,29 +65,59 @@ imu_0:
     - [0.2, 0.0, 0.0]
     - [0.0, 0.2, 0.0]
     - [0.0, 0.0, 0.2]
-  sensor_pos_in_base: #x, y, z on (base) robot frame
-  # 3x3 rotation matrix: sensor frame → base (robot) frame.
-  # This is the SINGLE mounting knob (imu.py applies one remount rotation from it).
-  # Gravity lands on base +Z / heading on yaw; the remaining freedom is which way
-  # is FORWARD (a rotation about base-Z), which is set from the physical axis test.
+  sensor_pos_in_base:
+  # TODO(mounting): identity placeholder. Set from the physical mount once
+  # installed (gravity must land on base +Z; see imu_0 comment above).
   R_sensor_to_base:
-    - [0, 0, -1]
-    - [-1, 0, 0]
+    - [1, 0, 0]
     - [0, 1, 0]
-  # Now for sensor info, 0 if none, 123 depending on what it has
+    - [0, 0, 1]
   position: 0
   rotation: 123
   velocity: 0
-  angular: 0
-  accel: 0
+  angular: 123
+  accel: 123
+
+bno085_1:
+  rotation_covariance:
+    - [0.001, 0.0,   0.0]
+    - [0.0,   0.001, 0.0]
+    - [0.0,   0.0,   0.05]
+  angular_covariance:
+    - [0.01, 0.0, 0.0]
+    - [0.0, 0.01, 0.0]
+    - [0.0, 0.0, 0.01]
+  accel_covariance:
+    - [0.2, 0.0, 0.0]
+    - [0.0, 0.2, 0.0]
+    - [0.0, 0.0, 0.2]
+  sensor_pos_in_base:
+  # TODO(mounting): identity placeholder, same note as bno085_0.
+  R_sensor_to_base:
+    - [1, 0, 0]
+    - [0, 1, 0]
+    - [0, 0, 1]
+  position: 0
+  rotation: 123
+  velocity: 0
+  angular: 123
+  accel: 123
 
 dvl_0:
-  sensor_pos_in_base:
+  # 12.5 cm behind base_link center, ~3 cm below it (FLU: back = -x,
+  # down = -z). Enables the omega x r lever-arm correction in dvl.py.
+  sensor_pos_in_base: [-0.125, 0.0, -0.03]
   # 3x3 rotation matrix: sensor frame → base (robot) frame
   R_sensor_to_base:
     - [-0.70710678,  0.70710678, 0]
     - [-0.70710678, -0.70710678, 0]
     - [ 0,           0,          1]
+  # Fallback speed of sound in m/s, written to the Wayfinder at node startup
+  # when no Bar02 water temperature is available (normally it is computed from
+  # /arduino/sensors external_temperature, 0 ppt Marczak). Fresh water at
+  # ~25 C; the factory default 1500 assumes 35 ppt seawater. Remove this key
+  # to disable the startup speed-of-sound configuration entirely.
+  speed_of_sound: 1497.0
   # Fallback velocity covariance (used when DVL does not report a velocity error).
   velocity_covariance:
     - [0.01, 0.0,  0.0 ]
@@ -57,7 +141,7 @@ depth_0:
   position_covariance:
     - [1.0e9, 0.0,   0.0  ]
     - [0.0,   1.0e9, 0.0  ]
-    - [0.0,   0.0,   0.01 ]
+    - [0.0,   0.0,   0.001 ]
   position: 3
   rotation: 0
   velocity: 0

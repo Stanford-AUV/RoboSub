@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Fast DDS profile for the RoboSub stack.
+
+  WHY THIS EXISTS
+  ===============
+  Symptom: the robot_localization EKF (single-threaded) froze for up to 36s at a
+  time when the sub ran UNTETHERED. During a freeze it published nothing
+  (/odometry/filtered, /tf, /diagnostics all stopped) so control steered on a
+  stale pose while the sub drifted. It escalated over a run (1s -> 4s -> 9s ->
+  36s) and logged "Failed to meet update rate! Took 35.8 seconds".
+
+  Root cause: it is NOT power/battery (a separate 400Hz process never missed a
+  beat through the freeze). The default RMW is Fast DDS with RELIABLE +
+  SYNCHRONOUS writers announcing on ALL interfaces, including the topside tether
+  (point-to-point 192.168.2.0/24 on the USB-ethernet adapter). When the tether
+  drops, the topside reliable subscriber (rviz / ros2 topic echo / foxglove)
+  becomes unreachable; robot_localization calls publish() INSIDE its update loop,
+  and a synchronous reliable write() blocks waiting for ACKs that never arrive.
+  Single-threaded executor => the whole node freezes until Fast DDS gives up.
+
+  FIX
+  ===
+  - ASYNCHRONOUS publish mode: write() enqueues and returns immediately; a
+    dedicated Fast DDS thread handles delivery + retries. A dead reader or a
+    downed interface can no longer block the calling (executor) thread.
+  - max_blocking_time = 10ms: belt-and-suspenders cap so even a synchronous path
+    can never stall the loop for more than one tick.
+
+  These are the DEFAULT profiles (is_default_profile="true"), so they apply to
+  every writer in the stack -- including robot_localization's, whose QoS we can't
+  edit from Python. publishMode/max_blocking_time are not ROS 2 QoS fields, so
+  the ROS QoS chosen in code is preserved; only the blocking behaviour changes.
+
+  ENABLED VIA: export FASTRTPS_DEFAULT_PROFILES_FILE=<repo>/config/fastdds_async.xml
+  (wired into launch_sub.sh and run_experiment.sh).
+-->
+<dds xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+  <profiles>
+    <data_writer profile_name="default_async_writer" is_default_profile="true">
+      <qos>
+        <publishMode>
+          <kind>ASYNCHRONOUS</kind>
+        </publishMode>
+        <reliability>
+          <max_blocking_time>
+            <sec>0</sec>
+            <nanosec>10000000</nanosec>
+          </max_blocking_time>
+        </reliability>
+      </qos>
+    </data_writer>
+  </profiles>
+</dds>

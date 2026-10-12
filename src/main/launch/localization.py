@@ -9,7 +9,6 @@ ekf_params = os.path.join(
     "..", "..", "localization", "localization", "nodes", "ekf.yaml",
 )
 
-global_params = os.path.join(os.path.dirname(__file__), "params", "global.yaml")
 
 
 def generate_launch_description():
@@ -19,7 +18,6 @@ def generate_launch_description():
                 package="hardware",
                 executable="sensors",
                 name="sensors",
-                parameters=[global_params],
             ),
             Node(
                 package="robot_localization",
@@ -36,9 +34,13 @@ def generate_launch_description():
                     "-0.1525",
                     "-0.02",
                     "0.1375",
-                    "-1.57079632679",
+                    # Identity rotation since 2026-07-11: the mount rotation is
+                    # burned into the MTi (RotSensor alignment), so IMU data
+                    # axes are already vehicle-aligned. Translation is the
+                    # physical lever arm and still applies.
                     "0.0",
-                    "1.57079632679",
+                    "0.0",
+                    "0.0",
                     "base_link",
                     "imu_frame",
                 ],

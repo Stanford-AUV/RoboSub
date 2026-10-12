@@ -34,4 +34,4 @@ To use them from install, add a `data_files` glob for `launch/*.py` in `setup.py
 
 ## Parameters
 
-Nodes expect parameters from `main/launch/params/global.yaml` when launched from `main` (e.g. `timer_period`, `history_depth`, `thruster_count`).
+Node parameters (`timer_period`, `history_depth`, `thruster_count`) have in-code defaults; override per-node with `--ros-args -p` if needed.

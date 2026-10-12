@@ -54,10 +54,10 @@ def thrust_to_pwm(thrust: float, voltage=14.8):
         voltage = 10
 
     # Requested thrust must be 20% below saturation limit, according to https://bluerobotics.com/store/thrusters/t100-t200-thrusters/t200-thruster-r2-rp/
-    if thrust > 0.8 * (0.374 * voltage - 0.78):  # mx + b, calculated by hand
-        raise ValueError("Forward thrust exceeds the maximum limit")
-    if -thrust > 0.8 * (0.266 * voltage - 0.272):  # mx + b, calculated by hand
-        raise ValueError("Reverse thrust exceeds the maximum limit")
+    # Clamp instead of raising: a ValueError here aborts the whole PWM update
+    # in the thrusters node and the sub keeps running on stale PWMs.
+    thrust = min(thrust, 0.8 * (0.374 * voltage - 0.78))
+    thrust = max(thrust, -0.8 * (0.266 * voltage - 0.272))
 
     if voltage >= 18:
         low = 18

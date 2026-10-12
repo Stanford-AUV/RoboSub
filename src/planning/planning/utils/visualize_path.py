@@ -36,6 +36,13 @@ def parse_waypoints(waypoints):
     for wp in waypoints:
         positions.append([wp["position"]["x"], wp["position"]["y"], wp["position"]["z"]])
         eulers.append([wp["orientation"]["roll"], wp["orientation"]["pitch"], wp["orientation"]["yaw"]])
+    # Free yaws take the next controlled waypoint's yaw, matching bake.py
+    next_yaw = 0.0
+    for e in reversed(eulers):
+        if isinstance(e[2], str):
+            e[2] = next_yaw
+        else:
+            next_yaw = e[2]
     return np.array(positions).T, np.array(eulers).T  # both shape (3, n)
 
 
@@ -53,7 +60,7 @@ def plot_segments(segments, yaml_path):
             ax.scatter(*positions_in[:, 0], s=80, color=color, marker="*", zorder=5)
             continue
 
-        pos, vel, _, ori, _, _, _ = create_path(*positions_in, *eulers_in)
+        pos, vel, _, ori, _, _, _, _ = create_path(*positions_in, *eulers_in)
         x, y, z = pos
 
         # Speed as colour along the path

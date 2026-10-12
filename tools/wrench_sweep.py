@@ -20,10 +20,10 @@ PREREQ — in a separate terminal bring up the actuation chain:
 
 Then run this:
     conda activate robosub && source install/setup.bash
-    python wrench_sweep.py                       # + sweep of all 6 axes
-    python wrench_sweep.py --both                # + and - each axis
-    python wrench_sweep.py --axes Mz --both --interactive
-    python wrench_sweep.py --axes Fx Fy Mz       # just the horizontal-thruster axes
+    python tools/wrench_sweep.py                       # + sweep of all 6 axes
+    python tools/wrench_sweep.py --both                # + and - each axis
+    python tools/wrench_sweep.py --axes Mz --both --interactive
+    python tools/wrench_sweep.py --axes Fx Fy Mz       # just the horizontal-thruster axes
 
 SAFETY: out of water, keep holds short — do NOT run thrusters >10 s dry.
 Ctrl-C aborts and sends a zero wrench.

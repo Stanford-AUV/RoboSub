@@ -1,37 +1,48 @@
+# Body frame: x forward, y left (port), z up. Positive thrust pushes along (dx,dy,dz).
+# 2026-07-09 audit: positions are physical (measured) and unchanged from the
+# original file. Only the top thrusters' dy signs were wrong — the old
+# dy = (-,-,+,+) made the thrust lines pass ~through the CG (yaw arm 0.014 m,
+# near-degenerate) AND inverted sway+yaw, which is why both row hacks existed.
+# dy = (+,+,-,-) is the unique sign pattern consistent with the pool tests:
+#   fwd = 1400 1600 1400 1600, all-reverse spins CW, (rev,rev,fwd,fwd) sways right.
+# Yaw arm is now 0.27 m per thruster. No sign hacks anywhere else.
+# Top z: 0 on purpose — the real +0.0925 offset made the allocator counter-
+# pitch every surge command with the bottom thrusters (front verticals ended
+# up in the ESC deadband while descending). Pitch is passively stable.
 thruster_0:
 # Top front left (CCW from back)
   x: +0.2025
   y: +0.1825
-  z: +0.0925
+  z: 0
   dx: -1
-  dy: -1
+  dy: +1
   dz: 0
 
 thruster_1:
 # Top front right (CCW from back)
   x: +0.2025
   y: -0.1825
-  z: +0.0925
+  z: 0
   dx: +1
-  dy: -1
+  dy: +1
   dz: 0
 
 thruster_2:
 # Top back left (CW viewed from back)
   x: -0.2025
   y: +0.1825
-  z: +0.0925
+  z: 0
   dx: -1
-  dy: +1
+  dy: -1
   dz: 0
 
 thruster_3:
 # Top back right (CW back)
   x: -0.2025
   y: -0.1825
-  z: +0.0925
+  z: 0
   dx: +1
-  dy: +1
+  dy: -1
   dz: 0
 
 thruster_4:

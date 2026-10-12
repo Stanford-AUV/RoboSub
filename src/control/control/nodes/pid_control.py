@@ -23,6 +23,7 @@ class PIDControl(Node):
             kD_orie,
             max_integral_pos,
             max_integral_orie,
+            force_feedforward,
         ) = self.get_yaml_params(self.path)
 
         self.PID = PID(
@@ -34,6 +35,7 @@ class PIDControl(Node):
             kD_orientation=kD_orie,
             max_integral_position=max_integral_pos,
             max_integral_orientation=max_integral_orie,
+            force_feedforward=force_feedforward,
         )
 
         self.curr_state = None
@@ -70,6 +72,8 @@ class PIDControl(Node):
         kI_orientation = np.array(data["kI_orientation"])
         max_integral_position = np.array(data["max_integral_position"])
         max_integral_orientation = np.array(data["max_integral_orientation"])
+        # Optional so older pid.yaml files still load (defaults to no feedforward).
+        force_feedforward = np.array(data.get("force_feedforward", [0.0, 0.0, 0.0]))
 
         return (
             kP_position,
@@ -80,6 +84,7 @@ class PIDControl(Node):
             kD_orientation,
             max_integral_position,
             max_integral_orientation,
+            force_feedforward,
         )
 
     def update_curr_state(self, msg: Odometry):
@@ -100,9 +105,20 @@ class PIDControl(Node):
 
 
 def main(args=None):
-    SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-    yaml_path = os.path.join(SCRIPT_DIR, "..", "pid.yaml")
-    yaml_path = os.path.abspath(yaml_path)
+    # pid.yaml is installed to the control package's share dir (see setup.py
+    # data_files). The old source-relative lookup only resolved under
+    # --symlink-install; from the install tree it pointed at a nonexistent path
+    # and crashed the node on startup (no /wrench -> zero thrusts). Prefer the
+    # share dir, keep the source-relative path as a fallback for source runs.
+    try:
+        from ament_index_python.packages import get_package_share_directory
+
+        yaml_path = os.path.join(get_package_share_directory("control"), "pid.yaml")
+    except Exception:
+        yaml_path = ""
+    if not os.path.exists(yaml_path):
+        SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+        yaml_path = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "pid.yaml"))
 
     rclpy.init(args=args)
     node = PIDControl(yaml_path)

@@ -6,11 +6,13 @@ oak_0:
     rgb:
       rgb_width: 640
       rgb_height: 480
-      rgb_fps: 30
+      # 20 fps keeps rgb+depth within the USB2 link budget (~29 MB/s of ~40).
+      rgb_fps: 20
     stereo:
       i_depth_preset: FAST_ACCURACY
       i_depth_filter_size: 5
       i_extended_disp: true
+      i_fps: 20
       left:
         i_resolution: 400P
       right:

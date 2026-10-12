@@ -20,8 +20,8 @@
 ## Launches
 
 - **`main/launch/control.py`** (installed with package **`main`**): **`controller`** + **`test_controller`** only. **`thrust_generator`** is intentionally **not** started here so **`ros2 launch main main.py`** has a single thrust node from **`hardware.py`**. See file comments for running **`control.py` without** `hardware.py`.
-- **`share/control/launch/control.py`** (package **`control`**): currently runs **`pid_control`** only (paths point at `main`’s `global.yaml`).
-- **`wrench_to_pwm.py`** — `thrust_generator` + `hardware/thrusters` with `global.yaml` from `main`.
+- **`share/control/launch/control.py`** (package **`control`**): currently runs **`pid_control`** only.
+- **`wrench_to_pwm.py`** — `thrust_generator` + `hardware/thrusters` (params default in-code; thruster geometry from `hardware/thrusters.yaml`).
 
 ## Library code (`control/utils/`)
 

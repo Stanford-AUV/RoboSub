@@ -1,28 +1,100 @@
 #!/usr/bin/env bash
 #
-# Bring up the full stack (hardware -> localization -> control -> planning),
-# then on Ctrl+C shut everything down and send neutral PWM (1500) to every
-# thruster so the sub powers down safely.
+# Bring up the full stack (imu/xsens -> hardware -> localization -> control ->
+# planning), then on Ctrl+C shut everything down and send neutral PWM (1500) to
+# every thruster so the sub powers down safely.
 #
-# Usage:  conda activate robosub && ./launch_sub.sh
+# Usage: bash launch_sub.sh [waypoints.yaml]
 #
+# The optional argument picks the waypoint yaml for path_generator (bare
+# filename, resolved against the planning share dir; default segments.yaml).
+# The launcher (re)bakes it automatically via tools/bake_path.py before the
+# stack starts (a fresh bake is a no-op).
+#
+# Activate the robosub conda env. In a non-interactive shell 'conda' is not a
+# shell function yet, so source the conda hook first; abort if activation
+# fails rather than launching against the wrong Python/ROS.
+# shellcheck disable=SC1091
+source "${CONDA_SH:-$HOME/miniforge3/etc/profile.d/conda.sh}" || {
+    echo "ERROR: could not source conda.sh (set CONDA_SH to its path)." >&2
+    exit 1
+}
+if [ "${CONDA_DEFAULT_ENV:-}" != "robosub" ]; then
+    conda activate robosub || {
+        echo "ERROR: 'conda activate robosub' failed." >&2
+        exit 1
+    }
+fi
+
 set -u
+
+# --no-thrust (anywhere in the args) or NO_THRUST=1: bench mode. The arduino
+# node pins every thruster PWM at neutral (1500 x8) while sensors, torpedo,
+# lights, and the whole rest of the stack run normally.
+NO_THRUST="${NO_THRUST:-0}"
+_args=()
+for _a in "$@"; do
+    if [ "$_a" = "--no-thrust" ]; then NO_THRUST=1; else _args+=("$_a"); fi
+done
+set -- ${_args[@]+"${_args[@]}"}
+export NO_THRUST
+if [ "$NO_THRUST" != "0" ]; then
+    echo ">>> NO-THRUST MODE: thruster PWMs pinned to neutral (1500) - motors will NOT spin"
+fi
+
+WAYPOINTS_YAML="${1:-segments.yaml}"
+
+echo ">>> Live dashboard (from the laptop): http://192.168.2.2:8080"
 
 # --- config -----------------------------------------------------------------
 # ROS 2 is provided by the active conda env (`conda activate robosub`), so no
 # system setup file is sourced by default. For a native apt ROS install instead,
 # run with ROS_DISTRO_SETUP=/opt/ros/<distro>/setup.bash.
 ROS_DISTRO_SETUP="${ROS_DISTRO_SETUP:-}"
-ARDUINO_PORT="/dev/ttyACM0"
+# udev symlink pinned to the Teensy (99-teensy-acm.rules); bare ttyACM numbers
+# shuffle on USB re-enumeration (07/13: a DaisySeed landed on ttyACM0).
+ARDUINO_PORT="/dev/ttyACM_teensy"
 ARDUINO_BAUD=9600
 THRUSTER_COUNT=8
 NEUTRAL_PWM=1500
 
+# Record everything to a rosbag so runs are reviewable. Set ROSBAG=0 to skip.
+ROSBAG="${ROSBAG:-1}"
+
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WS_SETUP="${REPO_DIR}/install/setup.bash"
+BAG_ROOT="${REPO_DIR}/bags"
 
-LAUNCHES=(hardware localization control planning)
+# Fast DDS async-publish profile. Without this, the default RELIABLE+SYNCHRONOUS
+# writers block inside publish() when a topside subscriber over the tether
+# vanishes (untethered runs) -> the single-threaded EKF froze for up to 36s.
+# ASYNCHRONOUS publish + a 10ms max_blocking_time make publish() non-blocking so
+# a dropped tether/peer can never stall an executor. See config/fastdds_async.xml.
+# Override by exporting FASTRTPS_DEFAULT_PROFILES_FILE before running.
+export FASTRTPS_DEFAULT_PROFILES_FILE="${FASTRTPS_DEFAULT_PROFILES_FILE:-${REPO_DIR}/config/fastdds_async.xml}"
+export ROS_LOCALHOST_ONLY=1
+# Pin the domain explicitly and kill any stale 'ros2' CLI daemon left over
+# from a prior session with a DIFFERENT domain id (07/16: a daemon stuck on
+# domain 17 from an earlier session made 'ros2 topic echo' -- used by the IMU
+# verify gate below -- blind to every topic on this run's domain 0, aborting
+# a launch where the IMU was actually fine). A fresh daemon auto-starts on
+# the right domain the next time a ros2 CLI command runs.
+export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-0}"
+ros2 daemon stop >/dev/null 2>&1 || true
+# Three-phase bringup:
+#   1. IMU + Xsens driver ONLY, then wait IMU_SETTLE_DELAY so the Xsens onboard
+#      filter (AHS heading + orientation) converges before anything consumes it.
+#   2. The rest of the base stack (hardware I/O, localization, control), then
+#      wait PATH_DELAY so the EKF converges and thrusters idle at neutral.
+#   3. The path / planning nodes that issue setpoints.
+LAUNCHES_IMU=(imu)
+LAUNCHES_BASE=(hardware localization control)
+LAUNCHES_PATH=(planning)
+IMU_SETTLE_DELAY="${IMU_SETTLE_DELAY:-20}"
+PATH_DELAY="${PATH_DELAY:-5}"
 PIDS=()
+HW_PID=""     # process group of the hardware launch (set once it starts)
+BAG_PID=""    # process group of the rosbag recorder (set once it starts)
 KILLED=0
 
 # --- source ROS -------------------------------------------------------------
@@ -40,6 +112,57 @@ else
     exit 1
 fi
 set -u
+
+# Abort if any tracked .py under src/ is newer than the built copy under
+# build/ (colcon copies sources at build time, so edits after the last build
+# never take effect -- 07/16: a detector.py fix was made but not rebuilt, so
+# the OLD/broken copy in build/ kept crashing the daisy node every launch).
+STALE_PY="$(find src -name '*.py' -newer "$WS_SETUP" 2>/dev/null | grep -v '/launch/' | head -1 || true)"
+if [ -n "$STALE_PY" ]; then
+    echo "ERROR: $STALE_PY is newer than the last build ($WS_SETUP)." >&2
+    echo "       Run 'colcon build --symlink-install' before launching." >&2
+    exit 1
+fi
+
+# (Re)bake the chosen waypoint yaml so path_generator never hits a missing or
+# stale bake. bake_path.py skips the recompute when the bake is already fresh.
+WAYPOINTS_SRC="${REPO_DIR}/src/planning/planning/${WAYPOINTS_YAML}"
+if [ ! -f "$WAYPOINTS_SRC" ]; then
+    echo "ERROR: waypoint yaml not found: $WAYPOINTS_SRC" >&2
+    exit 1
+fi
+(cd "$REPO_DIR" && python tools/bake_path.py "$WAYPOINTS_SRC") || {
+    echo "ERROR: baking ${WAYPOINTS_YAML} failed - NOT launching." >&2
+    exit 1
+}
+
+# Re-assert yaml symlinks EVERY launch: colcon copies data_files yamls into the
+# install space on every build (even with --symlink-install), which silently
+# reverts them to stale snapshots. This guarantees the stack always reads the
+# live src/ yamls (waypoints, PID gains, sensor config).
+"${REPO_DIR}/tools/symlink_yamls.sh" || {
+    echo "ERROR: yaml symlinking failed - install space may serve STALE configs." >&2
+    exit 1
+}
+
+# --- kick stale holders off the arduino port ---------------------------------
+# A leftover process from a crashed run holding $ARDUINO_PORT (possibly with
+# TIOCEXCL) blocks the arduino node from opening it. Kill every holder before
+# bringing up the stack. Plain fuser sees/kills all normal same-user holders
+# (stale nodes, serial monitors) but NOT root-owned or systemd-spawned ones
+# (their /proc fds are unreadable without root - measured 07/13). sudo (used
+# only when it needs no password prompt, e.g. after 'sudo -v') additionally
+# reaches root-owned holders like ModemManager.
+if [ -e "$ARDUINO_PORT" ]; then
+    if sudo -n true 2>/dev/null; then
+        sudo -n fuser -k "$ARDUINO_PORT" 2>/dev/null \
+            && echo ">>> Kicked processes holding $ARDUINO_PORT (sudo)"
+    else
+        fuser -k "$ARDUINO_PORT" 2>/dev/null \
+            && echo ">>> Kicked processes holding $ARDUINO_PORT"
+    fi
+    sleep 0.5   # let the port settle before anything re-opens it
+fi
 
 # --- neutralize thrusters ---------------------------------------------------
 # Sends a string of 1500s (one per thruster) straight to the Arduino serial
@@ -75,7 +198,8 @@ port = os.environ["ARDUINO_PORT"]
 baud = int(os.environ["ARDUINO_BAUD"])
 msg = os.environ["MSG"] + "\n"
 try:
-    with serial.Serial(port, baudrate=baud, timeout=1) as ser:
+    # exclusive=True (TIOCEXCL) so nothing else can re-open the port mid-burst.
+    with serial.Serial(port, baudrate=baud, timeout=1, exclusive=True) as ser:
         time.sleep(0.2)          # let the port settle after node released it
         for _ in range(10):      # repeat so the ESCs reliably latch neutral
             ser.write(msg.encode())
@@ -103,30 +227,70 @@ wait_group_gone() {
     return 0
 }
 
+# Tear down a single launch's process GROUP (negative PID): one clean SIGINT,
+# then escalate to SIGTERM/SIGKILL for anything that ignores it.
+kill_group() {
+    local pid="$1"
+    kill -INT "-$pid" 2>/dev/null
+    if ! wait_group_gone "$pid" 8; then
+        echo ">>> group $pid ignored SIGINT; escalating to SIGTERM/SIGKILL"
+        kill -TERM "-$pid" 2>/dev/null
+        wait_group_gone "$pid" 3 || kill -KILL "-$pid" 2>/dev/null
+    fi
+}
+
 shutdown() {
     [ "$KILLED" -eq 1 ] && return
     KILLED=1
     echo
-    echo ">>> Caught Ctrl+C - shutting down stack..."
+    echo ">>> Caught Ctrl+C - killing thrusters first..."
 
+    # THRUSTERS FIRST: the hardware node (arduino) holds the serial port
+    # exclusively, so we must take it down before we can drive neutral PWM onto
+    # the port. Kill ONLY the hardware group, then immediately neutralize the
+    # thrusters — this is the fastest path to a safe, non-spinning sub. The rest
+    # of the stack (rosbag/localization/control/planning) is torn down after.
+    #
     # Each launch runs in its OWN process group ('set -m'), so we signal the
-    # whole GROUP (negative PID) rather than just the ros2 launch leader. That
-    # reaches every node it spawned. One SIGINT lets ros2 launch tear down
-    # gracefully; escalate to TERM then KILL for anything that ignores it.
+    # whole GROUP (negative PID) to reach every node it spawned.
+    #
+    if [ "${HW_PID:-}" ]; then
+        kill_group "$HW_PID"
+    fi
+    kill_thrusters
+
+    # Close the rosbag cleanly (SIGINT lets rosbag2 flush and write metadata.yaml;
+    # a SIGKILL here would leave the bag unindexed/unreadable).
+    if [ "${BAG_PID:-}" ]; then
+        echo ">>> Stopping rosbag..."
+        kill -INT "-$BAG_PID" 2>/dev/null
+        wait_group_gone "$BAG_PID" 10 || kill -KILL "-$BAG_PID" 2>/dev/null
+    fi
+
+    # Now tear down everything else (skip the already-handled hardware/bag groups).
     # (Previously localization/EKF survived Ctrl+C and kept publishing a stale
     # /odometry/filtered pose, which the next run's PID then chased the wrong way.)
+    echo ">>> Shutting down the rest of the stack..."
     for pid in "${PIDS[@]}"; do
-        kill -INT "-$pid" 2>/dev/null
-    done
-    for pid in "${PIDS[@]}"; do
-        if ! wait_group_gone "$pid" 8; then
-            echo ">>> group $pid ignored SIGINT; escalating to SIGTERM/SIGKILL"
-            kill -TERM "-$pid" 2>/dev/null
-            wait_group_gone "$pid" 3 || kill -KILL "-$pid" 2>/dev/null
-        fi
+        [ "$pid" = "${HW_PID:-}" ] && continue
+        [ "$pid" = "${BAG_PID:-}" ] && continue
+        kill_group "$pid"
     done
 
-    kill_thrusters
+    # Final hard sweep: process-group kills above miss a node if it re-parented
+    # or landed outside its launch's group (this is what left duplicate EKFs
+    # running before). Pattern-kill any stray stack executable by name so a
+    # single Ctrl+C is guaranteed to leave no survivors. Bag already handled
+    # cleanly above, so it is safe to SIGKILL anything matching here.
+    for pat in \
+        "ros2 launch main" \
+        "install/lib/" \
+        "robot_localization/lib" \
+        "ekf_node" \
+        "xsens_mti_node"; do
+        pkill -KILL -f "$pat" 2>/dev/null
+    done
+
     echo ">>> Done."
     exit 0
 }
@@ -141,13 +305,127 @@ trap shutdown INT TERM
 # to guarantee no survivors (this is what left localization running before).
 set -m
 
-echo ">>> Launching stack: ${LAUNCHES[*]}"
-for lf in "${LAUNCHES[@]}"; do
-    echo ">>> ros2 launch main ${lf}.py"
-    ros2 launch main "${lf}.py" &
-    PIDS+=("$!")
-    sleep 2   # stagger so hardware/localization come up before control/planning
-done
+# Node output goes to per-launch files, NOT this terminal. Writing to the SSH
+# pty is a safety hazard: if the tether/SSH link stalls, the pty buffer fills
+# and any node print()/log blocks its executor (07/12: thrusters node froze
+# 157s mid-run, PWMs latched at spin values). Files never block.
+LOG_DIR="${REPO_DIR}/logs/run_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$LOG_DIR"
+echo ">>> Node output -> $LOG_DIR/<launch>.log  (tail -f to watch)"
+
+# Node output goes to files, not this terminal (see LOG_DIR comment above), so
+# a crashed node (07/16: daisy died on a detector.py SyntaxError at import,
+# silently recording zero pinger audio for the whole run) is otherwise
+# invisible until someone thinks to grep logs after the fact. Surface it live.
+check_for_crashes() {
+    local log="$1"
+    if grep -q "process has died" "$log" 2>/dev/null; then
+        echo "!!! CRASH in $log:" >&2
+        grep -B1 "process has died" "$log" >&2
+    fi
+}
+
+# Launch one group of ros2 launch files, staggering each by 2s and recording
+# its PID (== process group id, thanks to 'set -m') for shutdown.
+launch_group() {
+    for lf in "$@"; do
+        # The planning launch takes the waypoint yaml chosen on our command line.
+        local extra=()
+        [ "$lf" = "planning" ] && extra=("waypoints_path:=${WAYPOINTS_YAML}")
+        echo ">>> ros2 launch main ${lf}.py ${extra[*]:-}  (log: $LOG_DIR/${lf}.log)"
+        ros2 launch main "${lf}.py" ${extra[@]:+"${extra[@]}"} </dev/null >"$LOG_DIR/${lf}.log" 2>&1 &
+        local pid="$!"
+        PIDS+=("$pid")
+        # Remember the hardware launch's group so shutdown() can take it down
+        # first and neutralize the thrusters before anything else.
+        [ "$lf" = "hardware" ] && HW_PID="$pid"
+        sleep 2   # stagger so nodes come up cleanly one at a time
+        check_for_crashes "$LOG_DIR/${lf}.log"
+    done
+}
+
+# Break each settle-sleep into 1s ticks so a Ctrl+C during the delay is caught
+# promptly (the trap fires between ticks) instead of after the full delay.
+sleep_interruptible() {
+    for _ in $(seq 1 "$1"); do
+        [ "$KILLED" -eq 1 ] && break
+        sleep 1
+    done
+}
+
+# --- Phase 1: IMU + Xsens driver only ---------------------------------------
+echo ">>> Phase 1 - IMU + Xsens: ${LAUNCHES_IMU[*]}"
+launch_group "${LAUNCHES_IMU[@]}"
+
+# Start recording as early as possible so the Xsens settle period is captured.
+# 'ros2 bag record -a' keeps discovering topics that appear later, so the
+# hardware/localization/control/planning nodes are captured too.
+if [ "$ROSBAG" = "1" ] && [ "$KILLED" -eq 0 ]; then
+    BAG_DIR="${BAG_ROOT}/run_$(date +%Y%m%d_%H%M%S)"
+    mkdir -p "$BAG_ROOT"
+    echo ">>> Recording rosbag -> $BAG_DIR"
+    # stdin MUST be detached from the terminal (</dev/null): ros2 bag record has
+    # interactive keyboard handling (SPACE to pause) that calls tcsetattr() on the
+    # controlling tty. As a background job under job control (set -m), touching the
+    # tty raises SIGTTOU/SIGTTIN and the recorder is stopped/killed BEFORE it opens
+    # the bag - silently, so you get an empty bags/ and no error. Detaching stdin
+    # makes it disable keyboard handling and record headless.
+    # Exclude raw camera images: with the perception launch in the base stack
+    # (oak_node for the heading corrector) they would balloon the bag by GBs.
+    ros2 bag record -a --include-hidden-topics -x "/camera/.*" -o "$BAG_DIR" </dev/null &
+    BAG_PID="$!"
+fi
+
+# Let the Xsens onboard filter converge before the rest of the stack consumes it.
+echo ">>> IMU up. Waiting ${IMU_SETTLE_DELAY}s for the Xsens filter to settle before starting: ${LAUNCHES_BASE[*]}"
+sleep_interruptible "$IMU_SETTLE_DELAY"
+
+# GATE: refuse to bring up the rest of the stack if the IMU chain is not
+# actually publishing. On 2026-07-13 the Xsens driver died at startup ("No MTi
+# device found"), the imu relay sat silent, and both runs drove blind: the EKF
+# yaw variance grew unbounded and the sub veered ~80 deg off the path. A dead
+# IMU must abort the launch, not produce a quietly garbage run.
+if [ "$KILLED" -eq 0 ]; then
+    echo ">>> Verifying /imu/orientation is publishing..."
+    # A single 'ros2 topic echo --once' can miss a live topic on a one-off DDS
+    # discovery race for the CLI's own throwaway participant (07/16: aborted a
+    # run where the IMU was fine the whole time -- the bag it had already
+    # started recording had 1865 /imu/orientation msgs). Retry a few short
+    # attempts instead of trusting one 15s shot before declaring it dead.
+    imu_ok=0
+    for _ in 1 2 3; do
+        if timeout 5 ros2 topic echo --once /imu/orientation >/dev/null 2>&1; then
+            imu_ok=1
+            break
+        fi
+    done
+    if [ "$imu_ok" -eq 1 ]; then
+        echo ">>> IMU OK: /imu/orientation is live."
+    else
+        echo "ERROR: no data on /imu/orientation - Xsens driver likely failed" >&2
+        echo "       (check 'ls -l /dev/ttyUSB_imu' and ~/.ros/log/xsens_mti_node_*)." >&2
+        echo "       Aborting launch; NOT starting control/planning." >&2
+        shutdown
+        exit 1
+    fi
+fi
+
+# --- Phase 2: rest of the base stack ----------------------------------------
+if [ "$KILLED" -eq 0 ]; then
+    echo ">>> Phase 2 - base stack: ${LAUNCHES_BASE[*]}"
+    launch_group "${LAUNCHES_BASE[@]}"
+fi
+
+# Let the EKF converge and the thrusters idle at neutral before planning starts
+# issuing setpoints.
+echo ">>> Base up. Waiting ${PATH_DELAY}s before starting: ${LAUNCHES_PATH[*]}"
+sleep_interruptible "$PATH_DELAY"
+
+# --- Phase 3: path / planning -----------------------------------------------
+if [ "$KILLED" -eq 0 ]; then
+    echo ">>> Phase 3 - path: ${LAUNCHES_PATH[*]}"
+    launch_group "${LAUNCHES_PATH[@]}"
+fi
 
 echo ">>> Stack running (PIDs: ${PIDS[*]}). Press Ctrl+C to stop and kill thrusters."
 

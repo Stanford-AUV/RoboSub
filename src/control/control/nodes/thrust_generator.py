@@ -79,11 +79,23 @@ def main(args=None):
     """Initialize and spin the ThrustGenerator node."""
     rclpy.init(args=args)
 
-    SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-    yaml_path = os.path.join(
-        SCRIPT_DIR, "..", "..", "..", "hardware", "hardware", "thrusters.yaml"
-    )
-    yaml_path = os.path.abspath(yaml_path)
+    # thrusters.yaml is installed to the hardware package's share dir (see
+    # hardware/setup.py data_files). The old source-relative lookup only worked
+    # under --symlink-install; keep it as a fallback for source-tree runs.
+    try:
+        from ament_index_python.packages import get_package_share_directory
+
+        yaml_path = os.path.join(
+            get_package_share_directory("hardware"), "thrusters.yaml"
+        )
+    except Exception:
+        yaml_path = ""
+    if not os.path.exists(yaml_path):
+        SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+        yaml_path = os.path.join(
+            SCRIPT_DIR, "..", "..", "..", "hardware", "hardware", "thrusters.yaml"
+        )
+        yaml_path = os.path.abspath(yaml_path)
 
     node = ThrustGenerator(yaml_path)
     rclpy.spin(node)

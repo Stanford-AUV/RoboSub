@@ -19,7 +19,7 @@
 
 ## `main/launch/manual.py` (as coded)
 
-Starts **`control/thrust_generator`** and **`manual/keyboard`** with `global.yaml`. Requires **`nats-server`** and **`./keyboard_local.sh`**.
+Starts **`control/thrust_generator`** and **`manual/keyboard`**. Requires **`nats-server`** and **`./keyboard_local.sh`**.
 
 **Do not launch `manual.py` at the same time as `hardware.py`** — each starts its own **`thrust_generator`**. For the vehicle, use **`hardware.py`** + **`ros2 run manual keyboard`** + **`keyboard_local.sh`**. For **bench** teleop without full hardware, **`ros2 launch main manual.py`** + **`keyboard_local.sh`** is fine.
 

@@ -13,6 +13,9 @@ setup(
         ("share/" + package_name, ["package.xml"]),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.py')),
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
+        # pid_control reads pid.yaml at startup; install it to the share dir so
+        # the node works from the install tree (not just --symlink-install).
+        (os.path.join('share', package_name), ['control/pid.yaml']),
     ],
     install_requires=["setuptools"],
     zip_safe=True,

@@ -12,7 +12,7 @@ setup(
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml"]),
         (os.path.join("share", package_name, "launch"), glob("launch/*.py")),
-        (os.path.join("share", package_name), glob("perception/cameras.yaml")),
+        (os.path.join("share", package_name), glob("perception/*.yaml")),
     ],
     install_requires=[
         "setuptools",
@@ -38,6 +38,8 @@ setup(
             "object_detection = perception.nodes.object_detections:main",
             "aligned_depth_publisher = perception.nodes.aligned_depth_publisher:main",
             "object_localizer = perception.nodes.object_localizer:main",
+            "object_world_localizer = perception.nodes.object_world_localizer:main",
+            "heading_corrector = perception.nodes.heading_corrector:main",
         ],
     },
 )
