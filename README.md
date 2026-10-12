@@ -1,433 +1,448 @@
 # RoboSub
 
-Stanford RoboSub autonomy stack for our AUV: sensing, state estimation, planning, control, perception, manual override, simulation, and operator GUI. The codebase is a **colcon workspace**: ROS 2 **Humble** packages under `src/`, with shared interfaces in **`msgs`**.
+Stanford RoboSub's autonomy stack for our AUV. A **colcon workspace** of ROS 2 **Humble**
+packages under `src/`, running on a Jetson AGX Orin in a single conda environment.
+
+**Start here:** [Clone the repo](#clone-the-repo) → [SSH into the sub](#ssh-into-the-sub) →
+[Activate the environment](#activate-the-environment) → [Run it](#running) →
+the [package docs](#packages) for whatever you are working on.
 
 ---
 
-## New member onboarding
+## Packages
 
-Use this page as a map of the repo. The **diagrams below** show how packages relate; deep dives live in linked docs.
+Every package has its own doc covering its nodes, what each one publishes and subscribes
+to, and its entry points.
 
-| Step | Action |
-|------|--------|
-| 1 | Clone this repository into your ROS 2 workspace (commonly `ros2_ws/src/`). |
-| 2 | Set up the **conda `robosub` environment** (ROS 2 Humble + GPU PyTorch) — see [Installation](#installation) and [ORIN_SETUP.md](ORIN_SETUP.md). |
-| 3 | From the **repository root** (directory containing `build.sh`), run `./build.sh && source install/setup.bash`. |
-| 4 | Skim **Package map** and **Runtime data flow** below, then open the doc for the subsystem you will work on. |
-| 5 | Use `ros2 launch main …` for bring-up (see [Running](#running)). Explore the live graph with `ros2 run rqt_graph rqt_graph`. |
+| Package | Doc | What it does |
+|---|---|---|
+| **main** | [src/main/README.md](src/main/README.md) | Launch files only. Composes the subsystems into a running vehicle. No nodes of its own. |
+| **msgs** | [src/msgs/README.md](src/msgs/README.md) | Every custom `.msg` / `.srv`. No nodes — all other packages depend on it. |
+| **hardware** | [src/hardware/README.md](src/hardware/README.md) | Everything that touches a device: IMU, DVL, depth, hydrophones, Teensy serial, thruster PWM, and the run dashboard. |
+| **localization** | [src/localization/README.md](src/localization/README.md) | Config home for the external `robot_localization` EKF. Not a colcon package. |
+| **control** | [src/control/README.md](src/control/README.md) | Pose setpoint → PID → body wrench → per-thruster thrust allocation. |
+| **planning** | [src/planning/README.md](src/planning/README.md) | Mission YAML → offline bake → 60 Hz pose setpoints, with branch decisions and actuator triggers. |
+| **perception** | [src/perception/README.md](src/perception/README.md) | OAK / RealSense drivers, aligned depth, YOLO detection → world-frame object goals, bottom-line heading correction. |
+| **manual** | [src/manual/README.md](src/manual/README.md) | Keyboard and joystick teleop over NATS. |
+| **gui** | [src/gui/README.md](src/gui/README.md) | WebSocket bridge + browser HUD. |
+| **simulation** | [src/simulation/README.md](src/simulation/README.md) | Gazebo stand-in for `hardware`. Not built on the vehicle. |
+| **testing** | [src/testing/README.md](src/testing/README.md) | Standalone Dash topic explorer. Not a colcon package. |
+| **xsens_mti_ros2_driver** | [src/xsens_mti_ros2_driver/README.md](src/xsens_mti_ros2_driver/README.md) | Vendored Xsens MTi driver. Read-only. |
+| **nmea_msgs** | [src/nmea_msgs/README.md](src/nmea_msgs/README.md) | Vendored interfaces (no py3.10 conda build). Read-only. |
+| **mavros_msgs** | [src/mavros_msgs/README.md](src/mavros_msgs/README.md) | Vendored interfaces (no py3.10 conda build). Read-only. |
 
-**Version warning:** Many tutorials online target other ROS releases. Use documentation for **ROS 2 Humble** (the distro this workspace runs on).
-
----
-
-## Repository layout
-
-High-level directory structure:
-
-```text
-RoboSub/                          # colcon workspace root (run build.sh here)
-├── build.sh                       # colcon build (--merge-install, symlink-install)
-├── test.sh                        # workspace tests
-├── requirements.txt               # Python deps (python -m pip install -r into the conda env)
-├── ORIN_SETUP.md                  # conda 'robosub' env setup + GPU torch + kinks
-├── keyboard_local.sh              # Host keyboard → NATS (uses .local_venv + local_requirements.txt)
-├── joystick_local.sh
-├── local_requirements.txt         # pynput, etc. for host teleop scripts
-├── onboarding/                  # New-member tutorials (path YAML walkthrough)
-├── SIMULATION.md                  # Gazebo Harmonic + host bridge
-├── README.md                      # this file
-└── src/
-    ├── main/                      # Top-level launch files only (package: main)
-    ├── msgs/                      # Custom .msg / .srv (ThrustsStamped, DVL*, AlignedDepthImage, …)
-    ├── hardware/                  # Drivers & hardware-facing nodes (IMU bridge, DVL, thrusters, Teensy)
-    ├── control/                   # Wrench ↔ thrust allocation, PID controller, path tracking helpers
-    ├── planning/                  # Path YAML loading, path streaming utilities
-    ├── perception/                # Cameras, aligned depth, object detection / localizer
-    ├── manual/                    # NATS keyboard + joystick ROS nodes; keyboard_local / joystick_local
-    ├── simulation/                # Gazebo-oriented bridge nodes (sensors, thrusters, path)
-    └── gui/                       # Web HUD ↔ ROS bridge
-```
-
-Generated folders after build: `build/`, `install/`, `log/` (standard colcon output).
+`src/yolo_ros/` is an empty, orphaned submodule gitlink with no `.gitmodules` — nothing
+uses it. YOLO lives in `perception`.
 
 ---
 
-## Architecture (packages and responsibilities)
+## How the packages fit together
 
-```mermaid
-flowchart TB
-    subgraph interfaces [msgs]
-        M[Custom messages and services\nThrustsStamped PWMsStamped SensorsStamped\nDVL* AlignedDepthImage Detection*\nGetWaypoints.srv …]
-    end
-
-    subgraph sense [hardware]
-        H[IMU DVL depth sensors\nThruster command arduino\nSensor sync for EKF]
-    end
-
-    subgraph state [External ROS packages]
-        EKF[robot_localization ekf_node]
-        XS[xsens_mti_ros2_driver\noptional – see bring-up notes]
-    end
-
-    subgraph brain [planning and perception]
-        P[planning\npath_loader path_streamer path_generator]
-        CV[perception\ncameras detection object_localizer]
-    end
-
-    subgraph act [control]
-        C[thrust_generator\ncontroller path_tracker\nmanual test nodes]
-    end
-
-    subgraph human [manual and gui]
-        MAN[manual\nNATS keyboard + joystick]
-        GUI[gui bridge]
-    end
-
-    subgraph sim [simulation]
-        SIM[simulation nodes\nGazebo bridges]
-    end
-
-    LAUNCH[main package\nlaunch/*.py]
-    LAUNCH --> sense
-    LAUNCH --> state
-    LAUNCH --> act
-    LAUNCH --> human
-    LAUNCH --> sim
-    LAUNCH --> brain
-
-    interfaces --> sense
-    interfaces --> act
-    interfaces --> CV
-    interfaces --> P
-
-    XS -.->|/imu/data| sense
-    sense -->|sync topics| EKF
-    CV -.->|detections| act
-    P -.->|paths / services| act
-    MAN -->|wrench or high-level cmds| act
-    act -->|thrusters PWM| sense
-    GUI -.->|topics / bridge| act
-    SIM -.->|replaces or mirrors| sense
-```
-
----
-
-## Runtime data flow (simplified)
-
-Typical signals on the vehicle:
+The whole stack is four topics wide. Sensors converge on `/odometry/filtered`; the mission
+emits `/desired/pose`; control turns the gap between them into `/wrench`; allocation and
+hardware turn that into PWM.
 
 ```mermaid
 flowchart LR
-    subgraph sensors_raw [Raw sensors]
-        IMU_B[/imu/data]
-        DVL_R[dvl topic]
-        DEPTH[depth / pressure]
+    subgraph HW["hardware"]
+        XS["xsens_mti_node<br/>(vendored driver)"]
+        IMU["imu"]
+        DVL["dvl"]
+        DEP["depth"]
+        ARD["arduino<br/>(Teensy serial)"]
+        THR["thrusters"]
+        DAISY["daisy<br/>(hydrophones)"]
     end
 
-    subgraph sync [hardware / sensors node]
-        TW[/dvl/twist_sync]
-        Z[/depth/pose_sync]
+    subgraph PERC["perception"]
+        CAM["oak_node /<br/>realsense_node"]
+        OWL["object_world_localizer"]
+        HC["heading_corrector"]
     end
 
-    subgraph estimate [EKF]
-        ODOM[/odometry/filtered]
+    EKF["localization<br/>robot_localization/ekf_node"]
+
+    subgraph PLAN["planning"]
+        PG["path_generator"]
     end
 
-    subgraph control_loop [Control]
-        WP[waypoint]
-        W[/wrench]
-        TH[/thrusts]
+    subgraph CTRL["control"]
+        PID["pid_control"]
+        TG["thrust_generator"]
     end
 
-    subgraph actuation [Thrusters]
-        PWM[PWM / Teensy]
-    end
+    MAN["manual<br/>keyboard / joystick"]
 
-    IMU_B --> estimate
-    DVL_R --> sync --> TW --> estimate
-    DEPTH --> sync --> Z --> estimate
-    estimate --> ODOM
-    WP --> control_loop
-    ODOM --> control_loop
-    control_loop --> W --> TH --> PWM
+    XS -->|/filter/quaternion| IMU
+    IMU -->|/imu/orientation| EKF
+    DVL -->|/velocity, /position| EKF
+    DEP -->|/position| EKF
+    CAM -->|/camera/*/rgb| HC
+    CAM -->|/camera/*/rgb| OWL
+    HC -->|/heading_correction| EKF
+
+    EKF -->|/odometry/filtered| PID
+    EKF -->|/odometry/filtered| PG
+    EKF -->|/odometry/filtered| OWL
+
+    OWL -->|/object/id/world_position| PG
+    DAISY -->|/pinger| PG
+    PG -->|/desired/pose| PID
+    PG -->|/torpedo_left, /torpedo_right| ARD
+
+    PID -->|/wrench| TG
+    MAN -.->|/wrench, teleop only| TG
+    TG -->|/thrusts| THR
+    THR -->|pwms| ARD
+    ARD -->|/arduino/sensors| DVL
+    ARD -->|serial| ESC["ESCs / actuators"]
 ```
 
-**Perception** publishes detections and 3D hypotheses using `msgs` types; wiring is node-specific — see [src/perception/README.md](src/perception/README.md).
+### The interfaces that matter
 
-**Path tracking:** `path_tracker` expects a `get_waypoints` service (`msgs/srv/GetWaypoints.srv`). There is no default server node in this repository yet; `ros2 launch main control.py` currently pairs **`test_controller`** (sample waypoints) with **`controller`** for a working demo loop. For full missions, implement or launch a waypoint provider and enable `path_tracker` in `main/launch/control.py`.
+| Topic | Type | Written by | Read by |
+|---|---|---|---|
+| `/imu/orientation` | `sensor_msgs/Imu` | `hardware/imu` | EKF, `perception/heading_corrector` |
+| `/velocity` | `TwistWithCovarianceStamped` | `hardware/dvl` | EKF, `hardware/sensors_plot` |
+| `/position` | `PoseWithCovarianceStamped` | `hardware/depth`, `hardware/dvl` | EKF |
+| `/heading_correction` | `PoseWithCovarianceStamped` | `perception/heading_corrector` | EKF |
+| `/odometry/filtered` | `nav_msgs/Odometry` | EKF | `control`, `planning`, `perception`, plots |
+| `/desired/pose` | `nav_msgs/Odometry` | `planning/path_generator` | `control/pid_control` |
+| `/wrench` | `geometry_msgs/WrenchStamped` | `control/pid_control` **or** `manual/*` | `control/thrust_generator` |
+| `/thrusts` | `msgs/ThrustsStamped` | `control/thrust_generator` | `hardware/thrusters`, `simulation/thrusters` |
+| `pwms` | `msgs/PWMsStamped` | `hardware/thrusters` | `hardware/arduino` |
+| `/arduino/sensors` | `msgs/SensorsStamped` | `hardware/arduino` | `hardware/depth`, `hardware/dvl`, `hardware/sensors_plot` |
+| `/mission/stage` | `std_msgs/String` | `planning/path_generator` | `hardware/sensors_plot` |
 
----
+### Substitution points
 
-## Package map
+Three nodes can each stand in for a whole subsystem — handy, and dangerous if doubled up.
+**Exactly one** publisher of `/odometry/filtered` and **exactly one** of `/wrench` may run
+at a time:
 
-| Package | Role |
-|---------|------|
-| **main** | Aggregates subsystems: `main.py` (hardware + localization + **control**; `manual.py` is commented out), plus standalone `control.py`, `hardware.py`, `manual.py`, etc. Installs `launch/`. |
-| **msgs** | All custom interfaces; any new cross-package types should live here. |
-| **hardware** | `thrusters`, `imu`, `dvl`, `sensors` (sync/publish for EKF), `arduino`, plotting utilities. Depends on messages in `msgs`. |
-| **control** | `thrust_generator` (`/wrench` → `/thrusts`), `controller` (`/odometry/filtered` + `waypoint` → `wrench`), `path_tracker`, PID and trajectory helpers. See [src/control/README.md](src/control/README.md). |
-| **planning** | `path_loader`, `path_streamer`, `path_generator` — YAML paths and streaming (see `planning/sample_path.yaml`). |
-| **perception** | RealSense / OAK pipelines, `AlignedDepthImage`, object detection and `object_local`. See [src/perception/README.md](src/perception/README.md). |
-| **manual** | **`keyboard`** and **`joystick`** nodes (NATS → `wrench`); host scripts **`keyboard_local.sh`** / **`joystick_local.sh`**. |
-| **simulation** | Nodes to talk to Gazebo / sim bridges (`sensors`, `thrusters`, `path_bridge`). See [SIMULATION.md](SIMULATION.md). |
-| **gui** | `ros2 run gui bridge` — web HUD plumbing (`gui/auv_hud.html`, `gui/gui/ros2_gui_bridge.py`). |
-
----
-
-## Documentation index
-
-| Document | Description |
-|----------|-------------|
-| [main](src/main/README.md) | Top-level launch files |
-| [msgs](src/msgs/README.md) | Custom messages and services |
-| [hardware](src/hardware/README.md) | IMU/DVL/thrusters/Arduino nodes |
-| [control](src/control/README.md) | Thrust allocation, controller, PID, path tracker |
-| [planning](src/planning/README.md) | Path loader, generator, streamer |
-| [Onboarding: path YAML](onboarding/README.md) | Author `sample_path`-style YAML, visualize, run ROS pipeline |
-| [perception](src/perception/README.md) | Cameras, aligned depth, object localizer |
-| [manual](src/manual/README.md) | Keyboard teleop (default); optional joystick (NATS) |
-| [simulation](src/simulation/README.md) | Gazebo bridge nodes; nested [custom_gz_plugins](src/simulation/simulation/custom_gz_plugins/README.md) |
-| [gui](src/gui/README.md) | Web HUD WebSocket bridge |
-| [Orin Setup](ORIN_SETUP.md) | conda `robosub` env, ROS 2 Humble, GPU PyTorch, kinks |
-| [Simulation](SIMULATION.md) | Gazebo Harmonic (not part of the vehicle runtime env) |
-
-Additional notes in tree: `src/control/control.md`, `src/perception/perception.md`, `src/planning/planning.md`, `src/simulation/simulation.md`, `src/gui/gui.md`, `src/manual/manual.md`.
+| Instead of | Run | Gives you |
+|---|---|---|
+| real sensors + EKF | `control/fake_localizer` | laptop-only control loop (integrates `/wrench`) |
+| real sensors + EKF | `simulation/sensors` | Gazebo ground truth as odometry |
+| `planning` + `control` | `manual/keyboard` | operator teleop |
 
 ---
 
-## Installation
-
-The stack runs in a single **conda environment named `robosub`** (ROS 2 **Humble**
-via RoboStack + GPU PyTorch), no Docker. For a full fresh-Orin bring-up (kernel IMU
-driver, udev rules, GPU-torch details, every gotcha) see **[ORIN_SETUP.md](ORIN_SETUP.md)**.
-Quick version:
+## Clone the repo
 
 ```bash
-# 1. Miniforge (conda), then create the env with ROS 2 Humble
-curl -fL -o /tmp/miniforge.sh \
-  "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-aarch64.sh"
-bash /tmp/miniforge.sh -b -p $HOME/miniforge3 && source ~/miniforge3/etc/profile.d/conda.sh
-conda create -n robosub python=3.10 -c robostack-humble -c robostack-staging -c conda-forge \
-  ros-humble-desktop ros-humble-robot-localization ros-humble-tf-transformations \
-  ros-humble-vision-msgs ros-humble-cv-bridge ros-humble-geographic-msgs \
-  ros-humble-unique-identifier-msgs colcon-common-extensions
-conda activate robosub
-
-# 2. GPU PyTorch (Jetson prebuilt wheels; matches Python 3.10 / glibc 2.35 on JetPack 6).
-#    IMPORTANT: use `python -m pip` (a stray ~/.local/bin/pip can shadow the env's pip).
-python -m pip install \
-  https://pypi.jetson-ai-lab.io/jp6/cu126/+f/62a/1beee9f2f1470/torch-2.8.0-cp310-cp310-linux_aarch64.whl \
-  https://pypi.jetson-ai-lab.io/jp6/cu126/+f/907/c4c1933789645/torchvision-0.23.0-cp310-cp310-linux_aarch64.whl
-
-# 3. Remaining Python deps
-python -m pip install -r requirements.txt
-
-# 4. Two message packages have no py3.10 conda build — build them from source:
-git clone --depth 1 -b ros2 https://github.com/ros-drivers/nmea_msgs.git src/deps/nmea_msgs
-git clone --depth 1 -b ros2 https://github.com/mavlink/mavros.git /tmp/mavros && cp -r /tmp/mavros/mavros_msgs src/deps/mavros_msgs
-
-# 5. Build the workspace (sim is Gazebo-Harmonic-only; skipped on the runtime env)
-colcon build --packages-skip simulation --symlink-install
-source install/setup.bash
+git clone git@github.com:Stanford-AUV/RoboSub.git     # SSH (needs a key on your GitHub account)
+# or: git clone https://github.com/Stanford-AUV/RoboSub.git
+cd RoboSub
 ```
 
-The `robosub` env auto-configures `LD_LIBRARY_PATH` (host CUDA/tegra for GPU torch **and**
-`$CONDA_PREFIX/lib` for the colcon-built C++ nodes), `PYTHONNOUSERSITE=1`, and an isolated
-`ROS_DOMAIN_ID` via a `conda/activate.d` hook (created in [ORIN_SETUP.md](ORIN_SETUP.md)).
+This repository **is** the colcon workspace — `build.sh`, `src/`, and the generated
+`build/`, `install/`, `log/` all live at its root. Do not nest it inside another
+`ros2_ws/src/`.
+
+`src/nmea_msgs`, `src/mavros_msgs`, and `src/xsens_mti_ros2_driver` are vendored in-tree,
+so a plain clone is complete. There are no submodules to initialize.
 
 ---
 
-## Building
+## SSH into the sub
 
-From the **repository root**:
+The vehicle computer is a **Jetson AGX Orin**, user **`robosub`**. Two paths to it:
+
+| Route | Address | When |
+|---|---|---|
+| **Tether** (USB-ethernet, point-to-point `192.168.2.0/24`) | `robosub@192.168.2.2` | pool runs, anything with the sub in the water |
+| **LAN / WiFi** | `robosub@192.168.1.17` | bench work in the lab |
+
+Add this to your `~/.ssh/config` so the names work everywhere:
+
+```sshconfig
+Host robosub-tether
+    HostName 192.168.2.2
+    User robosub
+
+Host robosub
+    HostName 192.168.1.17
+    User robosub
+```
+
+```bash
+ssh robosub-tether          # or: ssh robosub
+```
+
+**Useful variants:**
+
+```bash
+# Forward the run dashboard (hardware/sensors_plot) to your laptop
+ssh -L 8080:localhost:8080 robosub-tether      # then open http://localhost:8080
+
+# Forward the WebSocket HUD + its page server
+ssh -L 8080:localhost:8080 -L 9091:localhost:9091 robosub-tether
+
+# X11 for the matplotlib debug nodes (path_streamer, imu_plot, camera_viewer)
+ssh -X robosub-tether
+```
+
+The LAN address can change; the tether address is fixed by the point-to-point link. Always
+run long missions inside `tmux` so a dropped tether does not kill the stack.
+
+> The conda env is a prefix on disk, not an exclusive container, so **several people can
+> SSH in and `conda activate robosub` at once**. What is still exclusive: the serial
+> devices (one process per port) and the DDS graph.
+
+---
+
+## Activate the environment
+
+Everything — ROS 2 Humble, Python, GPU PyTorch — comes from one conda env named
+**`robosub`**. There is no Docker and no `/opt/ros` to source.
+
+```bash
+source ~/miniforge3/etc/profile.d/conda.sh   # needed in non-interactive shells
+conda activate robosub
+cd ~/RoboSub
+source install/setup.bash                    # the workspace overlay, in every new shell
+```
+
+Verify:
+
+```bash
+echo $CONDA_DEFAULT_ENV      # robosub
+ros2 pkg list | grep -c .    # non-zero
+python -c "import torch; print(torch.cuda.is_available())"   # True on the Orin
+```
+
+Activating `robosub` also sets `LD_LIBRARY_PATH` (host CUDA/tegra for GPU torch **and**
+`$CONDA_PREFIX/lib` for the colcon-built C++ nodes), `PYTHONNOUSERSITE=1`, and
+`ROS_DOMAIN_ID`, via a `conda/activate.d` hook.
+
+**Setting the env up from scratch** (new Orin, or your own machine) is in
+**[ORIN_SETUP.md](ORIN_SETUP.md)** — it also doubles as the log of every non-obvious gotcha
+we have hit. Short version: Miniforge → `conda create -n robosub python=3.10` from
+RoboStack Humble channels → prebuilt Jetson torch wheels → `python -m pip install -r
+requirements.txt` → `bash drivers/xsens_mt/install.sh` for the IMU kernel module.
+
+> Always `python -m pip install`, never bare `pip` — a stray `~/.local/bin/pip` shadows the
+> env's pip and the packages silently fail to import.
+
+---
+
+## Build
+
+From the repository root:
 
 ```bash
 ./build.sh && source install/setup.bash
 ```
 
-You may see `jobserver unavailable` warnings from parallel builds; they are usually safe to ignore.
+On the vehicle, `simulation` is skipped (it needs Gazebo Harmonic, which the Humble env
+does not have):
+
+```bash
+colcon build --packages-skip simulation --symlink-install
+```
+
+`jobserver unavailable` warnings from parallel builds are safe to ignore. Config YAMLs are
+installed as data files, so **rerun the build after editing a YAML** or the nodes will read
+a stale copy out of the install tree.
+
+> **Known breakage:** `build.sh` (and `launch_sub.sh`, and `run_experiment.sh`) end by
+> calling `tools/symlink_yamls.sh`, which is **not in the repository** — it was never
+> committed. `build.sh` runs under `set -e` and `launch_sub.sh` treats the failure as
+> fatal, so both abort at that step on a fresh clone. Until it is restored, build with
+> `colcon build --merge-install --symlink-install --base-paths .` directly, and re-run the
+> build after any YAML edit instead of relying on the symlinks.
 
 ---
 
 ## Running
 
-Always `source install/setup.bash` (from this workspace’s `install/`) in each new shell.
-
-### Permissions and USB
-
-For hardware access, run `./ports.sh` from the repo root when instructed by your team (device permissions / udev).
-
-### Launch files (correct paths)
-
-Top-level launches are installed with package **`main`**. Prefer:
+### Full autonomy (what you use at the pool)
 
 ```bash
-ros2 launch main main.py
-ros2 launch main control.py
-ros2 launch main hardware.py
-ros2 launch main manual.py
+./launch_sub.sh                      # default mission: segments.yaml
+./launch_sub.sh semifinals.yaml      # pick a mission
+./launch_sub.sh --no-thrust          # bench: PWMs pinned to neutral, motors never spin
+```
+
+`launch_sub.sh` activates the conda env itself, re-bakes the mission YAML, exports the
+async Fast DDS profile, brings the stack up in three phases (IMU settle → base stack →
+planning), records a rosbag to `bags/`, and on `Ctrl+C` shuts everything down and sends
+neutral PWM (1500) to every thruster. Watch the run at **http://192.168.2.2:8080**.
+
+Teardown and diagnostics: [`kill_sub.sh`](kill_sub.sh), [`logs.sh`](logs.sh),
+[`ports.sh`](ports.sh).
+
+### Individual launch files
+
+```bash
+ros2 launch main main.py         # imu + hardware + localization + control
+ros2 launch main hardware.py     # device I/O + thrust pipeline + dashboard
+ros2 launch main localization.py # EKF + static TFs
+ros2 launch main control.py      # pid_control + logger
+ros2 launch main planning.py waypoints_path:=segments.yaml
 ros2 launch main perception.py
-ros2 launch main localization.py
-ros2 launch main state.py
+ros2 launch main manual.py       # bench teleop
 ```
 
-Subsystem packages may also expose launches, for example:
+See [src/main/README.md](src/main/README.md) for what each one contains and the
+composition rules (which files conflict, and why `thrust_generator` lives in `hardware.py`).
+
+### Single node
 
 ```bash
-ros2 launch perception camera.py
-ros2 launch control control.py
-```
-
-### `main.py` composition
-
-`main/launch/main.py` includes **hardware** (sensors + actuation + **`thrust_generator`**), **localization**, and **`control.py`** ( **`controller`** + **`test_controller`** only — **`thrust_generator` is not duplicated** here; it comes from `hardware.py`). **`manual.py` is commented out**, so **autonomy does not start keyboard or joystick**. For teleop, use a separate session with **`hardware.py`** + **`ros2 run manual keyboard`** + **`keyboard_local.sh`** (or **`manual.py`** for bench thrust + keyboard), and **stop teleop before** switching to **`main.py`** if you share the same machine. See [onboarding README](onboarding/README.md#robot-bring-up-hardware-keyboard-teleop-autonomy).
-
-### Hardware launch and Xsens
-
-`main/launch/hardware.py` starts **`xsens_mti_ros2_driver`** in addition to `hardware` and `control` nodes. That package must be present in the same workspace (or overlay) and built. If you do not have the Xsens driver, use a reduced bring-up (e.g. comment those nodes or maintain a fork of `hardware.py` for your bench setup).
-
-### Other ROS dependencies
-
-`main/launch/localization.py` (and `state.py`) run **`robot_localization`**’s `ekf_node`, installed into the `robosub` conda env (`ros-humble-robot-localization`, see [Installation](#installation)).
-
-### Run a single node
-
-```bash
-ros2 run PACKAGE_NAME EXECUTABLE_NAME
-```
-
-Examples:
-
-```bash
-ros2 run control test_thrust
+ros2 run <package> <executable>
+ros2 run control thrust_generator
 ros2 run manual keyboard
 ```
 
-Executable names come from each package’s `setup.py` (`console_scripts`). New Python nodes: add under `PACKAGE/nodes/`, register in `setup.py`, rebuild.
+Executable names are the `console_scripts` in each package's `setup.py`, listed in each
+package doc. A new Python node goes under `<package>/nodes/`, gets registered in
+`setup.py`, and needs a rebuild.
+
+### Teleop
+
+```bash
+# on the sub
+nats-server &
+ros2 launch main hardware.py
+ros2 run manual keyboard
+# on your laptop, from the repo root
+./keyboard_local.sh
+```
+
+Stop teleop before starting autonomy — `manual/keyboard` and `control/pid_control` both
+publish `/wrench`. Details and the key map: [src/manual/README.md](src/manual/README.md).
+
+### Recording and playback
+
+```bash
+./record_all.sh PATH       # everything
+./record_important.sh PATH # the topics you usually want
+./record_cameras.sh PATH   # image topics only
+ros2 bag play PATH
+```
+
+`launch_sub.sh` already records every run to `bags/` (`ROSBAG=0` to skip).
+
+### Inspecting a live system
+
+```bash
+ros2 topic list
+ros2 topic hz /odometry/filtered /wrench /thrusts
+ros2 run rqt_graph rqt_graph
+```
+
+---
+
+## Pool-day sensor preflight
+
+Confirm data is flowing before anything goes in the water.
+
+```bash
+ros2 launch main imu.py          # Xsens + hardware/imu; let it settle ~20 s
+ros2 launch main hardware.py     # dvl, depth, arduino, daisy, thrust pipeline, dashboard
+```
+
+Then check each link in the chain:
+
+```bash
+ros2 topic hz /filter/quaternion    # Xsens driver alive
+ros2 topic hz /imu/orientation      # hardware/imu republishing
+ros2 topic hz /velocity /position   # DVL + depth
+ros2 topic echo /arduino/sensors --once   # Teensy telemetry: depth, temps, current, voltage
+ros2 topic hz /pinger/levels        # hydrophones
+```
+
+Open **http://192.168.2.2:8080** for all of it at once (`hardware/sensors_plot`). Expected
+behaviour: tilt the hull and orientation tracks; `/velocity` sits near zero on the bench
+and only tracks motion with a bottom lock in water; `/position` z follows depth.
+
+**Safety:** `hardware.py` starts `thrust_generator` and `thrusters` — treat it as a
+powered vehicle, not a passive logger. Keep props clear, and use `--no-thrust` for dry
+checks.
+
+| Symptom | Likely cause |
+|---|---|
+| no `/filter/quaternion` | Xsens kernel module missing (`bash drivers/xsens_mt/install.sh`), USB, or permissions |
+| no `/velocity` | DVL serial path (`/dev/ttyUSB_dvl`), power, or no acoustic lock |
+| `arduino` fails to open the port | Teensy not on `/dev/ttyACM_teensy` — check the udev rule, not a bare `ttyACM<n>` |
+| yaw drifts and never recovers | `heading_corrector` not running; see `hardware/ekf_watchdog` for the divergence reset |
+| permission denied on serial | run `./ports.sh`, and add your user to `dialout` |
+| no matplotlib window | no `DISPLAY` — use `ssh -X`, or the port-8080 dashboard instead |
 
 ---
 
 ## Simulation
 
-Simulation is GUI-heavy and Gazebo-Harmonic-based; it is **not** part of the vehicle runtime `robosub` env. Follow [SIMULATION.md](SIMULATION.md) for sim work on a separate machine/setup.
+Gazebo Harmonic, on a separate machine — **not** part of the vehicle runtime env. See
+[SIMULATION.md](SIMULATION.md) and [src/simulation/README.md](src/simulation/README.md).
 
 ---
 
-## Optional: Joystick over NATS
+## Repository layout
 
-**`manual/joystick`** uses **`nats://localhost:4222`**, subject **`joystick`**. Run **`control/thrust_generator`** once (e.g. from **`hardware.py`** or **`manual.py`**), then **`ros2 run manual joystick`** and **`./joystick_local.sh`**. Do **not** run joystick/keyboard together with the **`main.py`** autonomy stack on the same bring-up if you want only controller wrenches on **`/wrench`**.
-
----
-
-## Manual keyboard control (default)
-
-**Stack:** **`nats-server`** → ROS **`manual/keyboard`** (subscribe **`keyboard`**) → **`/wrench`** → **`thrust_generator`** → **`/thrusts`** → thrusters / Arduino.
-
-**Vehicle teleop** (not the same process tree as **`main.py`** autonomy — stop teleop when running full autonomy):
-
-```bash
-nats-server
-ros2 launch main hardware.py
-ros2 run manual keyboard
-./keyboard_local.sh
+```text
+RoboSub/                        # colcon workspace root
+├── launch_sub.sh               # full-stack bring-up + safe teardown (the real entry point)
+├── kill_sub.sh  logs.sh  ports.sh  test.sh  build.sh
+├── run_experiment.sh           # tmux IMU+thrust bench rig
+├── record_*.sh                 # rosbag helpers
+├── keyboard_local.sh  joystick_local.sh   # operator-side teleop (laptop, .local_venv)
+├── sim_local.sh  sim_docker.sh
+├── config/fastdds_async.xml    # async DDS profile — fixes EKF stalls on tether loss
+├── drivers/xsens_mt/           # out-of-tree IMU kernel module
+├── tools/                      # bake_path.py, tether_monitor.py, wrench_sweep.py, undistort/, allan_variance/
+├── references/                 # design report + system diagrams
+├── yolo-Weights/               # YOLO model files
+├── ORIN_SETUP.md  SIMULATION.md
+└── src/                        # the packages — see the table above
 ```
 
-**Bench** (`manual.py` starts **`thrust_generator`** + **`keyboard`**):
-
-```bash
-nats-server
-ros2 launch main manual.py
-./keyboard_local.sh
-```
-
-Do **not** launch **`manual.py`** together with **`hardware.py`** — both start **`thrust_generator`**. Use **`hardware.py`** + **`ros2 run manual keyboard`** on the vehicle instead.
-
-Host script **`keyboard_local.sh`** uses **`.local_venv`** and **`pynput`** (see **`local_requirements.txt`**). NATS must be reachable from both the ROS container/host and the machine running **`keyboard_local`**.
-
-Full procedure: [onboarding/README.md](onboarding/README.md#robot-bring-up-hardware-keyboard-teleop-autonomy).
-
----
-
-## Cameras and logging
-
-```bash
-ros2 launch perception camera.py
-# When ready:
-ros2 run perception camera_viewer
-# Record:
-./record_cameras.sh PATH_TO_RECORDING
-# Playback:
-ros2 bag play PATH_TO_RECORDING
-```
-
----
-
-## ROS graph
-
-After launching:
-
-```bash
-ros2 run rqt_graph rqt_graph
-```
+Generated by colcon: `build/`, `install/`, `log/`.
 
 ---
 
 ## Testing
 
 ```bash
-./test.sh
-```
-
-For PEP 257 detail:
-
-```bash
-ament_pep257
+./test.sh                                 # whole workspace
+colcon test --packages-select control     # one package
+ament_pep257                              # docstring lint detail
 ```
 
 ---
 
-## FAQ and troubleshooting
+## Contributing
 
-### Display / X11 (XQuartz, xcb)
+- Target **ROS 2 Humble** APIs. Much of what you find online is for other distros.
+- New interfaces go in `src/msgs` (and into `CMakeLists.txt`), then rebuild before use.
+- New nodes go in `<package>/nodes/`, get registered in that package's `setup.py`, and get
+  documented in that package's `README.md` — including what they publish and subscribe to.
+- Tests go under `<package>/test/`.
+- Keep PRs scoped to one subsystem.
 
-1. Ensure XQuartz is running on macOS and run `xhost +` (or scoped `xhost`) on the host.
-2. On the SSH host: `echo $DISPLAY` and export the same `DISPLAY` inside the container if needed.
-3. Test with `xeyes` on the target machine when diagnosing.
+## Troubleshooting
 
-### Qt `xcb` plugin errors
+**Low disk space.** Keep ≥ ~30 GB free for the conda env, builds, bags, and logs. A clean
+rebuild: `rm -rf build install log && ./build.sh`.
 
-Reboot the VM/host, restart the container, and retry.
+**A node reads an old config.** Config YAMLs install as data files, and colcon copies
+them even under `--symlink-install`. Rebuild after editing one. (The
+`tools/symlink_yamls.sh` the build scripts expect is missing — see
+[Build](#build).)
 
-### Low disk space
+**`ros2 topic echo` sees nothing that is clearly publishing.** A stale `ros2` CLI daemon
+may be pinned to a different `ROS_DOMAIN_ID`: `ros2 daemon stop`, then retry.
 
-Keep **≥ ~30 GB** free for the conda env, colcon builds, and logs. Clean colcon artifacts if needed:
+**Qt / `xcb` plugin errors.** Restart the session; for remote plots prefer the port-8080
+dashboard over X11 forwarding.
 
-```bash
-rm -rf build install log
-```
-
-### Sensor permissions
-
-1. Attach USB devices to Linux / the VM when prompted.
-2. If needed:
-
-   ```bash
-   sudo chmod a+rw /dev/ttyACM0
-   ```
-
-3. **IMU (Xsens) / kernel module** workflows are hardware-specific; follow team docs for `xsens_mt` / power rules (e.g. DVL vs wall power).
-
----
-
-## Contributing quick reference
-
-- Match **ROS 2 Humble** APIs and colcon / ament patterns used in existing packages.
-- **New messages:** extend `src/msgs`, rebuild before using in Python/C++.
-- **New nodes:** place under the right package’s `nodes/`, register in that package’s `setup.py`, add tests under `PACKAGE/test/` where appropriate.
-- Prefer small PRs with a clear subsystem scope (perception, control, etc.).
-
----
+**The EKF freezes for seconds at a time.** Export the async DDS profile
+(`FASTRTPS_DEFAULT_PROFILES_FILE=config/fastdds_async.xml`); `launch_sub.sh` does this for
+you. The full diagnosis is in that file's header comment.
 
 ## License
 
-License declarations in individual `package.xml` files are the source of truth until a repo-wide policy is finalized.
+The `license` field in each `package.xml` is the source of truth until a repo-wide policy
+is set. Vendored packages keep their upstream licenses.
