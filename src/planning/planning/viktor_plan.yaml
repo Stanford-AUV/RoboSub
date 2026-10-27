@@ -14,7 +14,7 @@ segment_0:
 
   ### SPIN!! ####
     - position: {x: 10.0, y: 0.0, z: -1.0}
-      orientation: {roll: 10, pitch: 0.0, yaw: 0.0}
+      orientation: {roll: 720.0, pitch: 0.0, yaw: 0.0}
     - position: {x: 10.0, y: 0.0, z: -1.0}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
 
