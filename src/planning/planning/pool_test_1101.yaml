@@ -1,0 +1,50 @@
+segment_0:
+  waypoints:
+
+    #submerge
+    - position: {x: 0.0, y: 0.0, z: -0.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: free}  # submerge without fighting yaw
+    - position: {x: 0.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: free}
+
+  
+    #forward 10
+    - position: {x: 3.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 6.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 10.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    
+    
+    - position: {x: 9.0, y: -0., z: -0.75}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 45.0}
+    - position: {x: 8, y: -0.0, z: -0.65}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 90.0}
+    - position: {x: 6, y: -0.0, z: -0.55}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 135.0}
+    - position: {x: 4, y: -0.0, z: -0.65}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 180.0}
+    - position: {x: 2, y: -0.0, z: -0.75}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 225.0}
+
+    - position: {x: 1.5, y: -0.0, z: -0.5}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 270.0}
+    - position: {x: 1.0, y: -0.0, z: -0.25}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 315.0}
+    - position: {x: 0, y: -0.0, z: -0.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 360.0}
+
+  concurrent_action: None
+  exit_on_reach: True
+
+# python3 /Users/sofiafurman/RoboSub/src/planning/planning/utils/visualize_path.py /Users/sofiafurman/RoboSub/src/planning/planning/pool_test_1101.yaml
+  
+
+# segment_1:
+#   waypoints:
+#     - position: {x: 0.0, y: 0.0, z: 0.0}
+#       orientation: {roll: 0.0, pitch: 0.0, yaw: 180.0}
+#   concurrent_action: "shoot"
+#   with_timeout_s: 10
+#   exit_on_reach: False
