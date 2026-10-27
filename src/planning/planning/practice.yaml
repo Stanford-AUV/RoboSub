@@ -1,0 +1,14 @@
+segment_0:
+  waypoints:
+  ### SUBMERGE ###
+    - position: {x: 0.0, y: 0.0, z: 0.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: free}   # start at surface, don't fight heading
+    - position: {x: 0.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: free}   # sink straight down to 1 m
+    - position: {x: 0.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}    # face forward
+      pause: 2.0                                         # let it settle before driving
+
+  ### DRIVE 10 METERS ###
+    - position: {x: 10.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
