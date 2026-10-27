@@ -1,0 +1,25 @@
+segment_0:
+  waypoints:
+  ### GO DOWN ####
+    - position: {x: 0.0, y: 0.0, z: -0.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: free}  # submerge without fighting yaw
+    - position: {x: 0.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: free}
+    - position: {x: 0.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+
+  ### GO FORWARD 10 M ####
+    - position: {x: 10.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+
+  ### SPIN!! ####
+    - position: {x: 10.0, y: 0.0, z: -1.0}
+      orientation: {roll: 10, pitch: 0.0, yaw: 0.0}
+    - position: {x: 10.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+
+  ### RETURN ####
+    - position: {x: 0.0, y: 0.0, z: -1.0}
+      orientation: {roll: 0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 00.0, y: 0.0, z: -0.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
