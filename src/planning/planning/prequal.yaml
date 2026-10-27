@@ -11,7 +11,7 @@ segment_0:
     # - position: {x: 1.5, y: -0.05, z: -2.5}
     #   orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
 
-    - position: {x: 2.3, y: 0.0, z: -0.6}
+    - position: {x: 2.3, y: 0.0, z: -0.56}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
 
     - position: {x: 2.4, y: 0.0, z: -0.6}
