@@ -3,23 +3,23 @@ segment_0:
   ### COIN FLIP ####
     - position: {x: 0.0, y: 0.0, z: -0.0}
       orientation: {roll: 0.0, pitch: 0.0, yaw: free}  # submerge without fighting yaw
-    - position: {x: 0.0, y: 0.0, z: -3.0}
+    - position: {x: 0.0, y: 0.0, z: -0.5}
       orientation: {roll: 0.0, pitch: 0.0, yaw: free}
-    - position: {x: 0.0, y: 0.0, z: -3.0}
+    - position: {x: 0.0, y: 0.0, z: -0.8}
       orientation: {roll: 180.0, pitch: 0.0, yaw: 0.0}
-    - position: {x: 0.0, y: 0.0, z: -3.0}
+    - position: {x: 0.0, y: 0.0, z: -0.8}
       orientation: {roll: 180.0, pitch: 180.0, yaw: 0.0}
-    - position: {x: 4.0, y: -0.75, z: -1.0}
+    - position: {x: 4.0, y: -0.5, z: -0.5}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-    - position: {x: 8.0, y: -2, z: -2.0}
+    - position: {x: 8.0, y: -0.75, z: -0.5}
       orientation: {roll: 0.0, pitch: 180.0, yaw: 0.0}
-    - position: {x: 7.0, y: -3, z: -3.0}
+    - position: {x: 7.0, y: -0.9, z: -0.9}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 120.0}
-    - position: {x: 9.0, y: -0.75, z: -1.0}
+    - position: {x: 9.0, y: -0.75, z: -0.4}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 240.0}
-    - position: {x: 10.0, y: 0.0, z: 0.0}
+    - position: {x: 10.0, y: 0.0, z: -0.3}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 360.0}
-    - position: {x: 5.0, y: -1.0, z: 0.0}
+    - position: {x: 5.0, y: -1.0, z: -0.2}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
     - position: {x: 0.0, y: 0.0, z: 0.0}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
