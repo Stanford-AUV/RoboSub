@@ -1,0 +1,93 @@
+segment_0:
+  waypoints:
+  # LIMITS: depth 0 to 1.0 m (z >= -1.0), sideways |y| <= 0.5 m, x 0 to 8 m
+  # cruise at 0.8 m so controller overshoot can't break the 1 m limit
+
+  ### SUBMERGE ###
+    - position: {x: 0.0, y: 0.0, z: 0.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: free}   # start at surface, don't fight heading
+    - position: {x: 0.0, y: 0.0, z: -0.8}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: free}   # sink straight down to cruise depth
+    - position: {x: 0.0, y: 0.0, z: -0.8}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}    # face forward
+      pause: 2.0                                         # let it settle before showing off
+
+  ### BARREL ROLL ###
+  # full 360 roll while driving 3 m forward; steps <= 120 so slerp can't
+  # take the short way back to 0
+    - position: {x: 1.0, y: 0.0, z: -0.8}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 2.0, y: 0.0, z: -0.8}
+      orientation: {roll: 120.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 3.0, y: 0.0, z: -0.8}
+      orientation: {roll: 240.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 4.0, y: 0.0, z: -0.8}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+      pause: 2.0
+
+  ### CORKSCREW ###
+  # helix around the x axis (r = 0.3 m, axis at 0.65 m depth -> 0.35 to 0.95 m),
+  # rolling with the circle so the belly stays pointed at the axis
+    - position: {x: 4.5, y: 0.0, z: -0.35}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 5.0, y: 0.3, z: -0.65}
+      orientation: {roll: 90.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 5.5, y: 0.0, z: -0.95}
+      orientation: {roll: 180.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 6.0, y: -0.3, z: -0.65}
+      orientation: {roll: 270.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 6.5, y: 0.0, z: -0.35}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 7.0, y: 0.0, z: -0.8}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+      pause: 2.0
+
+  ### BANKED U-TURN ###
+  # swing wide to the right, then 0.5 m radius left turn, leaning into it
+    - position: {x: 7.5, y: -0.5, z: -0.8}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 7.854, y: -0.354, z: -0.8}
+      orientation: {roll: -20.0, pitch: 0.0, yaw: 45.0}
+    - position: {x: 8.0, y: 0.0, z: -0.8}
+      orientation: {roll: -30.0, pitch: 0.0, yaw: 90.0}
+    - position: {x: 7.854, y: 0.354, z: -0.8}
+      orientation: {roll: -20.0, pitch: 0.0, yaw: 135.0}
+    - position: {x: 7.5, y: 0.5, z: -0.8}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 180.0}
+      pause: 2.0
+
+  ### TORNADO ###
+  # 360 pirouette while dipping to 1.0 m and coming back up
+    - position: {x: 7.5, y: 0.5, z: -0.9}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 300.0}
+    - position: {x: 7.5, y: 0.5, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 60.0}
+    - position: {x: 7.5, y: 0.5, z: -0.8}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 180.0}
+      pause: 2.0
+
+  ### DOLPHIN SLALOM HOME ###
+  # weave back toward the start, banking into each turn and
+  # porpoising nose down/up between 0.6 and 1.0 m
+    - position: {x: 6.0, y: -0.4, z: -1.0}
+      orientation: {roll: -15.0, pitch: 10.0, yaw: 210.0}
+    - position: {x: 4.5, y: 0.4, z: -0.6}
+      orientation: {roll: 15.0, pitch: -10.0, yaw: 150.0}
+    - position: {x: 3.0, y: -0.4, z: -1.0}
+      orientation: {roll: -15.0, pitch: 10.0, yaw: 210.0}
+    - position: {x: 1.5, y: 0.4, z: -0.6}
+      orientation: {roll: 15.0, pitch: -10.0, yaw: 150.0}
+    - position: {x: 0.0, y: 0.0, z: -0.8}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 180.0}
+      pause: 2.0
+
+  ### VICTORY ROLL + SURFACE ###
+    - position: {x: 0.0, y: 0.0, z: -0.8}
+      orientation: {roll: 120.0, pitch: 0.0, yaw: 180.0}
+    - position: {x: 0.0, y: 0.0, z: -0.8}
+      orientation: {roll: 240.0, pitch: 0.0, yaw: 180.0}
+    - position: {x: 0.0, y: 0.0, z: -0.8}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 180.0}
+      pause: 2.0
+    - position: {x: 0.0, y: 0.0, z: 0.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 180.0}  # float up, hold heading

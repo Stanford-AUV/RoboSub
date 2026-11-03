@@ -98,12 +98,12 @@ def plot_segments(segments, yaml_path):
     fig.colorbar(sm, ax=ax, shrink=0.5, label="Speed (normalised)")
 
     plt.tight_layout()
-    plt.savefig("prequal.png")
+    plt.savefig("stunts.png")
 
 
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.realpath(__file__))
-    default_yaml = os.path.abspath(os.path.join(script_dir, "..", "prequal.yaml"))
+    default_yaml = os.path.abspath(os.path.join(script_dir, "..", "stunts.yaml"))
     yaml_path = sys.argv[1] if len(sys.argv) > 1 else default_yaml
 
     print(f"Loading: {yaml_path}")
