@@ -13,10 +13,20 @@ segment_0:
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
 
   ### SPIN!! ####
+  # Two full rolls in 120 deg steps. A single roll: 720 waypoint is the same
+  # pose as roll: 0, so the spline never turned the sub at all.
+    - position: {x: 10.0, y: 0.0, z: -1.0}
+      orientation: {roll: 120.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 10.0, y: 0.0, z: -1.0}
+      orientation: {roll: 240.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 10.0, y: 0.0, z: -1.0}
+      orientation: {roll: 360.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 10.0, y: 0.0, z: -1.0}
+      orientation: {roll: 480.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 10.0, y: 0.0, z: -1.0}
+      orientation: {roll: 600.0, pitch: 0.0, yaw: 0.0}
     - position: {x: 10.0, y: 0.0, z: -1.0}
       orientation: {roll: 720.0, pitch: 0.0, yaw: 0.0}
-    - position: {x: 10.0, y: 0.0, z: -1.0}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
 
   ### RETURN ####
     - position: {x: 0.0, y: 0.0, z: -1.0}

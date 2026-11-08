@@ -1,4 +1,6 @@
 segment_0:
+  # No waypoint repeats the pose before it (a 360 turn already ends at 0):
+  # repeated poses baked to NaN velocities.
   waypoints:
   ### COIN FLIP ####
     - position: {x: 0.0, y: 0.0, z: -0.0}
@@ -9,8 +11,6 @@ segment_0:
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
 
     ### GO FORWARD ###
-    - position: {x: 0.0, y: 0.0, z: -1.0}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
     - position: {x: 10.0, y: 0.0, z: -1.0}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
 
@@ -18,8 +18,6 @@ segment_0:
 
     ### SPIN Z-AXIS ###
 
-    - position: {x: 10.0, y: 0.0, z: -1.0}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
     - position: {x: 10.0, y: 0.0, z: -1.0}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 120.0}
     - position: {x: 10.0, y: 0.0, z: -1.0}
@@ -30,8 +28,6 @@ segment_0:
     ### SPIN X-AXIS ###
 
     - position: {x: 10.0, y: 0.0, z: -1.0}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-    - position: {x: 10.0, y: 0.0, z: -1.0}
       orientation: {roll: 120.0, pitch: 0.0, yaw: 0.0}
     - position: {x: 10.0, y: 0.0, z: -1.0}
       orientation: {roll: 240.0, pitch: 0.0, yaw: 0.0}
@@ -41,8 +37,6 @@ segment_0:
     ### SPIN Y-AXIS ###
 
     - position: {x: 10.0, y: 0.0, z: -1.0}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
-    - position: {x: 10.0, y: 0.0, z: -1.0}
       orientation: {roll: 0.0, pitch: 120.0, yaw: 0.0}
     - position: {x: 10.0, y: 0.0, z: -1.0}
       orientation: {roll: 0.0, pitch: 240.0, yaw: 0.0}
@@ -51,8 +45,6 @@ segment_0:
 
     ### GO BACK WHILE SPINNING ###
 
-    - position: {x: 10.0, y: 0.0, z: -1.0}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
     - position: {x: 7.5, y: 0.0, z: -1.0}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 90.0}
     - position: {x: 5.0, y: 0.0, z: -1.0}
@@ -63,8 +55,6 @@ segment_0:
       orientation: {roll: 0.0, pitch: 0.0, yaw: 360.0}
 
     ### GO UP ###
-    - position: {x: 0.0, y: 0.0, z: -1.0}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
     - position: {x: 0.0, y: 0.0, z: 0}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
 
