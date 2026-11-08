@@ -38,7 +38,7 @@ segment_0:
   concurrent_action: None
   exit_on_reach: True
 
-# python3 /Users/sofiafurman/RoboSub/src/planning/planning/utils/visualize_path.py /Users/sofiafurman/RoboSub/src/planning/planning/pool_test_1101.yaml
+# python3 /Users/sofiafurman/RoboSub/src/planning/planning/utils/visualize_path.py /Users/sofiafurman/RoboSub/src/planning/planning/sofia.yaml
   
 
 # segment_1:
