@@ -1,0 +1,33 @@
+the_only_segment:
+  waypoints:
+  ### COIN FLIP ####
+    - position: {x: 0.0, y: 0.0, z: -0.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}  # submerge without fighting yaw
+    - position: {x: 3, y: -0.2, z: -0.6}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+
+  ### GO THROUGH GATE WITH "STYLE" ###
+    - position: {x: 8, y: 0.35, z: -0.75}
+      orientation: {roll: 23.0, pitch: 0.0, yaw: 180.0}
+
+    ## start spin 1 ##
+    - position: {x: 10, y: -0.4, z: -0.25}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 8, y: -0.6, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 120.0}
+    - position: {x: 5, y: 0.4, z: -0.5}
+      orientation: {roll: 44.0, pitch: 0.0, yaw: 240.0}
+      
+    - position: {x: 3, y: 1, z: -0.2}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+    - position: {x: 2, y: -0.6, z: -1.0}
+      orientation: {roll: 0.0, pitch: 0.0, yaw: 120.0}
+    - position: {x: 5, y: 0.4, z: -0.5}
+      orientation: {roll: 55.0, pitch: 0.0, yaw: 240.0}
+    - position: {x: 0, y: 0, z: -0}
+      orientation: {roll: 55.0, pitch: 0.0, yaw: 240.0}
+    
+      
+
+  
+
