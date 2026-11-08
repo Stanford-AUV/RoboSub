@@ -16,3 +16,6 @@ geometry_msgs/Point[] points
 # of the same object in different detection messages should have the same id.
 # This field may be empty.
 string id
+
+# Bounding box in source-image pixel coordinates.
+vision_msgs/BoundingBox2D bbox
