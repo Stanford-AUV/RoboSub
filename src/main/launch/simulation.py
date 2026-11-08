@@ -22,5 +22,9 @@ def generate_launch_description():
                 executable="path_bridge",
                 arguments=["--ros-args", "--log-level", "info"],
             ),
+            Node(
+                package="simulation",
+                executable="imu",
+            ),
         ]
     )

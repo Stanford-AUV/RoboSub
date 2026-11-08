@@ -56,12 +56,17 @@ RUN curl -fsSL "https://github.com/nats-io/nats-server/releases/download/v${NATS
 #    Humble's apt packages (SciPy, cv_bridge) are compiled against NumPy 1.x and crash on
 #    NumPy 2 ("numpy.dtype size changed"). The newest opencv-python requires NumPy >= 2,
 #    so it is held at 4.11, the last release that allows NumPy 1.x.
+#    setuptools is then put back to 58.2.0, the version commonly used with Humble's colcon:
+#    a newer one gets pulled in by the requirements, needs a newer `packaging` than Ubuntu's,
+#    and makes every Python package build fail ("unexpected keyword argument
+#    'strip_trailing_zero'").
 COPY src /tmp/deps/src
 COPY requirements.txt /tmp/deps/requirements.txt
 RUN apt-get update && rosdep update --rosdistro humble \
  && rosdep install -r --from-paths /tmp/deps/src --ignore-src -y --rosdistro humble \
       --skip-keys "gz-msgs10 gz-transport13 gz-common5 gz-gui8 gz-plugin2 gz-rendering8 gz-math8 gz-tools2 gz-cmake3 ros_gz ros_gz_bridge ros_gz_sim" \
  && python3 -m pip install --no-cache-dir -r /tmp/deps/requirements.txt "numpy<1.25" "opencv-python<4.12" \
+ && python3 -m pip install --no-cache-dir "setuptools==58.2.0" \
  && rm -rf /var/lib/apt/lists/* /tmp/deps
 
 # 4. Environment. GZ_VERSION tells ros_gz-based builds which Gazebo to use.
