@@ -52,12 +52,16 @@ RUN curl -fsSL "https://github.com/nats-io/nats-server/releases/download/v${NATS
 #    rosdep reads every package.xml under src/. The gz-* keys are skipped because
 #    step 1 already installed Harmonic, and rosdep would otherwise try Fortress packages.
 #    -r keeps going past keys it cannot resolve; read its warnings.
+#    NumPy stays below 2 (and below 1.25, the newest Ubuntu 22.04's SciPy 1.8 accepts):
+#    Humble's apt packages (SciPy, cv_bridge) are compiled against NumPy 1.x and crash on
+#    NumPy 2 ("numpy.dtype size changed"). The newest opencv-python requires NumPy >= 2,
+#    so it is held at 4.11, the last release that allows NumPy 1.x.
 COPY src /tmp/deps/src
 COPY requirements.txt /tmp/deps/requirements.txt
 RUN apt-get update && rosdep update --rosdistro humble \
  && rosdep install -r --from-paths /tmp/deps/src --ignore-src -y --rosdistro humble \
       --skip-keys "gz-msgs10 gz-transport13 gz-common5 gz-gui8 gz-plugin2 gz-rendering8 gz-math8 gz-tools2 gz-cmake3 ros_gz ros_gz_bridge ros_gz_sim" \
- && python3 -m pip install --no-cache-dir -r /tmp/deps/requirements.txt \
+ && python3 -m pip install --no-cache-dir -r /tmp/deps/requirements.txt "numpy<1.25" "opencv-python<4.12" \
  && rm -rf /var/lib/apt/lists/* /tmp/deps
 
 # 4. Environment. GZ_VERSION tells ros_gz-based builds which Gazebo to use.
