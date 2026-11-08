@@ -204,5 +204,7 @@ tools/
 
 data
 models
+# ...but keep the simulator's Gazebo models (world, sub, and future course props)
+!src/simulation/simulation/models/
 
 plots/
