@@ -28,7 +28,8 @@ setup(
             "thrusters = simulation.nodes.thrusters:main",
             "sensors = simulation.nodes.sensors:main",
             "path_bridge = simulation.nodes.path_bridge:main",
-            "imu = simulation.nodes.imu:main"
+            "imu = simulation.nodes.imu:main",
+            "arduino = simulation.nodes.arduino:main"
         ],
     },
 )

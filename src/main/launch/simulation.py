@@ -26,5 +26,9 @@ def generate_launch_description():
                 package="simulation",
                 executable="imu",
             ),
+            Node(
+                package="simulation",
+                executable="arduino",
+            ),
         ]
     )

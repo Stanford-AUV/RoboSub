@@ -106,7 +106,7 @@
     <plugin filename="gz-sim-dvl-system" name="gz::sim::systems::DopplerVelocityLogSystem">
     </plugin>
 
-    <plugin filename="libignition-gazebo-altimeter-system.so" name="ignition::gazebo::systems::Altimeter">
+    <plugin filename="gz-sim-altimeter-system" name="gz::sim::systems::Altimeter">
     </plugin>
 
     <light type="directional" name="sun">

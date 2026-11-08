@@ -36,13 +36,11 @@
                 <visualize>true</visualize>
                 <topic>imu</topic>
             </sensor>
-            <!--
-            <sensor name="depth_sensor" type="altimeter">
+            <sensor name="altimeter" type="altimeter">
                 <always_on>1</always_on>
-                <update_rate>1</update_rate>
-                <visualize>true</visualize>
-                <topic>depth</topic>
-            </sensor> -->
+                <update_rate>50</update_rate>
+                <topic>altimeter</topic>
+            </sensor>
             <!-- Note: DVL deleted as it is not supported on Mac -->
         </link>
 

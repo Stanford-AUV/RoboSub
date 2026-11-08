@@ -12,16 +12,16 @@ from scipy.spatial.transform import Rotation as R
 class SimImu(Node):
     def __init__(self):
         super().__init__("sim_imu")
+        
+        self.declare_parameter("yaw_drift_deg_per_s", -0.07)
+        self.drift_rate = self.get_parameter("yaw_drift_deg_per_s").value
+        self.start_time = None
 
         # Publish List
         self.quaternion_publisher = self.create_publisher(QuaternionStamped, "/filter/quaternion", 10)
         
         # Suscribe List
         self.create_subscription(Imu, "gz/imu", self.on_imu, 10)
-        
-        self.declare_parameter("yaw_drift_deg_per_s", -0.07)
-        self.drift_rate = self.get_parameter("yaw_drift_deg_per_s").value
-        self.start_time = None
 
     def on_imu(self, msg: Imu):
         seconds = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
