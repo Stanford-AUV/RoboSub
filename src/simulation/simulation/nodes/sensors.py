@@ -15,7 +15,7 @@ class Sensors(Node):
     """This node converts sensor messages sent from Gazebo into a unified format for use for state estimation and control."""
 
     def __init__(self):
-        super().__init__("sensors")
+        super().__init__("sim_sensors")
         
         self._pose_sub = self.create_subscription(
             PoseStamped, "gz/pose", self.pose_callback, 10
