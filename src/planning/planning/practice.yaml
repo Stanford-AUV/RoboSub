@@ -3,8 +3,9 @@ segment_0:
   ### SUBMERGE ###
     - position: {x: 0.0, y: 0.0, z: 0.0}
       orientation: {roll: 0.0, pitch: 0.0, yaw: free}   # start at surface, don't fight heading
-    - position: {x: 0.0, y: 0.0, z: -1.0}
-      orientation: {roll: 0.0, pitch: 0.0, yaw: free}   # sink straight down to 1 m
+    # Sink straight down to 1 m (yaw free on the way), then face forward and
+    # settle. One waypoint, not two: a repeated point at the end of a leg
+    # bakes to NaN velocities.
     - position: {x: 0.0, y: 0.0, z: -1.0}
       orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}    # face forward
       pause: 2.0                                         # let it settle before driving
