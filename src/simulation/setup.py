@@ -26,7 +26,7 @@ setup(
     entry_points={
         "console_scripts": [
             "thrusters = simulation.nodes.thrusters:main",
-            "sensors = simulation.nodes.sensors:main",
+            "ground_truth = simulation.nodes.ground_truth:main",
             "path_bridge = simulation.nodes.path_bridge:main",
             "imu = simulation.nodes.imu:main",
             "arduino = simulation.nodes.arduino:main"
