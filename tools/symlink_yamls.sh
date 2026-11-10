@@ -17,11 +17,14 @@ INSTALL_SHARE="${REPO_DIR}/install/share"
 
 # src_dir:install_subdir pairs — mirror each package's setup.py data_files.
 MAPPINGS=(
-    "src/planning/planning:planning"
+    "src/planning/planning/paths/missions:planning/paths/missions"
+    "src/planning/planning/paths/test:planning/paths/test"
+    "src/planning/planning/paths/scratch:planning/paths/scratch"
     "src/hardware/hardware:hardware"
     "src/perception/perception:perception"
     "src/control/control:control"
     "src/main/launch/params:main/launch/params"
+    "src/localization/localization:localization"
 )
 
 linked=0

@@ -7,8 +7,6 @@ from scipy.interpolate import PchipInterpolator
 from scipy.spatial.transform import Rotation
 from scipy.optimize import root_scalar
 
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
 
 
 def _skew(v):

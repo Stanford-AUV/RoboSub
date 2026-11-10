@@ -6,7 +6,7 @@
 Cameras in, world-frame object goals out. Two pipelines live here: the **detection
 pipeline** (image → YOLO → 3D point → odom-frame goal consumed by
 [`planning`](../planning/README.md)) and the **heading pipeline** (bottom line angle →
-absolute yaw fused by the EKF in [`localization`](../localization/README.md)).
+absolute yaw fused by the EKF — see [`main`](../main/README.md)).
 
 ---
 
@@ -19,7 +19,6 @@ Registered in [`setup.py`](setup.py) — run with `ros2 run perception <name>`.
 | `oak_node` | `perception/nodes/oak.py` | `oak_node` |
 | `realsense_node` | `perception/nodes/realsense.py` | `realsense_node` |
 | `aligned_depth_publisher` | `perception/nodes/aligned_depth_publisher.py` | `aligned_depth_publisher` |
-| `object_detection` | `perception/nodes/object_detections.py` | `<camera_key>_<object_id>_detections` |
 | `object_localizer` | `perception/nodes/object_localizer.py` | `object_localizer` |
 | `object_world_localizer` | `perception/nodes/object_world_localizer.py` | `object_world_localizer` |
 | `heading_corrector` | `perception/nodes/heading_corrector.py` | `<camera_key>_heading_corrector` |
@@ -77,7 +76,7 @@ point.
 | Subscribes | `/camera/<camera_key>/aligned` (or `aligned_topic`) | `msgs/AlignedDepthImage` |
 | Publishes | `detections3d` | `vision_msgs/Detection3DArray` |
 
-**Parameters:** `model_name` (`yolo-Weights/yolov8n.pt`), `object_id` (`person`),
+**Parameters:** `model_name` (`yolov8n.pt`), `object_id` (`person`),
 `camera_key` (`oak_0`), `aligned_topic` (`""` = derive from `camera_key`),
 `visualize_camera`, `print_positions`, `timing_info`, `log_fps_latency`,
 `inference_device` (`auto`\|`cuda`\|`cpu`), `display_scale`.
@@ -103,17 +102,6 @@ tracked".
 `filter_alpha`, `max_jump_m`, `stale_sec`.
 **Measure and set `cam_translation` / `cam_rpy_deg` before a water test** — identity means
 "camera at the body origin looking straight forward".
-
-### `object_detection`
-Standalone YOLO-on-a-topic node, predating the aligned pipeline.
-
-| Direction | Topic | Type |
-|---|---|---|
-| Subscribes | `/camera/<camera_key>/rgb` | `sensor_msgs/Image` |
-| Publishes | `<box_topic>` | `vision_msgs/Detection2DArray` |
-
-Its `main()` hardcodes the model `underwater_images.pt`, object `bolt`, camera `oak_0` —
-edit the source or instantiate the class yourself.
 
 ### `heading_corrector`
 Finds the dominant line on the pool bottom and turns it into an **absolute yaw**
@@ -162,13 +150,17 @@ Publishes nothing. Subscribes `/camera/<name>/rgb` (`Image`).
 | [`perception/cameras.yaml`](perception/cameras.yaml) | `oak_node`, `realsense_node`, `aligned_depth_publisher`, `camera_viewer` — per-camera device id, resolution, fps, depth preset, intrinsics |
 | [`perception/object_tracking.yaml`](perception/object_tracking.yaml) | `object_world_localizer` |
 
-YOLO weights live in the workspace-root `yolo-Weights/` directory.
+Stock YOLO weights are resolved by name and cached by `ultralytics`. The trained
+model `underwater_images.pt` is committed in `perception/perception/`; point
+`object_localizer`'s `model_name` parameter at it to use it.
 
 ## Library code (`perception/utils/`)
 
-`object_world.py` (camera→base→odom transforms + smoothing), `undistort.py`
-(`build_remap`, `load_params`), `bounding_box.py` (oriented 3D box), `calibrate.py`
-(dump OAK factory calibration). `install_dependencies.sh` installs the camera SDKs.
+`object_world.py` (camera→base→odom transforms + smoothing) and `undistort.py`
+(`build_remap`, `load_params`). `install_dependencies.sh` installs the camera SDKs.
+
+Dumping an OAK's factory calibration is a shore-side job — see
+[`tools/oak/calibrate.py`](../../tools/oak/calibrate.py).
 
 ## Tests
 

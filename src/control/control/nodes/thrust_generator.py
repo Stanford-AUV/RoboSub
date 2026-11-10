@@ -3,7 +3,6 @@
 import numpy as np
 import rclpy
 from geometry_msgs.msg import Wrench, WrenchStamped
-from rclpy import Parameter
 from rclpy.node import Node
 from msgs.msg import ThrustsStamped
 import yaml

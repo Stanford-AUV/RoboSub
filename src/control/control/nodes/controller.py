@@ -31,7 +31,6 @@ from control.utils.pid import PID
 from control.utils.state import State
 
 from geometry_msgs.msg import WrenchStamped
-from spatialmath.quaternion import UnitQuaternion
 
 from nav_msgs.msg import Odometry
 

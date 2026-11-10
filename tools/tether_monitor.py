@@ -3,7 +3,6 @@
 import subprocess
 import time
 import argparse
-from typing import Optional
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -63,11 +62,11 @@ def monitor_connection(host: str, username: str, password: str, interval: int = 
                 print(f"Connection restored to {host}")
             consecutive_failures = 0
             pacific_time = datetime.now(ZoneInfo('America/Los_Angeles'))
-            print(f"[{pacific_time.strftime('%Y-%m-%d %H:%M:%S %Z')}] ✓ Successfully pinged {host}")
+            print(f"[{pacific_time.strftime('%Y-%m-%d %H:%M:%S %Z')}] OK  pinged {host}")
         else:
             consecutive_failures += 1
             pacific_time = datetime.now(ZoneInfo('America/Los_Angeles'))
-            print(f"[{pacific_time.strftime('%Y-%m-%d %H:%M:%S %Z')}] ✗ Failed to ping {host} (Failure {consecutive_failures}/{max_failures})")
+            print(f"[{pacific_time.strftime('%Y-%m-%d %H:%M:%S %Z')}] FAIL  could not ping {host} (Failure {consecutive_failures}/{max_failures})")
             
             if consecutive_failures >= max_failures:
                 raise ConnectionError(

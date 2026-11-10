@@ -9,7 +9,7 @@ from cv_bridge import CvBridge
 from builtin_interfaces.msg import Time as BuiltinTime
 from msgs.msg import AlignedDepthImage
 
-from .aligned_depth_backends import OakAlignedBackend, RealsenseAlignedBackend
+from perception.nodes.aligned_depth_backends import OakAlignedBackend, RealsenseAlignedBackend
 
 
 class AlignedDepthPublisherNode(Node):

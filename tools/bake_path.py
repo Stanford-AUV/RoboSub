@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bake a waypoint YAML into a played-back trajectory file (run ON SHORE).
 
-Usage: python tools/bake_path.py src/planning/planning/prequal.yaml
+Usage: python tools/bake_path.py src/planning/planning/paths/missions/prequal.yaml
 Writes <name>.baked.yaml next to the source (picked up by the planning
 package's data_files glob, so it installs to the share dir).
 """

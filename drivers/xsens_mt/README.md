@@ -20,7 +20,7 @@ because **it isn't an FTDI chip**. The fix is to use `xsens_mt`, not ftdi_sio.
 
 ## Install / rebuild
 
-Run on the **host** (not inside the devcontainer). Re-run after any kernel update:
+Run on the **host**. Re-run after any kernel update:
 
 ```bash
 bash drivers/xsens_mt/install.sh
@@ -36,7 +36,7 @@ installs the udev rule, and verifies `/dev/ttyUSB_imu`.
   matched by VID/PID, not by `ttyUSBn` number).
 - The ROS driver is configured for it: `xsens_mti_node.yaml` has
   `scan_for_devices: false`, `port: /dev/ttyUSB_imu`.
-- The devcontainer bind-mounts `/dev/ttyUSB_imu`; `ports.sh` chmods it.
+- `ports.sh` chmods `/dev/ttyUSB_imu`.
 
 Verify: `ros2 launch main hardware.py` → `ros2 topic hz /imu/data` (~400 Hz).
 

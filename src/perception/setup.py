@@ -24,7 +24,7 @@ setup(
     zip_safe=True,
     maintainer="Stanford Robosub",
     maintainer_email="scotthickmann21@gmail.com",
-    description="TODO: Package description",
+    description="This package is in charge of computing the position of various objects and sending them back to the planning package for processing. It interacts closely with the planning package, receiving commands about what to scan for, and responding with estimated positions accordingly.",
     license="TODO: License declaration",
     extras_require={
         "test": ["pytest"],
@@ -35,7 +35,6 @@ setup(
             "camera_viewer = perception.nodes.camera_viewer:main",
             "photographer = perception.nodes.photographer:main",
             "oak_node = perception.nodes.oak:main",
-            "object_detection = perception.nodes.object_detections:main",
             "aligned_depth_publisher = perception.nodes.aligned_depth_publisher:main",
             "object_localizer = perception.nodes.object_localizer:main",
             "object_world_localizer = perception.nodes.object_world_localizer:main",

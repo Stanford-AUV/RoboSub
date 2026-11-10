@@ -21,7 +21,6 @@ Registered in [`setup.py`](setup.py) — run with `ros2 run manual <name>`.
 |---|---|---|
 | `keyboard` | `manual/nodes/keyboard.py` | `keyboard_node` |
 | `joystick` | `manual/nodes/joystick.py` | `joystick_node` |
-| `prequal` | `manual/nodes/prequal.py` | `keyboard_node` |
 
 Operator-side scripts are **not** ROS nodes — run them from the repo root on the laptop:
 [`keyboard_local.sh`](../../keyboard_local.sh) → `manual/keyboard_local.py`, and
@@ -51,12 +50,6 @@ Subscribes the **NATS** subject `keyboard` at `nats://localhost:4222`, deseriali
 | Subscribes | `depth` | `msgs/Float32Stamped` |
 | Publishes | `wrench` | `geometry_msgs/WrenchStamped` |
 | Publishes | `light` | `std_msgs/Int16` |
-
-### `prequal`
-Scripted prequalification run: replays the timed key sequence in
-[`manual/prequalPresses.yaml`](manual/prequalPresses.yaml) instead of reading NATS (the
-path is resolved relative to the source file, so it needs `--symlink-install` or a source
-checkout). Publishes `wrench` (`WrenchStamped`) and `light` (`Int16`).
 
 ---
 

@@ -1,9 +1,8 @@
 """branch_decision: tally the messages received during the listen window.
 
-The daisy node publishes ONE message per detected ping (levels crossing
-the threshold and dropping back = one detection = one message), so the
-branch decision is a simple majority tally of the codes received; ties go
-to the most recent message.
+The decision topic publishes ONE message per detected event, so the branch
+decision is a simple majority tally of the codes received; ties go to the
+most recent message.
 """
 from planning.nodes.path_generator import branch_decision
 

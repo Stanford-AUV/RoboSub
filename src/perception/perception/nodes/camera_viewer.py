@@ -5,7 +5,7 @@ from rclpy.node import Node
 from rclpy.subscription import Subscription
 from rclpy.utilities import remove_ros_args
 
-from sensor_msgs.msg import Image, CompressedImage
+from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
@@ -15,7 +15,7 @@ import yaml
 from typing import Optional, List
 from dataclasses import dataclass, field
 
-from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose
+from vision_msgs.msg import Detection2DArray
 
 
 @dataclass
@@ -107,7 +107,6 @@ class CameraViewerNode(Node):
     def yolo_callback(self, camera: Camera):
         """Callback for YOLO Detection2DArray messages."""
         YOLO_TIMEOUT = 1.0  # seconds
-        DOWNSAMPLE_FACTOR = camera.downsample_factor
 
         def clear_detections():
             if camera.rgb is not None:

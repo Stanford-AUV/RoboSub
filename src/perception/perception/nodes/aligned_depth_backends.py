@@ -200,7 +200,6 @@ class RealsenseAlignedBackend:
         self._frame_id = f"{camera_key}_color_optical_frame"
 
     def get_frame(self, stamp=None) -> Optional[AlignedFrame]:
-        import pyrealsense2 as rs
 
         frames = self._pipeline.poll_for_frames()
         if not frames:

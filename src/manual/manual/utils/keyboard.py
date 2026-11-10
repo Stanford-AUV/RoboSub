@@ -5,34 +5,29 @@ from dataclasses_json import dataclass_json
 @dataclass_json
 @dataclass
 class KeyboardState:
+    """Which teleop keys are held, as sent over NATS by keyboard_local.py."""
 
-    moveLeft: bool = False
-    moveRight: bool = False
-    moveForward: bool = False
-    moveBackward: bool = False
-    moveUp: bool = False
-    moveDown: bool = False
+    move_left: bool = False
+    move_right: bool = False
+    move_forward: bool = False
+    move_backward: bool = False
+    move_up: bool = False
+    move_down: bool = False
 
-    turnCCW: bool = False
-    turnCW: bool = False
+    turn_ccw: bool = False
+    turn_cw: bool = False
 
-    increaseVel: bool = False
-    decreaseVel: bool = False
+    increase_vel: bool = False
+    decrease_vel: bool = False
 
-    increaseLinVel: bool = False
-    decreaseLinVel: bool = False
+    increase_lin_vel: bool = False
+    decrease_lin_vel: bool = False
 
-    increaseAngVel: bool = False
-    decreaseAngVel: bool = False
+    increase_ang_vel: bool = False
+    decrease_ang_vel: bool = False
 
-    def setState(self, action: str, value: bool):
-        """
-        Sets one of the keyboard state flags by name.
-
-        Args:
-            action (str): The name of the field (e.g. 'moveLeft', 'turnCW')
-            value (bool): The state to set (True for pressed, False for released)
-        """
+    def set_state(self, action: str, value: bool):
+        """Set one flag by field name (e.g. "move_left", "turn_cw")."""
         if not hasattr(self, action):
             raise AttributeError(f"Invalid action: {action}")
         setattr(self, action, value)

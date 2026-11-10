@@ -3,8 +3,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import Imu
 from geometry_msgs.msg import TwistWithCovarianceStamped, AccelWithCovarianceStamped
 from nav_msgs.msg import Odometry
-from msgs.msg import PingerStamped, SensorsStamped
-from hardware.pinger import detector as pinger_detector
+from msgs.msg import SensorsStamped
 from hardware.utils import dashboard
 
 import matplotlib
@@ -21,7 +20,6 @@ import math
 import os
 import threading
 import time
-from types import SimpleNamespace
 
 import numpy as np
 
@@ -103,13 +101,8 @@ class SensorsPlot(Node):
             self.QUEUE_DEPTH,
         )
 
-        self.pinger_sub = self.create_subscription(
-            PingerStamped, "/pinger/levels", self.pinger_callback,
-            self.QUEUE_DEPTH,
-        )
-
-        # Mission stage from planning (e.g. "leg 2/4", "branch /pinger:
-        # listening") -- shown in the web status line and on the PNGs, and
+        # Mission stage from planning (e.g. "leg 2/4") -- shown in the web
+        # status line and on the PNGs, and
         # each TRANSITION is kept with its run-time so the dashboard can
         # draw stage markers on the panels.
         from std_msgs.msg import String as _String
@@ -123,7 +116,7 @@ class SensorsPlot(Node):
 
         # Row 1: inputs + desired setpoints.
         # Row 2: EKF outputs.
-        # Row 3: power electronics + temperatures + pinger.
+        # Row 3: power electronics + temperatures.
         self.ax_imu_in = self.fig.add_subplot(341)
         self.ax_dvl_vel = self.fig.add_subplot(342)
         self.ax_des_pos = self.fig.add_subplot(343)
@@ -135,8 +128,6 @@ class SensorsPlot(Node):
         self.ax_current = self.fig.add_subplot(349)
         self.ax_voltage = self.fig.add_subplot(3, 4, 10)
         self.ax_temp = self.fig.add_subplot(3, 4, 11)
-        # Pinger: 4 hydrophone levels + front/back decision.
-        self.ax_pinger = self.fig.add_subplot(3, 4, 12)
 
         # Series storage: appended by subscription callbacks (executor
         # thread) under _lock; snapshotted by the draw request.
@@ -187,10 +178,6 @@ class SensorsPlot(Node):
         self.current_history = _deque()
         self.voltage_history = _deque()
 
-        self.pinger_time = _deque()
-        self.pinger_levels_history = [_deque(), _deque(), _deque(), _deque()]
-        self.pinger_front_history = _deque()
-
         # time key -> the series that share its timestamps (appended
         # together atomically, so lengths always match).
         self._groups = {
@@ -210,7 +197,6 @@ class SensorsPlot(Node):
             "arduino_time": ["ext_temp_history", "int_temp1_history",
                              "int_temp2_history", "current_history",
                              "voltage_history"],
-            "pinger_time": ["pinger_front_history"],
         }
 
         # Coarse full-run archive fed by the pruning in _snapshot_locked:
@@ -221,7 +207,6 @@ class SensorsPlot(Node):
             self._arch[tk] = []
             for sk in sks:
                 self._arch[sk] = []
-        self._arch_levels = [[], [], [], []]
         self._arch_last = {tk: -1e9 for tk in self._groups}
 
         # ---- Persistent artists: titles/labels/legends/lines are created
@@ -308,26 +293,6 @@ class SensorsPlot(Node):
                ("int_temp1_history", "r-", "INTERNAL 1", False),
                ("int_temp2_history", "m-", "INTERNAL 2", False)])
 
-        # Pinger panel: 4 level lines + threshold + big bold FRONT/BACK.
-        self.ax_pinger.set_title(
-            f"Pinger levels @ {pinger_detector.targetFrequency:.0f} Hz")
-        self.ax_pinger.set_ylabel("Normalized level")
-        self.ax_pinger.set_xlabel("Time (s)")
-        self.ax_pinger.set_ylim(-0.05, 1.05)
-        self.ax_pinger.grid(True)
-        self._pinger_lines = []
-        for ch, color in enumerate(("b", "r", "m", "c")):
-            side = "front" if ch in pinger_detector.FRONT_CHANNELS else "back"
-            self._pinger_lines.append(self.ax_pinger.plot(
-                [], [], color + "-", label=f"ch{ch} ({side})")[0])
-        self.ax_pinger.axhline(
-            pinger_detector.baseThreshold, color="k", linestyle="--",
-            linewidth=0.8, label="threshold")
-        self.ax_pinger.legend(loc="upper left", fontsize="x-small")
-        self._pinger_text = self.ax_pinger.text(
-            0.02, 0.04, "", transform=self.ax_pinger.transAxes,
-            fontsize=26, fontweight="bold", verticalalignment="bottom")
-
         # Mission stage stamped on every saved PNG (top-left corner).
         self._stage_text = self.fig.text(
             0.005, 0.998, "", va="top", ha="left",
@@ -351,14 +316,7 @@ class SensorsPlot(Node):
         # ALL the rendering, so it updates near-instantly while the Orin
         # only serializes the window. The PNG below stays as a slow,
         # crash-surviving record (and for anyone without a browser).
-        page = dashboard.build_page(self._web_panels, {
-            "title": f"Pinger levels @ {pinger_detector.targetFrequency:.0f} Hz",
-            "time": "pinger_time",
-            "labels": [f"ch{ch} ({'front' if ch in pinger_detector.FRONT_CHANNELS else 'back'})"
-                       for ch in range(4)],
-            "colors": ["#69f", "#f55", "#d6d", "#4dd"],
-            "threshold": pinger_detector.baseThreshold,
-        })
+        page = dashboard.build_page(self._web_panels)
         self._http = dashboard.start_server(
             page, self._web_data, self.get_logger().info)
 
@@ -450,13 +408,6 @@ class SensorsPlot(Node):
             self.current_history.append(msg.current)
             self.voltage_history.append(msg.voltage)
 
-    def pinger_callback(self, msg: PingerStamped):
-        with self._lock:
-            self.pinger_time.append(self._stamp(msg))
-            for i in range(4):
-                self.pinger_levels_history[i].append(msg.levels[i])
-            self.pinger_front_history.append(1.0 if msg.front else 0.0)
-
     def quaternion_to_rpy(self, q_w, q_x, q_y, q_z):
         # Roll (x-axis)
         sinr_cosp = 2 * (q_w * q_x + q_y * q_z)
@@ -501,13 +452,9 @@ class SensorsPlot(Node):
             # Full-run frame = coarse archive + the current window.
             snap = {"t_max": win["t_max"]}
             for key, v in win.items():
-                if key in ("t_max", "pinger_levels_history"):
+                if key == "t_max":
                     continue
                 snap[key] = _decimate(self._arch.get(key, []) + v)
-            snap["pinger_levels_history"] = [
-                _decimate(a + w) for a, w in
-                zip(self._arch_levels, win["pinger_levels_history"])
-            ]
         self._drawing = True
         threading.Thread(target=self._draw, args=(snap, chunks),
                          daemon=True).start()
@@ -523,11 +470,6 @@ class SensorsPlot(Node):
             snap[tk] = _decimate(times[i0:i1])
             for sk in series_keys:
                 snap[sk] = _decimate(list(getattr(self, sk))[i0:i1])
-            if tk == "pinger_time":
-                snap["pinger_levels_history"] = [
-                    _decimate(list(d)[i0:i1])
-                    for d in self.pinger_levels_history
-                ]
         return snap
 
     def _web_data(self):
@@ -537,18 +479,14 @@ class SensorsPlot(Node):
             snap = self._snapshot_locked()
         series = {}
         for key, val in snap.items():
-            if key in ("t_max", "pinger_levels_history"):
+            if key == "t_max":
                 continue
             if key in self._unwrap_keys:
                 val = np.unwrap(val).tolist()
             series[key] = [round(float(v), 4) for v in val]
-        front = snap["pinger_front_history"]
         return {
             "t": snap["t_max"],
             "series": series,
-            "pinger_levels": [[round(float(v), 4) for v in lv]
-                              for lv in snap["pinger_levels_history"]],
-            "front": bool(front[-1]) if front else None,
             "stage": self._stage,
             "stage_marks": list(self._stage_marks),
         }
@@ -566,8 +504,6 @@ class SensorsPlot(Node):
         for tk, series_keys in self._groups.items():
             times = getattr(self, tk)
             cols = [getattr(self, sk) for sk in series_keys]
-            if tk == "pinger_time":
-                cols = cols + self.pinger_levels_history
             # Prune everything that scrolled out of the window, keeping a
             # coarse sample of it in the full-run archive for full.png.
             while times and times[0] < t_left:
@@ -576,17 +512,11 @@ class SensorsPlot(Node):
                 if t0 - self._arch_last[tk] >= ARCHIVE_DT:
                     self._arch_last[tk] = t0
                     self._arch[tk].append(t0)
-                    n = len(series_keys)
-                    for sk, v in zip(series_keys, vals[:n]):
+                    for sk, v in zip(series_keys, vals):
                         self._arch[sk].append(v)
-                    for lst, v in zip(self._arch_levels, vals[n:]):
-                        lst.append(v)
             snap[tk] = _decimate(times)
             for sk, c in zip(series_keys, cols):
                 snap[sk] = _decimate(c)
-        snap["pinger_levels_history"] = [
-            _decimate(d) for d in self.pinger_levels_history
-        ]
         return snap
 
     def _draw(self, snap, chunks):
@@ -619,7 +549,7 @@ class SensorsPlot(Node):
         transient artists (caller removes them after savefig)."""
         marks = [m for m in self._stage_marks if lo <= m[0] <= hi]
         arts = []
-        axes = [ax for ax, _, _ in self._panels] + [self.ax_pinger]
+        axes = [ax for ax, _, _ in self._panels]
         for t, name in marks:
             for ax in axes:
                 arts.append(ax.axvline(t, color="r", linestyle=":",
@@ -641,18 +571,11 @@ class SensorsPlot(Node):
                 ax.relim()
                 ax.autoscale_view(scalex=False)
 
-        t = snap["pinger_time"]
-        for ln, y in zip(self._pinger_lines, snap["pinger_levels_history"]):
-            ln.set_data(t, y)
-        front = snap["pinger_front_history"]
-        self._pinger_text.set_text(
-            ("FRONT" if front[-1] else "BACK") if front else "")
         self._stage_text.set_text(self._stage)
 
     def _set_xlim(self, lo, hi):
         for ax, _, _ in self._panels:
             ax.set_xlim(lo, hi)
-        self.ax_pinger.set_xlim(lo, hi)
 
     def _save(self, path):
         # tight_layout is expensive and the layout barely changes between

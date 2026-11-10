@@ -3,7 +3,7 @@
 <package format="3">
   <name>msgs</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>Every custom ROS interface in the workspace. No nodes; it generates the Python/C++ types the other packages import.</description>
   <maintainer email="scotthickmann21@gmail.com">ros</maintainer>
   <license>TODO: License declaration</license>
 

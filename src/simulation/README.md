@@ -47,8 +47,7 @@ differentiates it for angular velocity, publishing the topic the real EKF would.
 | Subscribes | `gz/pose` | `geometry_msgs/PoseStamped` |
 | Publishes | `/odometry/filtered` | `nav_msgs/Odometry` |
 
-Never run alongside `robot_localization` or `control/fake_localizer` — all three own
-`/odometry/filtered`.
+Never run alongside `robot_localization` — both own `/odometry/filtered`.
 
 ### `path_bridge` — path visualization
 Converts a ROS path into the Gazebo protobuf message the `PathVisualizer` plugin renders.

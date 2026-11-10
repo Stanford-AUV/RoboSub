@@ -4,7 +4,6 @@ import threading
 import nats
 import asyncio
 
-from msgs.msg import Float32Stamped
 from std_msgs.msg import Int16
 from geometry_msgs.msg import WrenchStamped
 from manual.utils.keyboard import KeyboardState
@@ -47,31 +46,31 @@ class KeyboardNode(Node):
         wrench = wrench_stamped.wrench
 
         x = y = z = th = 0
-        if state.moveBackward:
+        if state.move_backward:
             x = -1
-        elif state.moveForward:
+        elif state.move_forward:
             x = 1
-        if state.moveLeft:
+        if state.move_left:
             y = 1
-        elif state.moveRight:
+        elif state.move_right:
             y = -1
-        if state.moveDown:
+        if state.move_down:
             z = -1
-        elif state.moveUp:
+        elif state.move_up:
             z = 1
-        if state.turnCW:
+        if state.turn_cw:
             th = -0.2
-        elif state.turnCCW:
+        elif state.turn_ccw:
             th = 0.2
 
-        if state.decreaseLinVel or state.decreaseVel:
+        if state.decrease_lin_vel or state.decrease_vel:
             self.force *= 0.9
-        elif state.increaseLinVel or state.increaseVel:
+        elif state.increase_lin_vel or state.increase_vel:
             self.force = min(1.1 * self.force, MAX_FORCE)
 
-        if state.decreaseAngVel or state.decreaseVel:
+        if state.decrease_ang_vel or state.decrease_vel:
             self.torque *= 0.9
-        elif state.increaseAngVel or state.increaseVel:
+        elif state.increase_ang_vel or state.increase_vel:
             self.torque = min(1.1 * self.torque, MAX_TORQUE)
 
         wrench.force.x = x * self.force
@@ -85,7 +84,7 @@ class KeyboardNode(Node):
 
         lights = Int16()
         # 1100 is OFF, 1900 is ON, 1500 is HALF please fix this
-        lights.data = 1100 + int(800 * state.moveForward)
+        lights.data = 1100 + int(800 * state.move_forward)
 
         self.light_publisher.publish(lights)
 

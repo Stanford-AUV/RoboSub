@@ -1,5 +1,4 @@
 import rclpy
-from rclpy.node import Node
 from hardware.nodes.generic_sensor import GenericSensor
 from msgs.msg import SensorsStamped
 from geometry_msgs.msg import PoseWithCovarianceStamped

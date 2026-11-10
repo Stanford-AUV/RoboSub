@@ -24,7 +24,6 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-src/xsens_mti_ros2_driver/*
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -187,8 +186,6 @@ tmp/
 
 # robosub ee directory
 references/robosub-ee/
-# source-built ROS msg deps (nmea_msgs, mavros_msgs) not in RoboStack py310
-src/deps/
 docs/
 
 # rosbag recordings from launch_sub.sh
@@ -206,3 +203,5 @@ data
 models
 
 plots/
+# linter caches
+.ruff_cache/

@@ -1,6 +1,5 @@
 """Launch aligned depth publisher + camera-agnostic object localizer (all nodes in one launch)."""
 
-import os
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
@@ -25,7 +24,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 "model_name",
-                default_value="yolo-Weights/yolov8n.pt",
+                default_value="yolov8n.pt",
                 description="YOLO model path for object_localizer",
             ),
             DeclareLaunchArgument(

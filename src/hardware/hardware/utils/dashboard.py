@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = 8080
 
-# {panels} and {pinger} placeholders are filled by build_page().
+# The {panels} placeholder is filled by build_page().
 _PAGE = """<!DOCTYPE html>
 <html>
 <head>
@@ -37,7 +37,6 @@ _PAGE = """<!DOCTYPE html>
 <script>
 "use strict";
 const PANELS = {panels};
-const PINGER = {pinger};
 const WINDOW_S = 20.0;
 
 const grid = document.getElementById("grid");
@@ -52,7 +51,6 @@ function addPanel(key, title) {
   canvases[key] = c;
 }
 PANELS.forEach((p, idx) => addPanel(idx, p.title));
-addPanel("__pinger__", PINGER.title);
 
 function prepCanvas(c) {
   const r = window.devicePixelRatio || 1;
@@ -177,25 +175,6 @@ async function tickInner() {
                p.series.map(s => s.label));
     drawStageMarks(g, w, h, x0, x1, d.stage_marks);
   });
-  // pinger panel: fixed 0..1 scale, threshold line, FRONT/BACK label
-  const c = canvases["__pinger__"];
-  const [g, w, h] = prepCanvas(c);
-  const t = d.series[PINGER.time] || [];
-  const y0 = -0.05, y1 = 1.05;
-  drawAxes(g, w, h, x0, x1, y0, y1);
-  drawSeries(g, w, h, t, d.pinger_levels, PINGER.colors, x0, x1, y0, y1,
-             PINGER.labels);
-  drawStageMarks(g, w, h, x0, x1, d.stage_marks);
-  const ty = M.t + (y1 - PINGER.threshold) / (y1 - y0) * (h - M.t - M.b);
-  g.strokeStyle = "#999"; g.setLineDash([4, 3]);
-  g.beginPath(); g.moveTo(M.l, ty); g.lineTo(w - M.r, ty); g.stroke();
-  g.setLineDash([]);
-  if (d.front !== null) {
-    g.font = "bold 26px sans-serif"; g.textAlign = "left";
-    g.textBaseline = "bottom";
-    g.fillStyle = d.front ? "#4c4" : "#e55";
-    g.fillText(d.front ? "FRONT" : "BACK", M.l + 6, h - M.b - 4);
-  }
 }
 setInterval(tick, 200);
 tick();
@@ -205,11 +184,9 @@ tick();
 """
 
 
-def build_page(panels, pinger):
-    """Fill the page template. panels/pinger are JSON-able specs."""
-    return (_PAGE
-            .replace("{panels}", json.dumps(panels))
-            .replace("{pinger}", json.dumps(pinger)))
+def build_page(panels):
+    """Fill the page template. panels is a JSON-able list of panel specs."""
+    return _PAGE.replace("{panels}", json.dumps(panels))
 
 
 def start_server(page, get_data, log):

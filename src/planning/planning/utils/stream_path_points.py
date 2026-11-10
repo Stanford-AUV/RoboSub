@@ -57,8 +57,8 @@ class PathStreamer(Node):
         self._render_and_maybe_save(msg.pose.pose.orientation)
 
 
-def main():
-    rclpy.init()
+def main(args=None):
+    rclpy.init(args=args)
     node = PathStreamer()
     try:
         rclpy.spin(node)

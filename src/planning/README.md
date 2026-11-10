@@ -27,7 +27,7 @@ Registered in [`setup.py`](setup.py) — run with `ros2 run planning <name>`.
 | Direction | Topic | Type |
 |---|---|---|
 | Subscribes | `/odometry/filtered` | `nav_msgs/Odometry` |
-| Subscribes | `<decision>` (e.g. `/pinger`) | `std_msgs/String` — only while sitting on a branch item |
+| Subscribes | `<decision>` | `std_msgs/String` — only while sitting on a branch item |
 | Publishes | `/desired/pose` | `nav_msgs/Odometry` (60 Hz) |
 | Publishes | `/mission/stage` | `std_msgs/String` (1 Hz heartbeat of the current stage) |
 | Publishes | `<decision>/listening` | `std_msgs/String` — `"start"` / `"stop"` around a branch's listen window |
@@ -73,31 +73,42 @@ segment_1:
     waypoints: [...]
 ```
 
+> **No decision publisher ships in this repo.** Pinger detection moved to the
+> electrical team, so nothing currently publishes `/pinger`. A `branch` item whose
+> decision topic is silent station-keeps for `BRANCH_LISTEN_SEC` (10 s), logs
+> `NO detections ... defaulting to first option`, and plays `waypoints_0`.
+> `segments.yaml`, `wild_card.yaml` and `semifinals_pinger.yaml` all branch on
+> `/pinger` and will take their first option until a new source is wired up.
+
 **Units:** positions in metres; `roll`/`pitch`/`yaw` in degrees, fixed `xyz` order.
 Both branch options should start and end at the same point.
 
-**Available YAMLs:** `segments.yaml`, `prequal.yaml`, `semifinals.yaml`,
-`semifinals_pinger.yaml`, `wild_card.yaml`, `localization_stress_test.yaml`,
-`sample_path.yaml`. Each has a committed `*.baked.yaml` sibling.
+### Where the YAMLs live
+
+```
+planning/paths/
+├── missions/   prequal  segments  semifinals  semifinals_pinger  wild_card
+├── test/       localization_stress_test  sample_path
+└── scratch/    personal work-in-progress, one file per person
+```
+
+Every `missions/` file has a committed `*.baked.yaml` sibling; in `test/`, only
+`localization_stress_test` does. All three directories install to the package
+share dir, so any of them can be run.
+
+Pass a **bare filename** — `./launch_sub.sh semifinals.yaml` — and both the
+launcher and `path_generator` search `missions/` then `test/`. Pass
+`test/sample_path.yaml` to disambiguate if a name ever appears in both.
 
 ### Baking is mandatory
 
 ```bash
-python tools/bake_path.py src/planning/planning/segments.yaml
+python tools/bake_path.py src/planning/planning/paths/missions/segments.yaml
 ```
 
 `path_generator` loads the `.baked.yaml` and verifies a hash of the source YAML
 (`planning/utils/bake.py:source_hash`), so an edited-but-unbaked YAML is rejected rather
 than silently stale. `launch_sub.sh` re-bakes automatically (a fresh bake is a no-op).
-
-### Offline preview (no ROS)
-
-```bash
-python src/planning/planning/utils/visualize_path.py src/planning/planning/segments.yaml
-```
-
-Runs the same `create_path` spline used by the bake and draws speed-coloured segments with
-heading arrows. Needs `numpy`, `scipy`, `matplotlib`, `pyyaml` and a `DISPLAY` (`TkAgg`).
 
 ---
 
@@ -110,7 +121,6 @@ heading arrows. Needs `numpy`, `scipy`, `matplotlib`, `pyyaml` and a `DISPLAY` (
 | `pursuit.py` | pure-pursuit stepping (`pursuit_target`, `step_toward`, `arrived`) for a planned `go_to_object` segment type. **Imported by `path_generator` but not yet reachable** — the only item types the bake and the player understand today are `leg` and `branch`. |
 | `geometry.py` | `override_yaw()` — replace yaw, keep roll/pitch |
 | `stream_path_points.py` | the `path_streamer` node |
-| `visualize_path.py` | offline plotter |
 
 ---
 

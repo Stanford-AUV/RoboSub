@@ -21,25 +21,25 @@ def on_release(key, pressed_keys):
         pass
 
 
-def isKeyPressed(a: str, pressed_keys) -> bool:
+def is_key_pressed(a: str, pressed_keys) -> bool:
     return a in pressed_keys
 
 
-keysToState = {
-    "a": "moveLeft",
-    "d": "moveRight",
-    "w": "moveForward",
-    "s": "moveBackward",
-    "r": "moveUp",
-    "f": "moveDown",
-    "q": "turnCCW",  # turnCW
-    "e": "turnCW",  # turnCCW
-    "t": "increaseVel",
-    "g": "decreaseVel",
-    "y": "increaseLinVel",
-    "h": "decreaseLinVel",
-    "u": "increaseAngVel",
-    "j": "decreaseAngVel",
+keys_to_state = {
+    "a": "move_left",
+    "d": "move_right",
+    "w": "move_forward",
+    "s": "move_backward",
+    "r": "move_up",
+    "f": "move_down",
+    "q": "turn_ccw",  # turn_cw
+    "e": "turn_cw",  # turn_ccw
+    "t": "increase_vel",
+    "g": "decrease_vel",
+    "y": "increase_lin_vel",
+    "h": "decrease_lin_vel",
+    "u": "increase_ang_vel",
+    "j": "decrease_ang_vel",
 }
 
 
@@ -48,7 +48,7 @@ async def main():
 
     # Connect to NATS
     nc = await nats.connect("nats://localhost:4222")
-    print("✅ Connected to NATS server")
+    print("Connected to NATS server")
     # Track key state
     pressed_keys = set()
     # Start the listener in background
@@ -61,10 +61,10 @@ async def main():
     try:
         while True:
             state = KeyboardState()
-            for key in keysToState:
-                state.setState(keysToState[key], 0)
-                if isKeyPressed(key, pressed_keys):
-                    state.setState(keysToState[key], 1)
+            for key in keys_to_state:
+                state.set_state(keys_to_state[key], 0)
+                if is_key_pressed(key, pressed_keys):
+                    state.set_state(keys_to_state[key], 1)
             try:
                 await nc.publish("keyboard", state.to_json().encode("utf-8"))
                 print(f"Sent:{state}")

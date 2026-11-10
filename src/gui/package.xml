@@ -3,7 +3,7 @@
 <package format="3">
   <name>gui</name>
   <version>0.0.0</version>
-  <description>This package is in charge of controlling the robot. Given a path and the robot's state, it is able to output the magnitudes for each thruster for how the robot is supposed to move.</description>
+  <description>Browser HUD for the sub: a ROS-to-WebSocket bridge plus a self-contained HTML page. Instrumentation and manual override only — no autonomy package depends on it.</description>
   <maintainer email="scotthickmann21@gmail.com">ros</maintainer>
   <license>TODO: License declaration</license>
 

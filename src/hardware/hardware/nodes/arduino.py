@@ -4,7 +4,7 @@ import time
 import serial
 import rclpy
 from rclpy.node import Node
-from msgs.msg import PWMsStamped, SensorsStamped, Float32Stamped
+from msgs.msg import PWMsStamped, SensorsStamped
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Int16, String
 from typing import List

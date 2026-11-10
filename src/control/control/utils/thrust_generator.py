@@ -1,4 +1,4 @@
-"""This module provides utilities for generating thrust configurations and converting forces to individual motor thrusts."""
+"""Thrust allocation: build the inverse TAM, then split a wrench into per-thruster thrusts."""
 
 import numpy as np
 

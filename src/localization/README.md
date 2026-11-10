@@ -1,41 +1,33 @@
 # `localization`
 
-**Not a colcon package.** There is no `package.xml` and no `setup.py` here, so colcon
-never builds this directory and `ros2 run localization ...` does not exist. It is the
-**configuration home for state estimation**: the EKF itself is the external
-`robot_localization` package, installed into the conda env as
-`ros-humble-robot-localization`.
+**Build type:** `ament_python` · **Depends on:** `robot_localization`, `geometry_msgs`,
+`nav_msgs`, `sensor_msgs`, `rclpy`, `tf2_ros`
 
-State estimation is where [`hardware`](../hardware/README.md)'s sensor topics and
-[`perception`](../perception/README.md)'s heading correction become the single
+State estimation. This package owns the EKF configuration that turns
+[`hardware`](../hardware/README.md)'s sensor topics and
+[`perception`](../perception/README.md)'s heading correction into the single
 `/odometry/filtered` that [`control`](../control/README.md) and
-[`planning`](../planning/README.md) both read.
+[`planning`](../planning/README.md) both read. The filter itself is the external
+`robot_localization` package (conda: `ros-humble-robot-localization`); what lives here is
+its tuning, plus room for nodes built on top of it.
 
 ---
 
-## Entry point
+## Launch
 
-The EKF is launched from [`main`](../main/README.md), not from here:
+| Command | Starts |
+|---|---|
+| `ros2 launch main localization.py` | the full bring-up: `hardware/sensors`, `ekf_node`, and both static TFs |
+| `ros2 launch localization ekf.py` | `ekf_node` alone, for bench work |
 
-```bash
-ros2 launch main localization.py
-```
-
-which starts `hardware/sensors`, `robot_localization/ekf_node` (named
-`ekf_filter_node`) with [`localization/nodes/ekf.yaml`](localization/nodes/ekf.yaml), and
-the two static TFs.
-
-[`localization/nodes/robot_localization.py`](localization/nodes/robot_localization.py) is
-an alternative standalone launch description that resolves `ekf.yaml` through
-`get_package_share_directory('localization')`. **That call fails** — nothing installs a
-`localization` share dir — so use `main/launch/localization.py`, which resolves the YAML
-by relative path instead.
+`ekf.yaml` installs to `share/localization/`, so both resolve it through
+`get_package_share_directory("localization")`.
 
 ---
 
 ## `ekf_filter_node` interface
 
-Configured in [`localization/nodes/ekf.yaml`](localization/nodes/ekf.yaml): 50 Hz,
+Configured in [`localization/ekf.yaml`](localization/ekf.yaml): 50 Hz,
 `world_frame`/`odom_frame` = `odom`, `base_link_frame` = `base_link`, `publish_tf: true`,
 `publish_acceleration: true`, `sensor_timeout: 0.2`.
 
@@ -62,13 +54,11 @@ adding a `twist2` without a `twist1` would be silently ignored.
 | `/tf` | `odom → base_link` |
 | `/diagnostics` | `diagnostic_msgs/DiagnosticArray` |
 
-`/set_pose` resets the filter — see `hardware/ekf_watchdog`, which uses it to recover from
-divergence.
+`/set_pose` resets the filter.
 
 ### Static transforms
 
-Published by `main/launch/localization.py` (`tf2_ros/static_transform_publisher`), not by
-this directory:
+Published by [`main/launch/localization.py`](../main/launch/localization.py):
 
 | TF | Translation (m) | Rotation |
 |---|---|---|
@@ -76,6 +66,7 @@ this directory:
 | `base_link → dvl_frame` | `-0.105, 0.0, -0.0625` | identity |
 
 ---
+
 
 ## Tuning notes
 
@@ -90,9 +81,3 @@ A relevant failure mode and its mitigation are documented in
 [`config/fastdds_async.xml`](../../config/fastdds_async.xml): the single-threaded EKF froze
 for up to 36 s when a tethered subscriber vanished mid-run. The async Fast DDS profile that
 fixes it is exported by `launch_sub.sh` and `run_experiment.sh`.
-
-## Other files
-
-`localization/nodes/object_localization.py` is an empty stub (a `Node` subclass whose
-`__init__` is `pass`). Object localization actually lives in
-[`perception/object_world_localizer`](../perception/README.md).

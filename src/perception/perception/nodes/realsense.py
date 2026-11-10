@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 import rclpy
-from rclpy.node import Node
 from sensor_msgs.msg import Image
-from rclpy.time import Time
 import numpy as np
 import os
 import pyrealsense2 as rs
-from .generic_camera import GenericCameraNode
+from perception.nodes.generic_camera import GenericCameraNode
 
 
 class Device:

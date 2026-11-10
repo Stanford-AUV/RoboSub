@@ -28,7 +28,9 @@ class ObjectLocalizer(Node):
     def __init__(self):
         super().__init__("object_localizer")
 
-        self.declare_parameter("model_name", "yolo-Weights/yolov8n.pt")
+        # Bare filename: ultralytics resolves stock weights from its hub and
+        # caches them. Point this at a real path for a trained model.
+        self.declare_parameter("model_name", "yolov8n.pt")
         self.declare_parameter("object_id", "person")
         self.declare_parameter("camera_key", "oak_0")
         self.declare_parameter("aligned_topic", "")

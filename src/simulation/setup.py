@@ -1,5 +1,4 @@
 from setuptools import find_packages, setup
-import os
 
 package_name = "simulation"
 
@@ -15,7 +14,7 @@ setup(
     zip_safe=True,
     maintainer="ros",
     maintainer_email="scotthickmann21@gmail.com",
-    description="TODO: Package description",
+    description="This package acts as a bridge between the software and the virtual hardware on Gazebo. Takes in the same inputs as the hardware package, but instead of sending commands to the real robot, it sends commands to the virtual Gazebo robot.",
     license="TODO: License declaration",
     extras_require={
         "test": ["pytest"],

@@ -29,7 +29,6 @@ nothing.
 |---|---|---|
 | [`SensorsStamped`](msg/SensorsStamped.msg) | `header`, `pressure`, `depth`, `external_temperature`, `internal_temperature1`, `internal_temperature2`, `humidity`, `current`, `voltage` | `hardware/arduino` on `/arduino/sensors` → `depth`, `dvl`, `sensors_plot` (`thrusters` wants it too but listens on the wrong topic — see [hardware](../hardware/README.md)) |
 | [`Float32Stamped`](msg/Float32Stamped.msg) | `header`, `float32 data` | generic stamped scalar (`depth`) |
-| [`PingerStamped`](msg/PingerStamped.msg) | `header`, `float32[4] levels` (normalized peak per hydrophone; front = 0, 3 / back = 1, 2), `bool front` (latched) | `hardware/daisy` → `sensors_plot` |
 
 ### DVL
 
@@ -60,17 +59,9 @@ Depth is aligned to the RGB frame (same resolution, pixel correspondence), which
 
 ---
 
-## Services
-
-| Service | Request | Response | Status |
-|---|---|---|---|
-| [`GetWaypoints`](srv/GetWaypoints.srv) | *(empty)* | `nav_msgs/Path waypoints` | Client: `control/path_tracker`. **No server node exists in this repo**, so `path_tracker` blocks at startup waiting for it. |
-
----
-
 ## Dependency note
 
 `msgs` declares `nmea_msgs` and `mavros_msgs` because the Xsens driver chain needs them,
 and neither has a Python-3.10 conda build. Both are vendored into this workspace as
-[`../nmea_msgs`](../nmea_msgs/README.md) and [`../mavros_msgs`](../mavros_msgs/README.md),
+[`vendor/nmea_msgs`](../../vendor/nmea_msgs/README.md) and [`vendor/mavros_msgs`](../../vendor/mavros_msgs/README.md),
 so colcon builds them ahead of `msgs` — see [ORIN_SETUP.md](../../ORIN_SETUP.md).

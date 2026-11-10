@@ -6,8 +6,9 @@
 #
 # Usage: bash launch_sub.sh [waypoints.yaml]
 #
-# The optional argument picks the waypoint yaml for path_generator (bare
-# filename, resolved against the planning share dir; default segments.yaml).
+# The optional argument picks the waypoint yaml for path_generator. Pass a bare
+# filename; it is searched in src/planning/planning/paths/{missions,test}.
+# Default: segments.yaml.
 # The launcher (re)bakes it automatically via tools/bake_path.py before the
 # stack starts (a fresh bake is a no-op).
 #
@@ -126,9 +127,22 @@ fi
 
 # (Re)bake the chosen waypoint yaml so path_generator never hits a missing or
 # stale bake. bake_path.py skips the recompute when the bake is already fresh.
-WAYPOINTS_SRC="${REPO_DIR}/src/planning/planning/${WAYPOINTS_YAML}"
-if [ ! -f "$WAYPOINTS_SRC" ]; then
-    echo "ERROR: waypoint yaml not found: $WAYPOINTS_SRC" >&2
+# Waypoint YAMLs live in paths/missions and paths/test. Accept a bare filename
+# and search both, or an explicit path relative to the planning package.
+PATHS_DIR="${REPO_DIR}/src/planning/planning/paths"
+WAYPOINTS_SRC=""
+for candidate in \
+    "${PATHS_DIR}/missions/${WAYPOINTS_YAML}" \
+    "${PATHS_DIR}/test/${WAYPOINTS_YAML}" \
+    "${PATHS_DIR}/scratch/${WAYPOINTS_YAML}" \
+    "${PATHS_DIR}/${WAYPOINTS_YAML}"; do
+    if [ -f "$candidate" ]; then WAYPOINTS_SRC="$candidate"; break; fi
+done
+if [ -z "$WAYPOINTS_SRC" ]; then
+    echo "ERROR: waypoint yaml '${WAYPOINTS_YAML}' not found under ${PATHS_DIR}" >&2
+    echo "Available:" >&2
+    ls "${PATHS_DIR}"/missions "${PATHS_DIR}"/test "${PATHS_DIR}"/scratch \
+        2>/dev/null | grep -v baked >&2
     exit 1
 fi
 (cd "$REPO_DIR" && python tools/bake_path.py "$WAYPOINTS_SRC") || {

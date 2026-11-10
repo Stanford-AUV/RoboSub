@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 import rclpy
-from geometry_msgs.msg import PointStamped, Twist
+from geometry_msgs.msg import Twist
 from std_msgs.msg import String
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
@@ -11,7 +11,6 @@ from ament_index_python.packages import get_package_share_directory
 
 from planning.utils.bake import load_bake, source_hash
 from planning.utils.geometry import override_yaw
-from planning.utils.pursuit import arrived, pursuit_target, step_toward
 
 TICK_HZ = 60.0
 # Decision samples to collect before committing to a branch option; we take
@@ -24,11 +23,9 @@ BRANCH_LISTEN_SEC = 10.0
 def branch_decision(codes):
     """Decide a branch from the messages collected while listening.
 
-    The decision topic (/pinger) carries ONE message per detected ping --
-    the hydrophone levels crossing the threshold and dropping back counts
-    as one detection -- so the decision is a simple majority tally of the
-    codes received; a tie goes to the most recent message. Returns
-    (code, votes).
+    The decision topic carries ONE message per detected event, so the
+    decision is a simple majority tally of the codes received; a tie goes
+    to the most recent message. Returns (code, votes).
     """
     votes = {}
     for c in codes:
@@ -38,6 +35,36 @@ def branch_decision(codes):
     return (winners[0] if len(winners) == 1 else codes[-1]), votes
 
 
+# Waypoint YAMLs live under paths/ in the package share dir. Accept a bare
+# filename ("semifinals.yaml") so the pool-day command line stays short, or an
+# explicit relative path ("test/sample_path.yaml"). Searched in this order.
+PATH_DIRS = ("paths/missions", "paths/test", "paths/scratch")
+
+
+def resolve_waypoints(name):
+    """Turn a waypoints_path parameter into an absolute YAML path."""
+    if os.path.isabs(name) or os.path.exists(name):
+        return name
+    share = get_package_share_directory("planning")
+    for direct in (os.path.join(share, name), os.path.join(share, "paths", name)):
+        if os.path.exists(direct):
+            return direct
+    hits = [
+        os.path.join(share, d, name)
+        for d in PATH_DIRS
+        if os.path.exists(os.path.join(share, d, name))
+    ]
+    if len(hits) == 1:
+        return hits[0]
+    if not hits:
+        raise SystemExit(
+            f"waypoint yaml '{name}' not found in " + " or ".join(PATH_DIRS)
+        )
+    raise SystemExit(
+        f"waypoint yaml '{name}' is ambiguous: {hits}. Pass the subdirectory too."
+    )
+
+
 class PathGenerator(Node):
     """Plays a baked trajectory (tools/bake_path.py): spline legs sampled on
     shore. No spline math happens at runtime."""
@@ -45,20 +72,11 @@ class PathGenerator(Node):
     def __init__(self):
         super().__init__("path_generator")
 
-        default_yaml = os.path.join(
-            get_package_share_directory("planning"), "prequal.yaml"
-        )
-        self.declare_parameter("waypoints_path", default_yaml)
-        self.waypoints_path = (
+        self.declare_parameter("waypoints_path", "prequal.yaml")
+        self.waypoints_path = resolve_waypoints(
             self.get_parameter("waypoints_path").get_parameter_value().string_value
-            or default_yaml
+            or "prequal.yaml"
         )
-        if not os.path.isabs(self.waypoints_path) and not os.path.exists(
-            self.waypoints_path
-        ):
-            self.waypoints_path = os.path.join(
-                get_package_share_directory("planning"), self.waypoints_path
-            )
 
         # Once the trajectory is done, keep holding the final pose for this
         # many seconds, then exit. The planning launch marks this node with
@@ -101,8 +119,8 @@ class PathGenerator(Node):
         }
         # Branch listen-window signals: "<decision>/listening" carries
         # "start" when the branch begins listening and "stop" when it
-        # commits, so the daisy node can save a debug plot of exactly that
-        # window. Pre-created for the same DDS-discovery reason as above.
+        # commits, so the decision source knows exactly which window
+        # counted. Pre-created for the same DDS-discovery reason as above.
         self.listen_publishers = {
             item["decision"]: self.create_publisher(
                 String, item["decision"] + "/listening", 10)

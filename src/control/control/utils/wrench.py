@@ -1,33 +1,9 @@
-"""
-Wrench object to abstract conversion from numpy arrays to ROS messages.
+"""numpy force/torque vectors -> geometry_msgs/WrenchStamped."""
 
-Usage:
-    To use this module, create an instance of the Wrench class with the desired
-    force and torque vectors, and call the `to_msg()` method to convert the
-    object to a ROS WrenchStamped message.
-
-Example:
-    wrench = Wrench(np.array([1, 2, 3]), np.array([4, 5, 6]))
-    msg = wrench.to_msg()
-
-Dependencies:
-    geometry_msgs.msg.Vector3
-    geometry_msgs.msg.Wrench
-    geometry_msgs.msg.WrenchStamped
-    numpy
-    rclpy.time.Time
-    
-Author:
-    Ali Ahmad
-
-Version:
-    1.0.0
-"""
 from geometry_msgs.msg import Vector3, Wrench, WrenchStamped
 
 import numpy as np
 
-from rclpy.time import Time
 
 
 class AbstractWrench():

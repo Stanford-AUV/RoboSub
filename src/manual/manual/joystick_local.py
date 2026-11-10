@@ -17,7 +17,7 @@ if pygame.joystick.get_count() == 0:
 
 joystick = pygame.joystick.Joystick(0)
 joystick.init()
-print(f"✅ Using joystick: {joystick.get_name()}")
+print(f"Using joystick: {joystick.get_name()}")
 
 # --- Helper ---
 def get_axis(index):
@@ -29,7 +29,7 @@ def get_axis(index):
 async def main():
     # Connect to NATS
     nc = await nats.connect("nats://localhost:4222")
-    print("✅ Connected to NATS server")
+    print("Connected to NATS server")
 
     try:
         while True:

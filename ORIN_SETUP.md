@@ -2,7 +2,8 @@
 
 How to bring up the Stanford RoboSub software stack on a fresh **Jetson AGX Orin**
 in a single **conda** environment named `robosub` — **ROS 2 Humble** (via RoboStack)
-+ **GPU PyTorch**, **no Docker**. This replaces the old `.devcontainer/` workflow.
++ **GPU PyTorch**, **no Docker**. This is the only supported workflow — the
+`.devcontainer/` setup it replaced has been removed.
 
 It doubles as the **"kinks" log**: every non-obvious gotcha we hit is in
 [§ Kinks & gotchas](#kinks--gotchas) so a new Orin doesn't re-discover them.
@@ -57,9 +58,8 @@ python -m pip install \
   https://pypi.jetson-ai-lab.io/jp6/cu126/+f/907/c4c1933789645/torchvision-0.23.0-cp310-cp310-linux_aarch64.whl
 python -m pip install -r requirements.txt        # scipy, casadi, pyserial, depthai, ultralytics-thop, ...
 
-# 5. Two message packages have no py3.10 conda build → source-build them:
-git clone --depth 1 -b ros2 https://github.com/ros-drivers/nmea_msgs.git src/deps/nmea_msgs
-git clone --depth 1 -b ros2 https://github.com/mavlink/mavros.git /tmp/mavros && cp -r /tmp/mavros/mavros_msgs src/deps/mavros_msgs
+# 5. nmea_msgs and mavros_msgs have no py3.10 conda build. Both are already
+#    vendored in vendor/ and colcon builds them from there - nothing to clone.
 
 # 6. Hardware: IMU needs an out-of-tree kernel module (re-run after kernel updates)
 bash drivers/xsens_mt/install.sh
@@ -107,7 +107,7 @@ hook adds it (plus the host CUDA/tegra dirs for GPU torch).
 ### Message packages with no py3.10 conda build
 `ros-humble-nmea-msgs`, `ros-humble-mavros-msgs`, and `ros-humble-depthai-ros` have
 **0 py3.10 builds**. `nmea_msgs` + `mavros_msgs` are compile-time deps of the Xsens
-driver → **source-built** into git-ignored `src/deps/` (their own deps —
+driver → **vendored in `vendor/`** and built from there (their own deps —
 geographic_msgs, unique_identifier_msgs — come from conda). `depthai-ros` is only
 used by perception; use the **`depthai` pip SDK** instead.
 
@@ -198,11 +198,11 @@ One conda env, not the old apt + venv + `--break-system-packages` layering:
 - **Other Python deps** → `requirements.txt` via `python -m pip` (torch intentionally
   *not* listed there, to avoid pulling a CPU wheel).
 - **Camera** → `depthai` pip SDK (`depthai-ros` isn't on RoboStack for py3.10).
-- **Workspace + `src/deps/` message packages** → `colcon build`.
+- **Workspace + `vendor/` message packages** → `colcon build`.
 
 ---
 
-## What still lives in Docker (nothing, by design)
+## What still lives in Docker
 
-`.devcontainer/` and `sim_docker.sh` are retained only as reference until this setup
-is fully validated in the water; they can be removed once confirmed.
+Nothing on the vehicle. `.devcontainer/` is gone. `sim_docker.sh` stays because the
+Gazebo simulation still runs in a container — see [SIMULATION.md](SIMULATION.md).

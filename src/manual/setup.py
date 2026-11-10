@@ -14,7 +14,7 @@ setup(
     zip_safe=True,
     maintainer="ros",
     maintainer_email="scotthickmann21@gmail.com",
-    description="TODO: Package description",
+    description="This package contains all nodes needed for manual control of the robot.",
     license="TODO: License declaration",
     extras_require={
         "test": ["pytest"],
@@ -23,7 +23,6 @@ setup(
         "console_scripts": [
             "keyboard = manual.nodes.keyboard:main",
             "joystick = manual.nodes.joystick:main",
-            "prequal = manual.nodes.prequal:main",
         ]
     },
 )

@@ -5,7 +5,7 @@
 # safe to re-run, and you MUST re-run it after any kernel/L4T update (the .ko
 # is built for one specific kernel version).
 #
-# Run from the host (NOT inside the devcontainer):
+# Run on the host, with the robosub conda env active:
 #     bash drivers/xsens_mt/install.sh
 # It will sudo for the privileged steps.
 #

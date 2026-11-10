@@ -19,9 +19,11 @@ The GUI auto-reconnects if this node restarts.
 
 import atexit
 import asyncio
+import glob
 import json
 import math
 import os
+import sys
 import signal
 import subprocess
 import threading
@@ -36,22 +38,24 @@ from sensor_msgs.msg import Imu
 from std_msgs.msg import Bool
 
 try:
-    import websockets
     from websockets.server import serve as ws_serve
 except ImportError:
-    import os, glob as _glob, sys as _sys
+    # Fall back to the active venv's site-packages: ros2 run uses the system
+    # interpreter, which does not see a venv unless we add it ourselves.
     _venv = os.environ.get("VIRTUAL_ENV")
     if _venv:
-        _sp = _glob.glob(f"{_venv}/lib/python*/site-packages")
+        _sp = glob.glob(f"{_venv}/lib/python*/site-packages")
         if _sp:
-            _sys.path.insert(0, _sp[0])
+            sys.path.insert(0, _sp[0])
     try:
-        import websockets
         from websockets.server import serve as ws_serve
     except ImportError:
-        raise SystemExit("websockets not found in system or active venv. Run: pip install websockets")
+        raise SystemExit(
+            "websockets not found in system or active venv. "
+            "Run: pip install websockets"
+        )
 
-# ── config ─────────────────────────────────────────────────────────────────
+# config
 WS_HOST = "0.0.0.0"
 WS_PORT = 9091
 
@@ -65,7 +69,7 @@ TOPIC_CMD_VEL  = "/cmd_vel"           # geometry_msgs/Twist  (publish)
 TOPIC_ESTOP    = "/estop"             # std_msgs/Bool        (publish)
 TOPIC_VELOCITY = "/velocity"
 
-# ── helpers ────────────────────────────────────────────────────────────────
+# helpers
 
 def quat_to_euler(qx, qy, qz, qw):
     """Return (roll, pitch, yaw) in degrees from a quaternion."""
@@ -88,7 +92,7 @@ def quat_to_euler(qx, qy, qz, qw):
     )
 
 
-# ── shared state (thread-safe via lock) ────────────────────────────────────
+# shared state (thread-safe via lock)
 
 _lock = threading.Lock()
 _state = {
@@ -182,7 +186,7 @@ def _get_state_snapshot():
         return dict(_state)
 
 
-# ── ROS 2 node ─────────────────────────────────────────────────────────────
+# ROS 2 node
 
 class HudBridgeNode(Node):
     def __init__(self):
@@ -202,7 +206,7 @@ class HudBridgeNode(Node):
             f"Publishing: {TOPIC_CMD_VEL}, {TOPIC_ESTOP}"
         )
 
-    # ── subscribers ──────────────────────────────────────────────────────
+    # subscribers
 
     def _cb_imu(self, msg: Imu):
         qx = msg.orientation.x
@@ -245,7 +249,7 @@ class HudBridgeNode(Node):
             vz=round(v.z, 3),
         )
 
-# ── WebSocket server ────────────────────────────────────────────────────────
+# WebSocket server
 
 async def _ws_handler(websocket):
     """One coroutine per connected client."""
@@ -264,7 +268,7 @@ async def _ws_handler(websocket):
 
             mtype = msg.get("type", "")
 
-            # ── joystick / manual cmd_vel ──────────────────────────────
+            # joystick / manual cmd_vel
             if mtype == "cmd_vel" and _cmd_pub is not None:
                 twist = Twist()
                 twist.linear.x  = float(msg.get("lx", 0.0))
@@ -275,25 +279,25 @@ async def _ws_handler(websocket):
                 twist.angular.z = float(msg.get("az", 0.0))
                 _cmd_pub.publish(twist)
 
-            # ── launch ───────────────────────────────────────────────
+            # launch
             elif mtype == "launch":
                 script = os.path.realpath(LAUNCH_SCRIPT)
                 print(f"[LAUNCH] running {script}")
                 _stream_script(script, "launch")
 
-            # ── start hardware ────────────────────────────────────────
+            # start hardware
             elif mtype == "start_hardware":
                 script = os.path.realpath(START_HARDWARE_SCRIPT)
                 print(f"[HARDWARE] running {script}")
                 _stream_script(script, "hardware")
 
-            # ── kill individual or all spawned processes ──────────────
+            # kill individual or all spawned processes
             elif mtype == "kill":
                 _kill_proc(msg.get("source", ""))
             elif mtype == "kill_all":
                 _kill_all_procs()
 
-            # ── e-stop ────────────────────────────────────────────────
+            # e-stop
             elif mtype == "estop" and _estop_pub is not None:
                 b = Bool()
                 b.data = bool(msg.get("active", True))
@@ -335,15 +339,15 @@ def _ws_thread():
     _ws_loop.run_until_complete(_ws_main())
 
 
-# ── entry point ─────────────────────────────────────────────────────────────
+# entry point
 
-def main():
+def main(args=None):
     # Start WebSocket server in a background thread
     t = threading.Thread(target=_ws_thread, daemon=True)
     t.start()
 
     # Start ROS 2
-    rclpy.init()
+    rclpy.init(args=args)
     node = HudBridgeNode()
     try:
         rclpy.spin(node)

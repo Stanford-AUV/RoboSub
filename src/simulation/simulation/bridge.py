@@ -9,13 +9,11 @@ from gz.transport13 import (
     AdvertiseMessageOptions,
 )
 import importlib
-import json
 import base64
-from typing import Callable, Awaitable, Dict
+from typing import Dict
 from dataclasses import dataclass
 import os
 import nats
-from nats.aio.msg import Msg
 import time
 
 DEFAULT_CONFIG_FILE = os.path.join(os.path.dirname(__file__), "gazebo_bridge.yaml")
@@ -141,8 +139,6 @@ class Bridge:
         publisher_topic.publisher.publish_raw(
             base64.b64decode(data), publisher_topic.type
         )
-        time_ = msg.headers["time"]
-        # print(" IN", time_, topic)
 
     async def run(self):
         self.nc = await nats.connect("nats://localhost:4222", no_echo=True)

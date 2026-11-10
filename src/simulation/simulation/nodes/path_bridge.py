@@ -1,4 +1,3 @@
-import os
 import sys
 
 # Add the correct lib/python path for custom msgs
@@ -9,8 +8,6 @@ sys.path.append(
 import rclpy
 from rclpy.node import Node
 from msgs.msg import GeneratedPath as ROSGeneratedPath
-from gz.msgs10.vector3d_pb2 import Vector3d
-from gz.msgs10.quaternion_pb2 import Quaternion
 from gz.msgs10.twist_pb2 import Twist
 from gz.msgs10.pose_pb2 import Pose
 from gz.transport13 import Node as GzNode
@@ -19,7 +16,6 @@ from gz.custom_msgs.GeneratedPath_pb2 import GeneratedPath as GZGeneratedPath
 
 class PathBridgeNode(Node):
     def __init__(self):
-        print(sys.path)
         super().__init__("path_bridge")
         # Subscribe to ROS path topic
         self.subscription = self.create_subscription(

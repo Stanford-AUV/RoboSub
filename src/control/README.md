@@ -21,11 +21,6 @@ Registered in [`setup.py`](setup.py) as `console_scripts` — run with `ros2 run
 | `pid_control` | `control/nodes/pid_control.py` | `pid_control` |
 | `thrust_generator` | `control/nodes/thrust_generator.py` | `thrust_generator` |
 | `controller` | `control/nodes/controller.py` | `controller` |
-| `path_tracker` | `control/nodes/path_tracker.py` | `path_tracker` |
-| `logger` | `control/nodes/logger.py` | `logger` |
-| `test_controller` | `control/nodes/test_controller.py` | `test_controller` |
-| `test_thrust` | `control/nodes/test_thrust.py` | `thrust_generator` |
-| `fake_localizer` | `control/nodes/fake_localizer.py` | `fake_localizer` |
 | `pid_visualizer` | `control/nodes/pid_visualizer.py` | `pid_visualizer` |
 
 ---
@@ -67,32 +62,13 @@ Builds the inverse thrust-allocation matrix (TAM) once at startup from
 **Parameter:** `velocity_only` (bool) — controls velocity only instead of pose + velocity.
 Superseded by `pid_control` in the flown stack.
 
-### `fake_localizer` — hardware-free pipeline test
-Integrates `F = ma` with drag so the full control loop can be exercised on a laptop.
-
-| Direction | Topic | Type |
-|---|---|---|
-| Subscribes | `/wrench` | `geometry_msgs/WrenchStamped` |
-| Publishes | `/odometry/filtered` | `nav_msgs/Odometry` (50 Hz) |
-
-Never run this alongside the EKF — both own `/odometry/filtered`.
-
 ### `pid_visualizer` — live PID plot
 Subscribes `/odometry/filtered`, `/desired/pose`, `/wrench` (all read-only) and plots
 current vs. desired pose, error magnitude and wrench output. Publishes nothing.
 Needs a `DISPLAY`.
 
-### Deprecated nodes
-Marked `DEPRECATED` in source; kept for bench work and reference.
+---|---|---|---|
 
-| Node | Subscribes | Publishes | Note |
-|---|---|---|---|
-| `path_tracker` | `/odometry/filtered` | `waypoint` (`Odometry`) | Also a **service client** of `get_waypoints` (`msgs/GetWaypoints`). No server node exists in this repo, so it blocks at startup. |
-| `test_controller` | — | `waypoint` (`Odometry`), 1 Hz | Walks a constant x setpoint; drives `controller` on the bench. |
-| `test_thrust` | — | `thrusts` (**relative**, not `/thrusts`) | Fixed `ThrustsStamped` at 100 Hz. |
-| `logger` | `odometry` (relative) | — | Writes matplotlib PNGs headlessly. |
-
-`control/nodes/execute_action.py` is a stub (no `super().__init__`, not an entry point).
 
 ---
 
@@ -102,7 +78,7 @@ Marked `DEPRECATED` in source; kept for bench work and reference.
 |---|---|
 | [`launch/control.py`](launch/control.py) (`ros2 launch control control.py`) | `pid_control` only |
 | [`launch/wrench_to_pwm.py`](launch/wrench_to_pwm.py) | `thrust_generator` + `hardware/thrusters` — bench wrench→PWM chain |
-| `main/launch/control.py` ([`../main`](../main/README.md)) | `pid_control` + `logger`; `thrust_generator` deliberately **not** started here (it comes from `hardware.py`) |
+| `main/launch/control.py` ([`../main`](../main/README.md)) | `pid_control`; `thrust_generator` deliberately **not** started here (it comes from `hardware.py`) |
 
 ---
 
@@ -114,7 +90,6 @@ Marked `DEPRECATED` in source; kept for bench work and reference.
 | `state.py` | `State` — pose/twist container, `from_odometry_msg()` |
 | `thrust_generator.py` | `thruster_configs_to_TAM_inv()`, `total_force_to_individual_thrusts()` |
 | `wrench.py` | numpy → `WrenchStamped` helper |
-| `path_*.py` | standalone spline/path experiments (not imported by nodes) |
 
 ---
 

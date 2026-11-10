@@ -248,7 +248,11 @@ def main(args=None):
 
         fig.tight_layout(pad=2.0)
 
-    ani = animation.FuncAnimation(fig, update, interval=200, cache_frame_data=False)
+    # Park it on the figure: matplotlib drops the animation if nothing holds
+    # a reference to it.
+    fig._ani = animation.FuncAnimation(
+        fig, update, interval=200, cache_frame_data=False
+    )
     plt.show()
 
     node.destroy_node()

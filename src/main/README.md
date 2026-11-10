@@ -21,9 +21,9 @@ There are no `console_scripts`. The entry points are the launch files:
 |---|---|
 | `ros2 launch main main.py` | the whole vehicle: `imu.py` + `hardware.py` + `localization.py` + `control.py` (`manual.py` is commented out, so **autonomy never starts teleop**) |
 | `ros2 launch main imu.py` | `xsens_mti_ros2_driver/xsens_mti_node` + `hardware/imu` |
-| `ros2 launch main hardware.py` | `hardware/dvl`, `control/thrust_generator`, `hardware/thrusters`, `hardware/arduino`, `hardware/daisy`, `hardware/depth`, and `hardware/sensors_plot` (argument `plot:=true` by default) |
+| `ros2 launch main hardware.py` | `hardware/dvl`, `control/thrust_generator`, `hardware/thrusters`, `hardware/arduino`, `hardware/depth`, and `hardware/sensors_plot` (argument `plot:=true` by default) |
 | `ros2 launch main localization.py` | `hardware/sensors`, `robot_localization/ekf_node` (params from [`../localization`](../localization/README.md)), and the `base_link→imu_frame` / `base_link→dvl_frame` static TFs |
-| `ros2 launch main control.py` | `control/pid_control` + `control/logger` |
+| `ros2 launch main control.py` | `control/pid_control` |
 | `ros2 launch main planning.py` | `planning/path_generator` + `planning/path_streamer`; argument `waypoints_path:=<file>.yaml` (default `segments.yaml`) |
 | `ros2 launch main perception.py` | `perception/object_world_localizer`, `perception/oak_node`, `perception/heading_corrector` (`object_localizer` commented out — needs `ultralytics`) |
 | `ros2 launch main manual.py` | `control/thrust_generator` + `manual/keyboard` |

@@ -16,7 +16,7 @@ class Thrusters(Node):
         self._gazebo_thrust_pubs = {}
         self.create_subscription(
             ThrustsStamped,
-            f"thrusts",
+            "thrusts",
             self.thruster_callback,
             10,
         )

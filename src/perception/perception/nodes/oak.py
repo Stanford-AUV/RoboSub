@@ -4,7 +4,7 @@ import rclpy
 from sensor_msgs.msg import Image
 import os
 import time
-from .generic_camera import GenericCameraNode
+from perception.nodes.generic_camera import GenericCameraNode
 
 resolution_map = {
     "400P": dai.MonoCameraProperties.SensorResolution.THE_400_P,

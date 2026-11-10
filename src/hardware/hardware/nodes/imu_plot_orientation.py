@@ -1,113 +1,71 @@
+"""Live 3D view of the vehicle's orientation as reported on /imu/orientation.
+
+Draws the base_link X/Y/Z axes inside a unit sphere.
+
+    ros2 run hardware imu_plot_orientation
+
+The quaternion is plotted as published: hardware/imu already remounts the
+sensor into base_link via R_sensor_to_base from sensors.yaml (identity since
+the mount rotation was burned into the MTi), so applying any further rotation
+here would disagree with what the EKF fuses.
+"""
+
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Imu
-import matplotlib
-import numpy as np
 from scipy.spatial.transform import Rotation as R
 
-matplotlib.use("TkAgg")  # Use a GUI backend
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from transforms3d.euler import euler2mat, quat2euler
+from hardware.utils import live_plot
 
-correction = np.array([0, 0, 0])
+AXES_LIM = (-1.2, 1.2)
 
 
-class SensorsPlot(Node):
+class ImuOrientationPlot(Node):
     def __init__(self):
-        super().__init__("sensors_plot")
-        self.imu_sub = self.create_subscription(Imu, "imu", self.imu_callback, 10)
-        self.imu_data_sub = self.create_subscription(
-            Imu, "/imu/pose_sync", self.imu_data_callback, 10
-        )
-        self.orientation = None
-        self.data_orientation = None
+        super().__init__("imu_orientation_plot")
 
-        plt.ion()
-        self.fig = plt.figure(figsize=(10, 10))
-        self.ax = self.fig.add_subplot(111, projection="3d")
-        self.ax.set_title("IMU Orientation")
-        self.ax.set_xlabel("X")
-        self.ax.set_ylabel("Y")
-        self.ax.set_zlabel("Z")
+        self.declare_parameter("topic", "/imu/orientation")
+        topic = self.get_parameter("topic").get_parameter_value().string_value
 
-        # Static sphere
-        u, v = np.mgrid[0 : 2 * np.pi : 20j, 0 : np.pi : 10j]
-        x = np.cos(u) * np.sin(v)
-        y = np.sin(u) * np.sin(v)
-        z = np.cos(v)
-        self.ax.plot_wireframe(x, y, z, color="gray", alpha=0.2)
+        self._rotation = None
+        self._arrows = None
 
-        self.ax.set_xlim([-1.2, 1.2])
-        self.ax.set_ylim([-1.2, 1.2])
-        self.ax.set_zlim([-1.2, 1.2])
+        fig = live_plot.make_figure(figsize=(10, 10))
+        self._fig = fig
+        self._ax = live_plot.make_3d_axes(fig, 111, "IMU orientation", AXES_LIM)
+        live_plot.draw_unit_sphere(self._ax)  # static reference, drawn once
+        live_plot.show(fig)
 
-        plt.show(block=False)
-        self.plot_timer = self.create_timer(0.1, self.update_plot)
+        self.create_subscription(Imu, topic, self._on_imu, 10)
+        self.create_timer(0.1, self._redraw)
+        self.get_logger().info(f"plotting orientation from {topic}")
 
-        self.quiver_X = None
-        self.quiver_Y = None
-        self.quiver_Z = None
+    def _on_imu(self, msg: Imu):
+        q = msg.orientation
+        self._rotation = R.from_quat([q.x, q.y, q.z, q.w])
 
-        self.quiver_data_X = None
-        self.quiver_data_Y = None
-        self.quiver_data_Z = None
-
-    def imu_callback(self, msg: Imu):
-        q = [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w]
-        self.orientation = R.from_quat(q)
-        # self.get_logger().info(f"{self.orientation}")
-
-    def imu_data_callback(self, msg: Imu):
-        q = [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w]
-        self.data_orientation = R.from_quat(q)
-
-
-    def update_plot(self):
-        if self.orientation is None:
+    def _redraw(self):
+        if self._rotation is None:
             return
-
-        # IMU orientation quaternion -> Rotation
-        R_imu_world = self.orientation.as_matrix()   # imu -> world
-
-        # Static TF: base_link -> imu_frame (roll, pitch, yaw)
-        R_base_imu = R.from_euler(
-            "xyz",
-            [1.57079632679, 0.0, -1.57079632679],
-            degrees=False
-        ).as_matrix()  # base -> imu
-
-        # Compose: base -> world
-        R_base_world = R_imu_world @ R_base_imu.T
-
-        # Remove old arrows
-        if self.quiver_X:
-            self.quiver_X.remove()
-            self.quiver_Y.remove()
-            self.quiver_Z.remove()
-
-        # Draw base axes in world coords
-        self.quiver_X = self.ax.quiver(0, 0, 0, *R_base_world[:, 0], color="r", label="X_base")
-        self.quiver_Y = self.ax.quiver(0, 0, 0, *R_base_world[:, 1], color="g", label="Y_base")
-        self.quiver_Z = self.ax.quiver(0, 0, 0, *R_base_world[:, 2], color="b", label="Z_base")
-
-        self.ax.legend()
-        self.fig.canvas.draw()
-        self.fig.canvas.flush_events()
-
+        self._arrows = live_plot.draw_frame_axes(
+            self._ax, self._rotation.as_matrix(), previous=self._arrows
+        )
+        self._ax.legend()
+        self._fig.canvas.draw()
+        self._fig.canvas.flush_events()
 
 
 def main(args=None):
     rclpy.init(args=args)
-    node = SensorsPlot()
+    node = ImuOrientationPlot()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        node.get_logger().info("KeyboardInterrupt, shutting down.")
+        pass
     finally:
         node.destroy_node()
         rclpy.shutdown()
-        plt.close("all")
+        live_plot.plt.close("all")
 
 
 if __name__ == "__main__":

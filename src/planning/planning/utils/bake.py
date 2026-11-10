@@ -211,7 +211,7 @@ def main(argv=None):
     """CLI: bake a waypoint YAML into <name>.baked.yaml next to the source.
 
     Run ON SHORE (no spline math happens in the water):
-        python -m planning.utils.bake src/planning/planning/segments.yaml
+        python -m planning.utils.bake src/planning/planning/paths/missions/segments.yaml
     """
     import sys
 

@@ -3,7 +3,6 @@ from launch.actions import DeclareLaunchArgument
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-import os
 
 # NOTE: the Xsens driver (xsens_mti_node) + the hardware `imu` node were moved
 # out to imu.py so launch_sub.sh can start them FIRST and let the Xsens onboard
@@ -38,10 +37,6 @@ def generate_launch_description():
                 package="hardware",
                 executable="arduino",
                 arguments=["--ros-args"],
-            ),
-            Node(
-                package="hardware",
-                executable="daisy",
             ),
             Node(
                 package="hardware",

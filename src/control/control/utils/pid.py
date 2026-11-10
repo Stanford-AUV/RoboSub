@@ -1,37 +1,7 @@
-"""
-PID Controller Module.
+"""Per-axis PID controller.
 
-This modules contains a simple implementation for a PID controller. The PID
-controller is a feedback controller that outputs a control signal to minimize
-the error between the current state and a reference state. The control signal
-is tunable through the kp, ki, and kd gains.
-
-This PID minimizes error for the position and velocity in one axis only. The
-intent of the controller design is to apply a signal
-
-Classes:
-    PID: Implements a PID controller with configurable gains and limits.
-
-Usage:
-    To use this module, create an instance of the PID class with the desired
-    gains and limits, and use the `update()` method to compute control outputs.
-
-Example:
-    pid = PID([1, 1, 1], [1, 1, 1], [1, 1, 1], 10, [1, 1, 1], [1, 1, 1])
-    control_signal = pid.update(state, reference, dt)
-
-Dependencies:
-    numpy
-    spatialmath-python
-    control.utils.state.State
-    control.utils.wrench.AbstractWrench
-    geometry_msgs.msg.WrenchStamped
-
-Author:
-    Ali Ahmad
-
-Version:
-    1.0.0
+Minimizes the error between a current and a reference State, one axis at a
+time, and emits the result as a body-frame wrench. Gains come from pid.yaml.
 """
 
 from control.utils.state import State

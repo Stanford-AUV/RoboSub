@@ -5,7 +5,7 @@
 Every node that talks to a physical device. Sensors come **in** (IMU, DVL, depth,
 hydrophones, Teensy telemetry) and actuator commands go **out** (thruster PWM, lights,
 torpedoes). Its outputs are exactly what the EKF in
-[`localization`](../localization/README.md) fuses; its input `/thrusts` comes from
+the EKF ([`main`](../main/README.md)) fuses; its input `/thrusts` comes from
 [`control`](../control/README.md).
 
 ---
@@ -22,9 +22,7 @@ Registered in [`setup.py`](setup.py) — run with `ros2 run hardware <name>`.
 | `depth` | `hardware/nodes/depth_sensor.py` | Pressure → depth pose |
 | `arduino` | `hardware/nodes/arduino.py` | Teensy serial bridge (PWM out, telemetry in) |
 | `thrusters` | `hardware/nodes/thrusters.py` | Thrust (N) → PWM (µs) |
-| `daisy` | `hardware/nodes/daisy.py` | DaisySeed hydrophone pinger detection |
 | `sensors` | `hardware/nodes/sensors.py` | Legacy DVL→EKF repackaging (unused) |
-| `ekf_watchdog` | `hardware/nodes/ekf_watchdog.py` | Detects and resets EKF divergence |
 | `sensors_plot` | `hardware/nodes/sensors_plot.py` | Full-stack dashboard (web + PNG) |
 | `imu_plot`, `imu_plot_orientation`, `dvl_plot`, `localization_plot` | `hardware/nodes/*_plot.py` | Single-signal matplotlib debug plots |
 | `localization_test` | `hardware/nodes/localization_test.py` | Synthetic sensor injection / odometry monitor |
@@ -119,29 +117,6 @@ writes speed-of-sound at startup from water temperature.
 | Subscribes | `/arduino/sensors` | `msgs/SensorsStamped` |
 | Publishes | `/position` | `geometry_msgs/PoseWithCovarianceStamped` (z only) |
 
-### `daisy` — pinger direction
-Host-side port of the DaisySeed `master_ros.cpp` firmware. Boards are found by USB serial
-under `/dev/serial/by-id`; both 96 kHz PCM streams are decoded, run through the exact
-firmware FFT detector (`hardware/pinger/`), and recorded to
-`data/audio_pingers/<session>/ch<C>.wav`.
-
-| Direction | Topic | Type |
-|---|---|---|
-| Subscribes | `/pinger/listening` | `std_msgs/String` (`"start"` / `"stop"` from planning's branch window) |
-| Publishes | `/pinger` | `std_msgs/String` — one `"front"`/`"back"` per decided ping |
-| Publishes | `/pinger/levels` | `msgs/PingerStamped` — ~20 Hz per-channel peak level + latched direction |
-
-### `ekf_watchdog`
-Resets `robot_localization` when it clearly diverges: any non-finite odometry value, or
-orientation disagreement with the IMU beyond a threshold sustained past a timeout. The
-reset keeps position and snaps orientation to the IMU.
-
-| Direction | Topic | Type |
-|---|---|---|
-| Subscribes | `/rotation` | `geometry_msgs/PoseWithCovarianceStamped` |
-| Subscribes | `/odometry/filtered` | `nav_msgs/Odometry` |
-| Publishes | `/set_pose` | `geometry_msgs/PoseWithCovarianceStamped` |
-
 ### `sensors` (legacy, not in the flown stack)
 Repackages `dvl` into sync topics; `ekf.yaml` no longer reads them.
 Subscribes `dvl` (`msgs/DVLData`); publishes `/dvl/twist_sync`
@@ -159,7 +134,7 @@ Headless matplotlib (`Agg`) plus a stdlib HTTP server on **port 8080**
 `/imu/orientation` (`Imu`) · `/velocity` (`TwistWithCovarianceStamped`) ·
 `/odometry/filtered` (`Odometry`) · `/accel/filtered` (`AccelWithCovarianceStamped`) ·
 `/desired/pose` (`Odometry`) · `/arduino/sensors` (`SensorsStamped`) ·
-`/pinger/levels` (`PingerStamped`) · `/mission/stage` (`String`)
+`/mission/stage` (`String`)
 
 ### Single-signal plots (all `TkAgg`, need a `DISPLAY`)
 
@@ -178,9 +153,8 @@ Headless matplotlib (`Agg`) plus a stdlib HTTP server on **port 8080**
 The vehicle launch files live in [`main`](../main/README.md), not here:
 
 - `main/launch/imu.py` — `xsens_mti_node` + `imu` (brought up first so the Xsens filter settles)
-- `main/launch/hardware.py` — `dvl`, `control/thrust_generator`, `thrusters`, `arduino`, `daisy`, `depth`, and `sensors_plot` (argument `plot:=true` by default)
+- `main/launch/hardware.py` — `dvl`, `control/thrust_generator`, `thrusters`, `arduino`, `depth`, and `sensors_plot` (argument `plot:=true` by default)
 
-`hardware/hardware/launch/test_imu.py` is a bench IMU-only launch (not installed).
 
 ---
 
@@ -197,9 +171,6 @@ source copy, then **rebuild**, or the old values stay in effect.
 ## Vendored libraries
 
 `hardware/utils/dvl_utils/` is Teledyne RD Instruments' Wayfinder SDK (unmodified).
-`hardware/pinger/` is a line-by-line port of the DaisySeed firmware's detection path —
-do not "clean it up": the point is bit-level parity with the firmware.
-
 ## Tests
 
 `colcon test --packages-select hardware`, or `./test.sh` from the workspace root.

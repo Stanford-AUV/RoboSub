@@ -4,7 +4,6 @@ from rclpy.node import Node
 from sensor_msgs.msg import Imu
 from nav_msgs.msg import Odometry
 from msgs.msg import DVLData, Float32Stamped  # Ensure this message type is available in your workspace
-import math
 
 # Hyperparameter: Set to True for testing mode (publishing sensor data and checking progress),
 # or False for monitoring mode (only listening to odometry).

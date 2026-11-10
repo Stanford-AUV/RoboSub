@@ -1,39 +1,7 @@
-"""
-State class to represent the state of a robot in 3D space.
+"""Robot state in 3D: position, velocity, orientation, angular velocity.
 
-This module defines the State class, which represents the state of a robot
-in terms of position, velocity, orientation, and angular velocity. It also
-provides a utility method to convert a ROS Odometry message into a State
-object.
-
-Classes:
-    State: Represents the state of a robot in 3D space.
-
-Usage:
-    To use this module, create an instance of the State class with the desired
-    state information, or use the `from_odometry_msg()` method to convert a
-    ROS Odometry message to a State object.
-
-Example:
-    state = State(
-        np.array([0, 0, 0]),
-        np.array([0, 0, 0]),
-        np.array([1, 0, 0, 0]),
-        np.array([0, 0, 0])
-    )
-    state = State.from_odometry_msg(odom_msg)
-    state =  State.from_generatedpath_msg(path_msg, index)
-
-Dependencies:
-    numpy
-    nav_msgs.msg.Odometry
-
-Author:
-    Ali Ahmad
-    Khaled Messai
-
-Version:
-    1.0.0
+Build one with State(...) or from a ROS message via from_odometry_msg() /
+from_generatedpath_msg().
 """
 
 from msgs.msg import GeneratedPath
@@ -44,23 +12,6 @@ import numpy as np
 
 import spatialmath as sm
 
-from dataclasses import dataclass
-
-
-@dataclass
-class Magnitude:
-    distance: float
-    speed: float
-    angle: float
-    angular_speed: float
-
-    def __gt__(self, other: "Magnitude"):
-        return (
-            self.distance > other.distance
-            and self.speed > other.speed
-            and self.angle > other.angle
-            and self.angular_speed > other.angular_speed
-        )
 
 
 class State:
@@ -116,19 +67,6 @@ class State:
             self.velocity - other.velocity,
             error_orientation,
             self.angular_velocity - other.angular_velocity,
-        )
-
-    def magnitude(self):
-        position_magnitude = np.linalg.norm(self.position)
-        velocity_magnitude = np.linalg.norm(self.velocity)
-        angle, _ = self.orientation.angvec()
-        angle_magnitude = np.linalg.norm(angle)
-        angular_velocity_magnitude = np.linalg.norm(self.angular_velocity)
-        return Magnitude(
-            distance=position_magnitude,
-            speed=velocity_magnitude,
-            angle=angle_magnitude,
-            angular_speed=angular_velocity_magnitude,
         )
 
     @staticmethod

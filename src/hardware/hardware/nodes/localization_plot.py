@@ -1,185 +1,93 @@
+"""Live EKF pose plot: 3D trajectory plus the six pose components vs time.
+
+    ros2 run hardware localization_plot
+"""
+
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
-import matplotlib
-
-matplotlib.use("TkAgg")  # Use a GUI backend
-import matplotlib.pyplot as plt
 from transforms3d.euler import quat2euler
 
-MIN = -5
-MAX = 6
+from hardware.utils import live_plot
+
+POS_LIM = (-5, 6)
+ANGLE_LIM = (-3.14, 3.14)
+SERIES = ("x", "y", "z", "roll", "pitch", "yaw")
 
 
 class LocalizationPlot(Node):
     def __init__(self):
         super().__init__("localization_plot")
 
-        # Create subscriber for odometry
-        self.odom_sub = self.create_subscription(
-            Odometry, "/odometry/filtered", self.odom_callback, 10
+        self.declare_parameter("update_period", 0.1)
+        self._period = (
+            self.get_parameter("update_period").get_parameter_value().double_value
         )
 
-        # Initialize plot
-        plt.ion()  # Enable interactive mode
-        self.fig = plt.figure(figsize=(15, 10))
+        # seconds=None: keep the whole run, otherwise the trajectory is a stub.
+        self._window = live_plot.Window(SERIES, seconds=None)
+        self._start = self.get_clock().now()
+        self._last_draw = self._start
 
-        # Create subplots
-        self.ax_3d = self.fig.add_subplot(241, projection="3d")
-        self.ax_x = self.fig.add_subplot(242)
-        self.ax_y = self.fig.add_subplot(243)
-        self.ax_z = self.fig.add_subplot(244)
-        self.ax_roll = self.fig.add_subplot(245)
-        self.ax_pitch = self.fig.add_subplot(246)
-        self.ax_yaw = self.fig.add_subplot(247)
+        fig = live_plot.make_figure()
+        self._fig = fig
+        self._ax_3d = live_plot.make_3d_axes(
+            fig, 241, "Robot position trajectory", POS_LIM
+        )
+        self._panels = [
+            (fig.add_subplot(242), "x", "X position (m)", "r-", POS_LIM),
+            (fig.add_subplot(243), "y", "Y position (m)", "g-", POS_LIM),
+            (fig.add_subplot(244), "z", "Z position (m)", "b-", POS_LIM),
+            (fig.add_subplot(245), "roll", "Roll (rad)", "m-", ANGLE_LIM),
+            (fig.add_subplot(246), "pitch", "Pitch (rad)", "c-", ANGLE_LIM),
+            (fig.add_subplot(247), "yaw", "Yaw (rad)", "y-", ANGLE_LIM),
+        ]
+        live_plot.show(fig)
 
-        # Set titles
-        self.ax_3d.set_title("Robot Position Trajectory")
-        self.ax_x.set_title("X Position vs Time")
-        self.ax_y.set_title("Y Position vs Time")
-        self.ax_z.set_title("Z Position vs Time")
-        self.ax_roll.set_title("Roll Angle vs Time")
-        self.ax_pitch.set_title("Pitch Angle vs Time")
-        self.ax_yaw.set_title("Yaw Angle vs Time")
+        self.create_subscription(
+            Odometry, "/odometry/filtered", self._on_odom, 10
+        )
 
-        # Initialize position and time history
-        self.x_history = []
-        self.y_history = []
-        self.z_history = []
-        self.time_history = []
-        self.start_time = self.get_clock().now()
-        self.roll_history = []
-        self.pitch_history = []
-        self.yaw_history = []
+    def _on_odom(self, msg: Odometry):
+        p = msg.pose.pose.position
+        q = msg.pose.pose.orientation
+        roll, pitch, yaw = quat2euler([q.w, q.x, q.y, q.z])
+        now = self.get_clock().now()
+        elapsed = (now - self._start).nanoseconds * 1e-9
+        self._window.append(elapsed, (p.x, p.y, p.z, roll, pitch, yaw))
 
-        # Plot update rate (in seconds)
-        self.update_period = 0.1
-        self.last_plot_time = self.get_clock().now()
+        if (now - self._last_draw).nanoseconds * 1e-9 >= self._period:
+            self._redraw()
+            self._last_draw = now
 
-    def odom_callback(self, msg):
-        # Extract position from odometry message
-        x = msg.pose.pose.position.x
-        y = msg.pose.pose.position.y
-        z = msg.pose.pose.position.z
-
-        # Extract orientation quaternion and convert to euler angles
-        qx = msg.pose.pose.orientation.x
-        qy = msg.pose.pose.orientation.y
-        qz = msg.pose.pose.orientation.z
-        qw = msg.pose.pose.orientation.w
-
-        # Convert quaternion to euler angles (roll, pitch, yaw)
-        roll, pitch, yaw = quat2euler([qw, qx, qy, qz])
-
-        # Calculate time since start
-        current_time = self.get_clock().now()
-        time_sec = (current_time - self.start_time).nanoseconds * 1e-9
-
-        # Append to history
-        self.x_history.append(x)
-        self.y_history.append(y)
-        self.z_history.append(z)
-        self.time_history.append(time_sec)
-        self.roll_history.append(roll)
-        self.pitch_history.append(pitch)
-        self.yaw_history.append(yaw)
-
-        # Update plot periodically
-        if (
-            current_time - self.last_plot_time
-        ).nanoseconds * 1e-9 >= self.update_period:
-            self.update_plot()
-            self.last_plot_time = current_time
-
-    def update_plot(self):
-        # Clear all plots
-        self.ax_3d.cla()
-        self.ax_x.cla()
-        self.ax_y.cla()
-        self.ax_z.cla()
-        self.ax_roll.cla()
-        self.ax_pitch.cla()
-        self.ax_yaw.cla()
-
-        # Update 3D trajectory plot
-        self.ax_3d.plot(self.x_history, self.y_history, self.z_history, "b-")
-        if self.x_history:
-            self.ax_3d.scatter(
-                self.x_history[-1],
-                self.y_history[-1],
-                self.z_history[-1],
-                color="red",
-                marker="o",
-            )
-        self.ax_3d.set_xlabel("X")
-        self.ax_3d.set_ylabel("Y")
-        self.ax_3d.set_zlabel("Z")
-        self.ax_3d.set_title("Robot Position Trajectory")
-        # Set fixed limits for 3D plot
-        self.ax_3d.set_xlim([MIN, MAX])
-        self.ax_3d.set_ylim([MIN, MAX])
-        self.ax_3d.set_zlim([MIN, MAX])
-
-        # Update individual position plots
-        self.ax_x.plot(self.time_history, self.x_history, "r-")
-        self.ax_x.set_xlabel("Time (s)")
-        self.ax_x.set_ylabel("X Position")
-        self.ax_x.set_ylim([MIN, MAX])
-        self.ax_x.grid(True)
-
-        self.ax_y.plot(self.time_history, self.y_history, "g-")
-        self.ax_y.set_xlabel("Time (s)")
-        self.ax_y.set_ylabel("Y Position")
-        self.ax_y.set_ylim([MIN, MAX])
-        self.ax_y.grid(True)
-
-        self.ax_z.plot(self.time_history, self.z_history, "b-")
-        self.ax_z.set_xlabel("Time (s)")
-        self.ax_z.set_ylabel("Z Position")
-        self.ax_z.set_ylim([MIN, MAX])
-        self.ax_z.grid(True)
-
-        # Update orientation plots
-        self.ax_roll.plot(self.time_history, self.roll_history, "m-")
-        self.ax_roll.set_xlabel("Time (s)")
-        self.ax_roll.set_ylabel("Roll (rad)")
-        self.ax_roll.set_ylim([-3.14, 3.14])
-        self.ax_roll.grid(True)
-
-        self.ax_pitch.plot(self.time_history, self.pitch_history, "c-")
-        self.ax_pitch.set_xlabel("Time (s)")
-        self.ax_pitch.set_ylabel("Pitch (rad)")
-        self.ax_pitch.set_ylim([-3.14, 3.14])
-        self.ax_pitch.grid(True)
-
-        self.ax_yaw.plot(self.time_history, self.yaw_history, "y-")
-        self.ax_yaw.set_xlabel("Time (s)")
-        self.ax_yaw.set_ylabel("Yaw (rad)")
-        self.ax_yaw.set_ylim([-3.14, 3.14])
-        self.ax_yaw.grid(True)
-
-        # Adjust layout and update display
-        plt.tight_layout()
-        plt.draw()
-        plt.pause(0.001)
+    def _redraw(self):
+        w = self._window
+        live_plot.draw_trajectory(
+            self._ax_3d,
+            w.column("x"),
+            w.column("y"),
+            w.column("z"),
+            "Robot position trajectory",
+            POS_LIM,
+        )
+        for ax, label, ylabel, color, ylim in self._panels:
+            live_plot.draw_panel(ax, w.time, w.column(label), ylabel, color, ylim)
+        live_plot.plt.tight_layout()
+        self._fig.canvas.draw()
+        self._fig.canvas.flush_events()
 
 
 def main(args=None):
     rclpy.init(args=args)
     node = LocalizationPlot()
-
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
     finally:
-        # Clean up
         node.destroy_node()
-        try:
-            rclpy.shutdown()
-        except Exception:
-            pass
-        plt.close("all")
+        rclpy.shutdown()
+        live_plot.plt.close("all")
 
 
 if __name__ == "__main__":

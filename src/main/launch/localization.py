@@ -1,13 +1,11 @@
 import os
+
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
-# Resolve ekf.yaml relative to this launch file's real location (works on host +
-# in --symlink-install; the old hardcoded /workspaces/RoboSub path was Docker-only).
-ekf_params = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)),
-    "..", "..", "localization", "localization", "nodes", "ekf.yaml",
-)
+# Owned by the localization package, resolved through its share dir.
+ekf_params = os.path.join(get_package_share_directory("localization"), "ekf.yaml")
 
 
 
