@@ -7,8 +7,8 @@
     # Forward cam mount in base_link: translation (m) and RPY (deg).
     # MEASURE AND SET before the water test; identity = camera at base
     # origin looking straight forward.
-    cam_translation: [0.0, 0.0, 0.0]
-    cam_rpy_deg: [0.0, 0.0, 0.0]
+    cam_translation: [-.0813, 0.0, 0.0]
+    cam_rpy_deg: [0.0, 90, 0.0]
     filter_window: 5
     filter_alpha: 0.3
     max_jump_m: 3.0

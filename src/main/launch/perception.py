@@ -14,15 +14,14 @@ object_tracking_params = os.path.join(
 def generate_launch_description():
     return LaunchDescription(
         [
-            # object_localizer disabled: ultralytics (YOLO) is not installed
-            # in the robosub env, the node dies on import. Re-enable once
-            # detection is back on the sub.
-            # Node(
-            #     package="perception",
-            #     executable="object_localizer",
-            #     output="screen",
-            #     parameters=[],
-            # ),
+            # Detection + deprojection: YOLO on camera frames -> detections3d.
+            # Needs ultralytics in the robosub env.
+            Node(
+                package="perception",
+                executable="object_localizer",
+                output="screen",
+                parameters=[],
+            ),
             # Turns detections3d (camera frame) into a filtered odom-frame
             # goal on /object/<id>/world_position. Harmlessly idle until
             # object_localizer is re-enabled (needs ultralytics installed).
