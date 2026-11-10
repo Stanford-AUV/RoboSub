@@ -41,6 +41,24 @@
                 <update_rate>50</update_rate>
                 <topic>altimeter</topic>
             </sensor>
+            <sensor name="oak_0_rgb" type="camera">
+                <pose>0 0 -0.13 0 1.5708 0</pose>
+                <always_on>1</always_on>
+                <update_rate>20</update_rate>
+                <topic>oak_0/rgb</topic>
+                <camera>
+                    <horizontal_fov>1.05</horizontal_fov>
+                    <image>
+                        <width>640</width>
+                        <height>480</height>
+                        <format>R8G8B8</format>
+                    </image>
+                    <clip>
+                        <near>0.05</near>
+                        <far>30</far>
+                    </clip>
+                </camera>
+            </sensor>
             <!-- Note: DVL deleted as it is not supported on Mac -->
         </link>
 

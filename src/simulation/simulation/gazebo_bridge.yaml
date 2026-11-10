@@ -71,3 +71,9 @@
   ros_type_name: "ros_gz_interfaces/msg/Altimeter"
   gz_type_name: "gz.msgs.Altimeter"
   direction: GZ_TO_ROS
+
+- ros_topic_name: "gz/oak_0/rgb"
+  gz_topic_name: "/oak_0/rgb"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
