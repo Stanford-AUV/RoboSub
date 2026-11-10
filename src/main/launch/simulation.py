@@ -35,5 +35,9 @@ def generate_launch_description():
                 package="simulation",
                 executable="arduino",
             ),
+            Node(
+                package="simulation",
+                executable="oak",
+            ),
         ]
     )

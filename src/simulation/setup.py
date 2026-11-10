@@ -29,7 +29,8 @@ setup(
             "ground_truth = simulation.nodes.ground_truth:main",
             "path_bridge = simulation.nodes.path_bridge:main",
             "imu = simulation.nodes.imu:main",
-            "arduino = simulation.nodes.arduino:main"
+            "arduino = simulation.nodes.arduino:main",
+            "oak = simulation.nodes.oak:main"
         ],
     },
 )
