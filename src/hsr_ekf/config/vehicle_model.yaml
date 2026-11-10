@@ -1,0 +1,31 @@
+# Vehicle model for hsr_ekf.dynamics (read by load_params).
+#
+# EVERY VALUE BELOW IS A PLACEHOLDER until the coefficients are fitted from pool data.
+# SI units (N, m, kg, s), body frame base_link (x forward, y left, z up).
+# Fossen sign convention: added-mass and drag coefficients are negative.
+
+# Simulator model: src/simulation/simulation/models/auv/model.urdf
+mass: 19.27            # kg
+inertia:               # kg m^2, about base_link
+  - [0.4718, 0.0, 0.0]
+  - [0.0, 0.6063, 0.0]
+  - [0.0, 0.0, 0.7638]
+
+# Not measured. base_link is assumed to be at the centre of gravity (an open question),
+# and the centre of buoyancy must sit above it for the vehicle to self-right in roll and
+# pitch; both are to be fitted.
+r_g: [0.0, 0.0, 0.0]   # m
+r_b: [0.0, 0.0, 0.0]   # m
+
+# weight = mass * 9.81. Buoyancy assumes the measured hold thrust of about 0.54 wrench
+# units is in kgf (thrust limits match the T200 datasheet in kgf): B - W = 0.54 * 9.81 N.
+# If /wrench turns out to be in newtons, B - W is 0.54 N instead.
+weight: 189.04         # N
+buoyancy: 194.34       # N
+
+# Simulator guesses: src/simulation/simulation/models/world.urdf (hydrodynamics plugin).
+# Its added mass assumes a displaced mass of 24.2 kg; the measured buoyancy suggests
+# about 19.3-19.8 kg, so these are probably about 20% high.
+added_mass: [-2.4, -24.2, -24.2, -0.22, -0.52, -0.49]      # X_udot Y_vdot Z_wdot K_pdot M_qdot N_rdot
+linear_drag: [-0.17, -0.33, -0.29, -0.02, -0.05, -0.05]    # X_u Y_v Z_w K_p M_q N_r
+quadratic_drag: [-30.3, -60.5, -53.2, -0.03, -0.16, -0.02] # X_u|u| ... N_r|r|
