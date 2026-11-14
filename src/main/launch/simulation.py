@@ -27,9 +27,11 @@ def generate_launch_description():
                 executable="path_bridge",
                 arguments=["--ros-args", "--log-level", "info"],
             ),
+            DeclareLaunchArgument("yaw_drift_deg_per_s", default_value="-0.07"),
             Node(
                 package="simulation",
                 executable="imu",
+                parameters=[{"yaw_drift_deg_per_s": ParameterValue(LaunchConfiguration("yaw_drift_deg_per_s"), value_type=float)}],
             ),
             Node(
                 package="simulation",
@@ -39,5 +41,10 @@ def generate_launch_description():
                 package="simulation",
                 executable="oak",
             ),
+            Node(
+                package="simulation",
+                executable="gz_dvl_bridge",
+            ),
+            
         ]
     )
