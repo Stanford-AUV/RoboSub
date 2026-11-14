@@ -45,6 +45,10 @@ def generate_launch_description():
                 package="simulation",
                 executable="gz_dvl_bridge",
             ),
+            Node(
+                package="simulation",
+                executable="dvl",
+            ),
             
         ]
     )

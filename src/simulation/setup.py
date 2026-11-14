@@ -31,7 +31,8 @@ setup(
             "imu = simulation.nodes.imu:main",
             "arduino = simulation.nodes.arduino:main",
             "oak = simulation.nodes.oak:main",
-            "gz_dvl_bridge = simulation.nodes.gz_dvl_bridge:main"
+            "gz_dvl_bridge = simulation.nodes.gz_dvl_bridge:main",
+            "dvl = simulation.nodes.dvl:main"
         ],
     },
 )
