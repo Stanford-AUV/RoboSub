@@ -5,6 +5,7 @@ from geometry_msgs.msg import TwistWithCovarianceStamped
 from msgs.msg import DVLData
 
 class SimDVL(Node):
+    """Stands in for hardware's dvl_ros_bridge in sim: gz/dvl (msgs/DVLData) -> /velocity (TwistWithCovarianceStamped, base_link). Nothing is published with fewer than 3 beams locked."""
     def __init__(self):
         super().__init__("sim_dvl")
 
