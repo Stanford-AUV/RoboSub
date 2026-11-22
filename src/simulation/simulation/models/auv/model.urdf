@@ -9,7 +9,9 @@
                 <!-- PLACEHOLDER: centre of mass 2 cm below the hull centre (where buoyancy acts) so the sub rights itself
                      like the real one. Replace with the CG/CB from CAD or the mechanical team. -->
                 <pose>0 0 -0.02 0 0 0</pose>
-                <mass>19.27</mass>
+                <!-- PLACEHOLDER: lowered from 19.27 so net buoyancy ≈ 0.6 kgf, the real sub's measured buoyancy
+                (pid.yaml force_feedforward comment, bag run_20260712_132138). Replace with CAD + measured buoyancy. -->
+                <mass>18.80</mass>
                 <inertia>
                     <ixx>0.4718</ixx>
                     <ixy>0.0000</ixy>
