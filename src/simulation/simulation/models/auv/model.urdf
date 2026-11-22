@@ -11,7 +11,7 @@
                 <pose>0 0 -0.02 0 0 0</pose>
                 <!-- PLACEHOLDER: lowered from 19.27 so net buoyancy ≈ 0.6 kgf, the real sub's measured buoyancy
                 (pid.yaml force_feedforward comment, bag run_20260712_132138). Replace with CAD + measured buoyancy. -->
-                <mass>18.80</mass>
+                <mass>26.40</mass>
                 <inertia>
                     <ixx>0.4718</ixx>
                     <ixy>0.0000</ixy>
@@ -114,6 +114,16 @@
         <!-- Thruster Links -->
         <link name='box_0'>
             <pose>0.2025 0.1825 0.0925 3.1415926536 -1.5707963268 -0.7853981634</pose>            <!-- Position adjustment needed -->
+            <!-- PLACEHOLDER: 26.40 kg hull + 8 × 0.05 kg props = 26.80 kg total, so net buoyancy ≈ 0.6 kgf (the real sub's,
+            pid.yaml force_feedforward comment, bag run_20260712_132138). Replace with CAD + measured buoyancy. -->
+            <inertial>
+                <mass>0.05</mass>
+                <inertia>
+                    <ixx>0.0002</ixx><ixy>0</ixy><ixz>0</ixz>
+                    <iyy>0.0002</iyy><iyz>0</iyz>
+                    <izz>0.0002</izz>
+                </inertia>
+            </inertial>
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -148,6 +158,14 @@
 
         <link name='box_1'>
             <pose>0.2025 -0.1825 0.0925 3.1415926536 -1.5707963268 0.7853981634</pose>            <!-- Position adjustment needed -->
+            <inertial>
+                <mass>0.05</mass>
+                <inertia>
+                    <ixx>0.0002</ixx><ixy>0</ixy><ixz>0</ixz>
+                    <iyy>0.0002</iyy><iyz>0</iyz>
+                    <izz>0.0002</izz>
+                </inertia>
+            </inertial>
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -182,6 +200,14 @@
 
         <link name='box_2'>
             <pose>-0.2025 0.1825 0.0925 0 -1.5707963268 0.7853981634</pose>            <!-- Position adjustment needed -->
+            <inertial>
+                <mass>0.05</mass>
+                <inertia>
+                    <ixx>0.0002</ixx><ixy>0</ixy><ixz>0</ixz>
+                    <iyy>0.0002</iyy><iyz>0</iyz>
+                    <izz>0.0002</izz>
+                </inertia>
+            </inertial>
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -216,6 +242,14 @@
 
         <link name='box_3'>
             <pose>-0.2025 -0.1825 0.0925 0 -1.5707963268 -0.7853981634</pose>            <!-- Position adjustment needed -->
+            <inertial>
+                <mass>0.05</mass>
+                <inertia>
+                    <ixx>0.0002</ixx><ixy>0</ixy><ixz>0</ixz>
+                    <iyy>0.0002</iyy><iyz>0</iyz>
+                    <izz>0.0002</izz>
+                </inertia>
+            </inertial>
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -250,6 +284,14 @@
 
         <link name='box_4'>
             <pose>0.115 0.165 -0.0925 3.1415926536 0 0</pose>            <!-- Position adjustment needed -->
+            <inertial>
+                <mass>0.05</mass>
+                <inertia>
+                    <ixx>0.0002</ixx><ixy>0</ixy><ixz>0</ixz>
+                    <iyy>0.0002</iyy><iyz>0</iyz>
+                    <izz>0.0002</izz>
+                </inertia>
+            </inertial>
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -284,6 +326,14 @@
 
         <link name='box_5'>
             <pose>0.115 -0.165 -0.0925 3.1415926536 0 0</pose>            <!-- Position adjustment needed -->
+            <inertial>
+                <mass>0.05</mass>
+                <inertia>
+                    <ixx>0.0002</ixx><ixy>0</ixy><ixz>0</ixz>
+                    <iyy>0.0002</iyy><iyz>0</iyz>
+                    <izz>0.0002</izz>
+                </inertia>
+            </inertial>
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -318,6 +368,14 @@
 
         <link name="box_6">
             <pose>-0.115 +0.165 -0.0925 0 0 0</pose>
+            <inertial>
+                <mass>0.05</mass>
+                <inertia>
+                    <ixx>0.0002</ixx><ixy>0</ixy><ixz>0</ixz>
+                    <iyy>0.0002</iyy><iyz>0</iyz>
+                    <izz>0.0002</izz>
+                </inertia>
+            </inertial>
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -352,6 +410,14 @@
 
         <link name='box_7'>
             <pose>-0.115 -0.165 -0.0925 3.1415926536 0 0</pose>            <!-- Position adjustment needed -->
+            <inertial>
+                <mass>0.05</mass>
+                <inertia>
+                    <ixx>0.0002</ixx><ixy>0</ixy><ixz>0</ixz>
+                    <iyy>0.0002</iyy><iyz>0</iyz>
+                    <izz>0.0002</izz>
+                </inertia>
+            </inertial>
             <visual name="visual_side_1">
                 <geometry>
                     <box>
