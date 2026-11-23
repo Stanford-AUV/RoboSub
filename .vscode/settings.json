@@ -1,6 +1,8 @@
 {
   "editor.tabSize": 4,
-  "editor.rulers": [100],
+  "editor.rulers": [
+    100
+  ],
   "editor.formatOnSave": true,
   "files.associations": {
     "*.repos": "yaml",
@@ -81,9 +83,11 @@
     ".devcontainer/devcontainer.json"
   ],
   "ament-task-provider.envSetup": "source /opt/ros/jazzy/setup.bash",
-  "black-formatter.interpreter": ["/home/ros/env/bin/python"],
+  "black-formatter.interpreter": [
+    "/home/ros/env/bin/python"
+  ],
   "python.defaultInterpreterPath": "/home/ros/env/bin/python",
   "autoDocstring.docstringFormat": "numpy",
-  "cmake.sourceDirectory": "/workspaces/RoboSub2/src/simulation/simulation/custom_gz_plugins",
+  "cmake.sourceDirectory": "/Users/vizorcloud/RoboSub/src/main",
   "remote.autoForwardPorts": false
 }

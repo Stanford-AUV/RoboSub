@@ -58,7 +58,7 @@ def _write(tmp_path, text):
 def test_bake_spline_only_splits_legs_at_pause(tmp_path):
     doc = bake(_write(str(tmp_path), SPLINE_ONLY))
     legs = [i for i in doc["items"] if i["type"] == "leg"]
-    assert len(legs) == 2
+    assert len(legs) == 3
     assert legs[0]["pause_after"] == 2.0
     assert legs[1]["pause_after"] == 0.0
     # 100 samples of 7 (pose) and 6 (twist)
