@@ -5,12 +5,14 @@
   ros2 launch src/main/launch/sim_stack.py control:=false planning:=false  # manual /wrench tests
 """
 import os
+import tempfile
+import yaml
 
 from launch import LaunchDescription
 from launch.actions import (DeclareLaunchArgument, ExecuteProcess, GroupAction,
                             IncludeLaunchDescription, RegisterEventHandler,
                             SetEnvironmentVariable, TimerAction)
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
@@ -39,6 +41,20 @@ def check_build_is_fresh():
             if f.endswith(".py") and os.path.getmtime(path) > built:
                 raise RuntimeError(f"{path} is newer than the last build; run colcon build first")
 
+def bridge_config_without_cameras():
+    """gazebo_bridge.yaml minus the oak_0 camera topics, written to a temp file.
+
+    Gazebo only renders a camera when something subscribes to it, so leaving the
+    cameras unbridged skips their CPU rendering entirely (about half of Gazebo's
+    speed in the container, Nov 23). The DVL and IMU are unaffected.
+    """
+    with open(os.path.join(SIM, "gazebo_bridge.yaml")) as f:
+        entries = yaml.safe_load(f)
+    kept = [e for e in entries if not e["gz_topic_name"].startswith("/oak_0/")]
+    path = os.path.join(tempfile.gettempdir(), "gazebo_bridge_nocam.yaml")
+    with open(path, "w") as f:
+        yaml.safe_dump(kept, f)
+    return path
 
 def generate_launch_description():
     check_build_is_fresh()
@@ -51,6 +67,7 @@ def generate_launch_description():
         DeclareLaunchArgument("mission", default_value="prequal.yaml"),
         DeclareLaunchArgument("control", default_value="true"),
         DeclareLaunchArgument("planning", default_value="true"),
+        DeclareLaunchArgument("cameras", default_value="true"),
 
         # Same as the sub: non-blocking publishing.
         SetEnvironmentVariable("FASTRTPS_DEFAULT_PROFILES_FILE",
@@ -62,7 +79,11 @@ def generate_launch_description():
         ExecuteProcess(cmd=["gz", "sim", "-s", "-r", "--headless-rendering",
                             os.path.join(SIM, "models", "world.urdf")], output="screen"),
         Node(package="ros_gz_bridge", executable="parameter_bridge",
-             parameters=[{"config_file": os.path.join(SIM, "gazebo_bridge.yaml")}]),
+             parameters=[{"config_file": os.path.join(SIM, "gazebo_bridge.yaml")}],
+             condition=IfCondition(LaunchConfiguration("cameras"))),
+        Node(package="ros_gz_bridge", executable="parameter_bridge",
+             parameters=[{"config_file": bridge_config_without_cameras()}],
+             condition=UnlessCondition(LaunchConfiguration("cameras"))),
 
         # 2. After Gazebo is up: the sim stand-ins, the real processing nodes, the unchanged stack.
         TimerAction(period=3.0, actions=[
@@ -80,7 +101,8 @@ def generate_launch_description():
             RegisterEventHandler(OnProcessExit(target_action=bake, on_exit=[
                 TimerAction(period=8.0, actions=[
                     include("planning.py",
-                            launch_arguments={"waypoints_path": mission_file}.items()),
+                        launch_arguments={"waypoints_path": mission_file,
+                            "path_plot": "false"}.items()),
                 ]),
             ])),
         ]),
