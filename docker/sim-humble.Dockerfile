@@ -16,6 +16,13 @@
 #
 # Only src/ and requirements.txt are sent to the build (see sim-humble.Dockerfile.dockerignore).
 
+# Stage "pkgxml": keep only the package.xml files from src/, in their folders.
+# rosdep (step 3 below) reads nothing else, so an ordinary code change no longer
+# reruns step 3; only a package.xml edit (a dependency change) does.
+FROM ros:humble AS pkgxml
+COPY src /src
+RUN mkdir /out && cd / && find src -name package.xml -exec cp --parents {} /out \;
+
 FROM ros:humble
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -60,7 +67,7 @@ RUN curl -fsSL "https://github.com/nats-io/nats-server/releases/download/v${NATS
 #    a newer one gets pulled in by the requirements, needs a newer `packaging` than Ubuntu's,
 #    and makes every Python package build fail ("unexpected keyword argument
 #    'strip_trailing_zero'").
-COPY src /tmp/deps/src
+COPY --from=pkgxml /out/src /tmp/deps/src
 COPY requirements.txt /tmp/deps/requirements.txt
 RUN apt-get update && rosdep update --rosdistro humble \
  && rosdep install -r --from-paths /tmp/deps/src --ignore-src -y --rosdistro humble \
