@@ -586,7 +586,9 @@
             <publish_collision_pose>false</publish_collision_pose>
             <publish_sensor_pose>false</publish_sensor_pose>
             <publish_nested_model_pose>true</publish_nested_model_pose>
-            <update_frequency>1000</update_frequency>
+            <!-- 100 Hz: the controller runs at 60 Hz, and ground_truth.py differentiates
+            consecutive poses for velocity, so 1000 Hz only added CPU load and noise. -->
+            <update_frequency>100</update_frequency>
         </plugin>
     </model>
 </sdf>
