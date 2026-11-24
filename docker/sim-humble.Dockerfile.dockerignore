@@ -1,0 +1,5 @@
+# Build context for docker/sim-humble.Dockerfile: send only what the image copies.
+*
+!src
+!requirements.txt
+!docker/sim-constraints.txt

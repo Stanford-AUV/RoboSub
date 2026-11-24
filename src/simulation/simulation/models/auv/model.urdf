@@ -6,7 +6,12 @@
         <link name='base_link'>
             <pose>0 0 0 0 0 0</pose>
             <inertial>
-                <mass>19.27</mass>
+                <!-- PLACEHOLDER: centre of mass 2 cm below the hull centre (where buoyancy acts) so the sub rights itself
+                     like the real one. Replace with the CG/CB from CAD or the mechanical team. -->
+                <pose>0 0 -0.02 0 0 0</pose>
+                <!-- PLACEHOLDER: lowered from 19.27 so net buoyancy ≈ 0.6 kgf, the real sub's measured buoyancy
+                (pid.yaml force_feedforward comment, bag run_20260712_132138). Replace with CAD + measured buoyancy. -->
+                <mass>26.40</mass>
                 <inertia>
                     <ixx>0.4718</ixx>
                     <ixy>0.0000</ixy>
@@ -30,24 +35,95 @@
                     </box>
                 </geometry>
             </collision>
-            <!-- <sensor name="imu_sensor" type="imu">
+            <sensor name="imu_sensor" type="imu">
                 <always_on>1</always_on>
-                <update_rate>1</update_rate>
+                <update_rate>400</update_rate>
                 <visualize>true</visualize>
                 <topic>imu</topic>
             </sensor>
-            <sensor name="depth_sensor" type="altimeter">
+            <sensor name="altimeter" type="altimeter">
                 <always_on>1</always_on>
-                <update_rate>1</update_rate>
-                <visualize>true</visualize>
-                <topic>depth</topic>
-            </sensor> -->
-            <!-- Note: DVL deleted as it is not supported on Mac -->
+                <update_rate>50</update_rate>
+                <topic>altimeter</topic>
+            </sensor>
+            <sensor name="oak_0_rgb" type="camera">
+                <pose>0 0 -0.13 0 1.5708 0</pose>
+                <always_on>1</always_on>
+                <update_rate>20</update_rate>
+                <topic>oak_0/rgb</topic>
+                <camera>
+                    <horizontal_fov>1.05</horizontal_fov>
+                    <image>
+                        <width>640</width>
+                        <height>480</height>
+                        <format>R8G8B8</format>
+                    </image>
+                    <clip>
+                        <near>0.05</near>
+                        <far>30</far>
+                    </clip>
+                </camera>
+            </sensor>
+            <sensor name="oak_0_depth" type="depth_camera">
+                <pose>0 0 -0.13 0 1.5708 0</pose>
+                <always_on>1</always_on>
+                <update_rate>20</update_rate>
+                <topic>oak_0/depth</topic>
+                <camera>
+                    <horizontal_fov>1.05</horizontal_fov>
+                    <image>
+                        <width>640</width>
+                        <height>400</height>
+                        <format>R_FLOAT32</format>
+                    </image>
+                    <clip>
+                        <near>0.05</near>
+                        <far>30</far>
+                    </clip>
+                </camera>
+            </sensor>
+            
+            <!-- DVL (Wayfinder). x from hardware/sensors.yaml dvl_0.sensor_pos_in_base; z moved just below the sim hull. -->
+            <sensor name="dvl" type="custom" gz:type="dvl">
+                <pose>-0.125 0 -0.13 0 0 0</pose>
+                <always_on>1</always_on>
+                <update_rate>5</update_rate>
+                <topic>dvl</topic>
+                <gz:dvl>
+                    <type>phased_array</type>
+                    <arrangement degrees="true">
+                        <beam id="1"><aperture>2.1</aperture><rotation>45</rotation><tilt>30</tilt></beam>
+                        <beam><aperture>2.1</aperture><rotation>135</rotation><tilt>30</tilt></beam>
+                        <beam><aperture>2.1</aperture><rotation>-45</rotation><tilt>30</tilt></beam>
+                        <beam><aperture>2.1</aperture><rotation>-135</rotation><tilt>30</tilt></beam>
+                    </arrangement>
+                    <tracking>
+                        <bottom_mode>
+                            <when>best</when>
+                            <visualize>false</visualize>
+                        </bottom_mode>
+                    </tracking>
+                    <resolution>0.01</resolution>
+                    <maximum_range>80</maximum_range>
+                    <minimum_range>0.1</minimum_range>
+                </gz:dvl>
+            </sensor>
+
         </link>
 
         <!-- Thruster Links -->
         <link name='box_0'>
             <pose>0.2025 0.1825 0.0925 3.1415926536 -1.5707963268 -0.7853981634</pose>            <!-- Position adjustment needed -->
+            <!-- PLACEHOLDER: 26.40 kg hull + 8 × 0.05 kg props = 26.80 kg total, so net buoyancy ≈ 0.6 kgf (the real sub's,
+            pid.yaml force_feedforward comment, bag run_20260712_132138). Replace with CAD + measured buoyancy. -->
+            <inertial>
+                <mass>0.05</mass>
+                <inertia>
+                    <ixx>0.0002</ixx><ixy>0</ixy><ixz>0</ixz>
+                    <iyy>0.0002</iyy><iyz>0</iyz>
+                    <izz>0.0002</izz>
+                </inertia>
+            </inertial>
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -82,6 +158,14 @@
 
         <link name='box_1'>
             <pose>0.2025 -0.1825 0.0925 3.1415926536 -1.5707963268 0.7853981634</pose>            <!-- Position adjustment needed -->
+            <inertial>
+                <mass>0.05</mass>
+                <inertia>
+                    <ixx>0.0002</ixx><ixy>0</ixy><ixz>0</ixz>
+                    <iyy>0.0002</iyy><iyz>0</iyz>
+                    <izz>0.0002</izz>
+                </inertia>
+            </inertial>
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -116,6 +200,14 @@
 
         <link name='box_2'>
             <pose>-0.2025 0.1825 0.0925 0 -1.5707963268 0.7853981634</pose>            <!-- Position adjustment needed -->
+            <inertial>
+                <mass>0.05</mass>
+                <inertia>
+                    <ixx>0.0002</ixx><ixy>0</ixy><ixz>0</ixz>
+                    <iyy>0.0002</iyy><iyz>0</iyz>
+                    <izz>0.0002</izz>
+                </inertia>
+            </inertial>
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -150,6 +242,14 @@
 
         <link name='box_3'>
             <pose>-0.2025 -0.1825 0.0925 0 -1.5707963268 -0.7853981634</pose>            <!-- Position adjustment needed -->
+            <inertial>
+                <mass>0.05</mass>
+                <inertia>
+                    <ixx>0.0002</ixx><ixy>0</ixy><ixz>0</ixz>
+                    <iyy>0.0002</iyy><iyz>0</iyz>
+                    <izz>0.0002</izz>
+                </inertia>
+            </inertial>
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -184,6 +284,14 @@
 
         <link name='box_4'>
             <pose>0.115 0.165 -0.0925 3.1415926536 0 0</pose>            <!-- Position adjustment needed -->
+            <inertial>
+                <mass>0.05</mass>
+                <inertia>
+                    <ixx>0.0002</ixx><ixy>0</ixy><ixz>0</ixz>
+                    <iyy>0.0002</iyy><iyz>0</iyz>
+                    <izz>0.0002</izz>
+                </inertia>
+            </inertial>
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -218,6 +326,14 @@
 
         <link name='box_5'>
             <pose>0.115 -0.165 -0.0925 3.1415926536 0 0</pose>            <!-- Position adjustment needed -->
+            <inertial>
+                <mass>0.05</mass>
+                <inertia>
+                    <ixx>0.0002</ixx><ixy>0</ixy><ixz>0</ixz>
+                    <iyy>0.0002</iyy><iyz>0</iyz>
+                    <izz>0.0002</izz>
+                </inertia>
+            </inertial>
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -252,6 +368,14 @@
 
         <link name="box_6">
             <pose>-0.115 +0.165 -0.0925 0 0 0</pose>
+            <inertial>
+                <mass>0.05</mass>
+                <inertia>
+                    <ixx>0.0002</ixx><ixy>0</ixy><ixz>0</ixz>
+                    <iyy>0.0002</iyy><iyz>0</iyz>
+                    <izz>0.0002</izz>
+                </inertia>
+            </inertial>
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -286,6 +410,14 @@
 
         <link name='box_7'>
             <pose>-0.115 -0.165 -0.0925 3.1415926536 0 0</pose>            <!-- Position adjustment needed -->
+            <inertial>
+                <mass>0.05</mass>
+                <inertia>
+                    <ixx>0.0002</ixx><ixy>0</ixy><ixz>0</ixz>
+                    <iyy>0.0002</iyy><iyz>0</iyz>
+                    <izz>0.0002</izz>
+                </inertia>
+            </inertial>
             <visual name="visual_side_1">
                 <geometry>
                     <box>
@@ -340,7 +472,7 @@
             <parent>base_link</parent>
             <child>box_1</child>
             <axis>
-                <xyz>-1 -1 0</xyz>
+                <xyz>1 1 0</xyz>
                 <use_parent_model_frame>1</use_parent_model_frame>
                 <limit>
                     <lower>-1e+12</lower>
@@ -356,7 +488,7 @@
             <parent>base_link</parent>
             <child>box_2</child>
             <axis>
-                <xyz>1 1 0</xyz>
+                <xyz>-1 -1 0</xyz>
                 <use_parent_model_frame>1</use_parent_model_frame>
                 <limit>
                     <lower>-1e+12</lower>
@@ -388,7 +520,7 @@
             <parent>base_link</parent>
             <child>box_4</child>
             <axis>
-                <xyz>0 0 1</xyz>
+                <xyz>0 0 -1</xyz>
                 <use_parent_model_frame>1</use_parent_model_frame>
                 <limit>
                     <lower>-1e+12</lower>
@@ -404,7 +536,7 @@
             <parent>base_link</parent>
             <child>box_5</child>
             <axis>
-                <xyz>0 0 1</xyz>
+                <xyz>0 0 -1</xyz>
                 <use_parent_model_frame>1</use_parent_model_frame>
                 <limit>
                     <lower>-1e+12</lower>
@@ -436,7 +568,7 @@
             <parent>base_link</parent>
             <child>box_7</child>
             <axis>
-                <xyz>0 0 1</xyz>
+                <xyz>0 0 -1</xyz>
                 <use_parent_model_frame>1</use_parent_model_frame>
                 <limit>
                     <lower>-1e+12</lower>
@@ -454,7 +586,9 @@
             <publish_collision_pose>false</publish_collision_pose>
             <publish_sensor_pose>false</publish_sensor_pose>
             <publish_nested_model_pose>true</publish_nested_model_pose>
-            <update_frequency>1000</update_frequency>
+            <!-- 100 Hz: the controller runs at 60 Hz, and ground_truth.py differentiates
+            consecutive poses for velocity, so 1000 Hz only added CPU load and noise. -->
+            <update_frequency>100</update_frequency>
         </plugin>
     </model>
 </sdf>

@@ -1,0 +1,19 @@
+# Sim-only parameter overrides: everything a node needs set differently in sim than on the sub.
+#
+# sim_stack.py loads this file for every node it starts (launch_ros SetParametersFromFile),
+# before each node's own parameters, so the vehicle YAMLs (ekf.yaml, pid.yaml, thrusters.yaml,
+# sensors.yaml, ...) stay the single source for everything else and are used unchanged in sim.
+# Keep this file short: a long list of sim overrides means the sim is testing a different
+# robot than the one in the pool.
+#
+# What does NOT go here:
+#   - launch switches (cameras, path_plot, control, planning, mission): arguments of
+#     sim_stack.py, because they decide which nodes start, not how a node behaves;
+#   - parameters of the sim-only nodes (sim_imu yaw drift, ground_truth, ...): set in
+#     simulation.py, since the sub never runs those nodes.
+
+/**:
+  ros__parameters:
+    # Every node follows Gazebo's /clock instead of the computer's clock, so timers,
+    # timeouts and EKF rates stay right when the sim runs slower than real time.
+    use_sim_time: true
