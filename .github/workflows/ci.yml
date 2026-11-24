@@ -23,4 +23,32 @@ jobs:
         run: |
           docker run --rm -v "$GITHUB_WORKSPACE":/ws robosub-sim-humble \
             bash -c "colcon build --merge-install --symlink-install --base-paths . && ./test.sh"
+
+  sim-mission:
+    needs: test            # only run the slow sim job if the unit tests pass
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/sim-humble.Dockerfile
+          tags: robosub-sim-humble
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Run prequal mission in sim
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE":/ws -e ROS_LOG_DIR=/ws/tests/sim/out/ros_log \
+            robosub-sim-humble bash -c "colcon build --merge-install --symlink-install --base-paths . \
+            && source install/setup.bash && launch_test tests/sim/test_prequal_mission.py"
+      - name: Upload recording and logs
+        if: always()       # upload even when the test failed: that's when you need them
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-mission
+          path: tests/sim/out/
+          if-no-files-found: ignore
       
