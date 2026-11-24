@@ -31,9 +31,9 @@ from launch.actions import IncludeLaunchDescription  # noqa: E402
 from launch.launch_description_sources import PythonLaunchDescriptionSource  # noqa: E402
 from sim_helpers import SIM_STACK, Recorder, Spinner, write_samples_csv  # noqa: E402
 
-# Temporary: the sim runs well below real time on the Mac (amd64 emulation).
-# Lower this again once the sim is faster (see the plan's "Keep the sim fast enough").
-MISSION_TIMEOUT_S = 900
+# Wall-clock limit for the whole mission: about 3x its slowest measured run (GitHub's 2-core
+# runner took 213 s, the Mac 186 s, Nov 23), so a stuck mission fails within minutes.
+MISSION_TIMEOUT_S = 600
 
 DIVE_BELOW_Z = -0.3      # m; prequal dives to -0.6
 FORWARD_PAST_X = 2.0     # m; prequal's straight first leg ends at x = 2.3

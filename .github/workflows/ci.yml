@@ -5,50 +5,47 @@ on:
     branches: [ main ]
   pull_request:
 
+# A newer push to the same branch or PR cancels the run still going for the older one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # One job, so the image is loaded and the workspace built once (about 4 + 5 minutes)
+  # instead of once per job. Each step still shows its own pass/fail and time in the log.
   test:
     runs-on: ubuntu-22.04
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
+      - name: Build sim image (cached)
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/sim-humble.Dockerfile
           tags: robosub-sim-humble
           load: true
           cache-from: type=gha
-          cache-to: type=gha,mode=max
-      - name: Build and test
+          # Only pushes to main save the cache. PR branches read it but don't write their
+          # own copies, which would fill the repo's 10 GB cache and push main's out.
+          cache-to: ${{ github.event_name == 'push' && 'type=gha,mode=max' || '' }}
+      - name: Build workspace
         run: |
           docker run --rm -v "$GITHUB_WORKSPACE":/ws robosub-sim-humble \
-            bash -c "colcon build --merge-install --symlink-install --base-paths . && ./test.sh"
-
-  sim-mission:
-    needs: test            # only run the slow sim job if the unit tests pass
-    runs-on: ubuntu-22.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/sim-humble.Dockerfile
-          tags: robosub-sim-humble
-          load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      - name: Run sim tests (prequal mission, thruster directions)
+            bash -c "colcon build --merge-install --symlink-install --base-paths ."
+      - name: Unit tests
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE":/ws robosub-sim-humble ./test.sh
+      # Skipped if the unit tests failed (no point spending 5 more minutes on a broken PR).
+      - name: Sim tests (prequal mission, thruster directions)
         run: |
           docker run --rm -v "$GITHUB_WORKSPACE":/ws -e ROS_LOG_DIR=/ws/tests/sim/out/ros_log \
-            robosub-sim-humble bash -c "colcon build --merge-install --symlink-install --base-paths . \
-            && source install/setup.bash && bash tests/sim/run_sim_tests.sh"
-      - name: Upload recording and logs
-        if: always()       # upload even when the test failed: that's when you need them
+            robosub-sim-humble bash -c "source install/setup.bash && bash tests/sim/run_sim_tests.sh"
+      - name: Upload sim recording and logs
+        if: always()       # upload even when a test failed: that's when you need them
         uses: actions/upload-artifact@v4
         with:
-          name: sim-mission
+          name: sim-tests
           path: tests/sim/out/
           if-no-files-found: ignore
-      
