@@ -14,7 +14,8 @@
 #   docker run -it --rm --platform linux/amd64 --name sim-humble -p 4222:4222 \
 #     -v "$PWD":/ws robosub-sim-humble bash
 #
-# Only src/ and requirements.txt are sent to the build (see sim-humble.Dockerfile.dockerignore).
+# Only src/, requirements.txt and docker/sim-constraints.txt are sent to the build
+# (see sim-humble.Dockerfile.dockerignore).
 
 # Stage "pkgxml": keep only the package.xml files from src/, in their folders.
 # rosdep (step 3 below) reads nothing else, so an ordinary code change no longer
@@ -69,10 +70,13 @@ RUN curl -fsSL "https://github.com/nats-io/nats-server/releases/download/v${NATS
 #    'strip_trailing_zero'").
 COPY --from=pkgxml /out/src /tmp/deps/src
 COPY requirements.txt /tmp/deps/requirements.txt
+# Exact versions for everything pip installs below, so a rebuild gets the same packages
+# every time instead of whatever is newest that day (see the file's header).
+COPY docker/sim-constraints.txt /tmp/deps/sim-constraints.txt
 RUN apt-get update && rosdep update --rosdistro humble \
  && rosdep install -r --from-paths /tmp/deps/src --ignore-src -y --rosdistro humble \
       --skip-keys "gz-msgs10 gz-transport13 gz-common5 gz-gui8 gz-plugin2 gz-rendering8 gz-math8 gz-tools2 gz-cmake3 ros_gz ros_gz_bridge ros_gz_sim ros_gz_interfaces" \
- && python3 -m pip install --no-cache-dir -r /tmp/deps/requirements.txt "numpy<1.25" "opencv-python<4.12" \
+ && python3 -m pip install --no-cache-dir -r /tmp/deps/requirements.txt -c /tmp/deps/sim-constraints.txt "numpy<1.25" "opencv-python<4.12" \
  && python3 -m pip install --no-cache-dir "setuptools==58.2.0" \
  && rm -rf /var/lib/apt/lists/* /tmp/deps
 

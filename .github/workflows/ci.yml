@@ -27,9 +27,10 @@ jobs:
           tags: robosub-sim-humble
           load: true
           cache-from: type=gha
-          # Only pushes to main save the cache. PR branches read it but don't write their
-          # own copies, which would fill the repo's 10 GB cache and push main's out.
-          cache-to: ${{ github.event_name == 'push' && 'type=gha,mode=max' || '' }}
+          # Every run saves the layers it built. A PR only adds the layers it changed (a new
+          # dependency, say), so later pushes to it don't rebuild them again. If the repo's
+          # 10 GB cache ever fills, see Actions -> Caches.
+          cache-to: type=gha,mode=max
       - name: Build workspace
         run: |
           docker run --rm -v "$GITHUB_WORKSPACE":/ws robosub-sim-humble \

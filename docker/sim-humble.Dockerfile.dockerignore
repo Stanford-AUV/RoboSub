@@ -2,3 +2,4 @@
 *
 !src
 !requirements.txt
+!docker/sim-constraints.txt

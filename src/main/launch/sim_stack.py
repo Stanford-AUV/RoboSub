@@ -16,7 +16,7 @@ from launch.conditions import IfCondition, UnlessCondition
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.actions import Node, SetParameter
+from launch_ros.actions import Node, SetParametersFromFile
 
 # Paths relative to this file, so it runs straight from src/ with no rebuild.
 HERE = os.path.dirname(os.path.realpath(__file__))
@@ -72,8 +72,9 @@ def generate_launch_description():
         # Same as the sub: non-blocking publishing.
         SetEnvironmentVariable("FASTRTPS_DEFAULT_PROFILES_FILE",
                                os.path.join(REPO, "config", "fastdds_async.xml")),
-        # Every node started after this runs on Gazebo's clock.
-        SetParameter(name="use_sim_time", value=True),
+        # Every node started after this gets params/sim.yaml first (sim-only overrides,
+        # such as use_sim_time); each node's own parameters still come after and win.
+        SetParametersFromFile(os.path.join(HERE, "params", "sim.yaml")),
 
         # 1. The world, and the bridge into ROS.
         ExecuteProcess(cmd=["gz", "sim", "-s", "-r", "--headless-rendering",
