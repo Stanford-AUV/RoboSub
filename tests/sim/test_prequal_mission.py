@@ -16,27 +16,20 @@ Two phases:
 Plumbing-level thresholds: they catch a broken stack, not a badly tuned one. Tighten
 them (gate pass, depth tolerance) once Phase 2 makes the sim physics trustworthy.
 """
-import csv
 import os
-import threading
+import sys
 import unittest
 
-import launch
-import launch_testing
-import launch_testing.actions
-import pytest
-import rclpy
-from geometry_msgs.msg import WrenchStamped
-from launch.actions import IncludeLaunchDescription
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from nav_msgs.msg import Odometry
-from rclpy.executors import SingleThreadedExecutor
-from rclpy.node import Node
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-SIM_STACK = os.path.join(REPO, "src", "main", "launch", "sim_stack.py")
-# Every recorded sample, for plotting a failed run. CI uploads this file.
-OUT_CSV = os.path.join(REPO, "tests", "sim", "out", "prequal.csv")
+import launch  # noqa: E402
+import launch_testing  # noqa: E402
+import launch_testing.actions  # noqa: E402
+import pytest  # noqa: E402
+import rclpy  # noqa: E402
+from launch.actions import IncludeLaunchDescription  # noqa: E402
+from launch.launch_description_sources import PythonLaunchDescriptionSource  # noqa: E402
+from sim_helpers import SIM_STACK, Recorder, Spinner, write_samples_csv  # noqa: E402
 
 # Temporary: the sim runs well below real time on the Mac (amd64 emulation).
 # Lower this again once the sim is faster (see the plan's "Keep the sim fast enough").
@@ -63,45 +56,17 @@ def generate_test_description():
     return launch.LaunchDescription([sim, launch_testing.actions.ReadyToTest()])
 
 
-def _sample(msg):
-    """(t, x, y, z): t is the message's own stamp, which is sim time on both topics."""
-    p = msg.pose.pose.position
-    return (msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9, p.x, p.y, p.z)
-
-
-class Recorder(Node):
-    """Stores what the stack publishes, for grading after the sim stops."""
-
-    def __init__(self):
-        super().__init__("mission_test_recorder")
-        self.truth = []
-        self.ekf = []
-        self.wrench_count = 0
-        self.create_subscription(Odometry, "/odometry/ground_truth",
-                                 lambda m: self.truth.append(_sample(m)), 10)
-        self.create_subscription(Odometry, "/odometry/filtered",
-                                 lambda m: self.ekf.append(_sample(m)), 10)
-        self.create_subscription(WrenchStamped, "/wrench", self._on_wrench, 10)
-
-    def _on_wrench(self, _msg):
-        self.wrench_count += 1
-
-
 class TestMission(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         rclpy.init()
-        cls.node = Recorder()
-        cls.executor = SingleThreadedExecutor()
-        cls.executor.add_node(cls.node)
+        cls.node = Recorder("mission_test_recorder")
         # Spin on a background thread: the main thread is busy in assertWaitFor below.
-        cls.spin_thread = threading.Thread(target=cls.executor.spin, daemon=True)
-        cls.spin_thread.start()
+        cls.spinner = Spinner(cls.node)
 
     @classmethod
     def tearDownClass(cls):
-        cls.executor.shutdown()
-        cls.spin_thread.join(timeout=5)
+        cls.spinner.stop()
         RECORDED.update(truth=list(cls.node.truth), ekf=list(cls.node.ekf),
                         wrench_count=cls.node.wrench_count)
         cls.node.destroy_node()
@@ -119,12 +84,7 @@ class TestGrade(unittest.TestCase):
         cls.truth = RECORDED.get("truth", [])
         cls.ekf = RECORDED.get("ekf", [])
         cls.wrench_count = RECORDED.get("wrench_count", 0)
-        os.makedirs(os.path.dirname(OUT_CSV), exist_ok=True)
-        with open(OUT_CSV, "w", newline="") as f:
-            w = csv.writer(f)
-            w.writerow(["source", "t", "x", "y", "z"])
-            w.writerows(("truth",) + s for s in cls.truth)
-            w.writerows(("ekf",) + s for s in cls.ekf)
+        write_samples_csv("prequal.csv", truth=cls.truth, ekf=cls.ekf)
 
     def test_topics_published(self):
         self.assertGreater(len(self.truth), 0,
@@ -136,25 +96,25 @@ class TestGrade(unittest.TestCase):
 
     def test_sub_dove(self):
         self.assertTrue(self.truth, "no ground truth to grade")
-        lowest = min(z for _, _, _, z in self.truth)
+        lowest = min(s["z"] for s in self.truth)
         self.assertLess(lowest, DIVE_BELOW_Z,
                         f"deepest true z was {lowest:.2f} m; expected below {DIVE_BELOW_Z} m")
 
     def test_sub_moved_forward(self):
         self.assertTrue(self.truth, "no ground truth to grade")
-        furthest = max(x for _, x, _, _ in self.truth)
+        furthest = max(s["x"] for s in self.truth)
         self.assertGreater(furthest, FORWARD_PAST_X,
                            f"furthest true x was {furthest:.2f} m; expected past {FORWARD_PAST_X} m")
 
     def test_ekf_matches_truth_on_first_leg(self):
-        hit = next(((t, x, y) for t, x, y, _ in self.truth if x >= EKF_CHECK_AT_X), None)
+        hit = next((s for s in self.truth if s["x"] >= EKF_CHECK_AT_X), None)
         self.assertIsNotNone(hit, f"sub never reached x = {EKF_CHECK_AT_X} m")
         self.assertTrue(self.ekf, "no EKF output to compare")
-        t, tx, ty = hit
-        et, ex, ey, _ = min(self.ekf, key=lambda s: abs(s[0] - t))
-        self.assertLess(abs(et - t), MAX_STAMP_GAP_S,
-                        f"no EKF sample near t = {t:.2f} s (nearest at {et:.2f} s)")
-        self.assertLess(abs(ex - tx), EKF_TOLERANCE_M,
-                        f"at t = {t:.1f} s: EKF x {ex:.3f} vs truth {tx:.3f}")
-        self.assertLess(abs(ey - ty), EKF_TOLERANCE_M,
-                        f"at t = {t:.1f} s: EKF y {ey:.3f} vs truth {ty:.3f}")
+        nearest = min(self.ekf, key=lambda s: abs(s["t"] - hit["t"]))
+        t = hit["t"]
+        self.assertLess(abs(nearest["t"] - t), MAX_STAMP_GAP_S,
+                        f"no EKF sample near t = {t:.2f} s (nearest at {nearest['t']:.2f} s)")
+        self.assertLess(abs(nearest["x"] - hit["x"]), EKF_TOLERANCE_M,
+                        f"at t = {t:.1f} s: EKF x {nearest['x']:.3f} vs truth {hit['x']:.3f}")
+        self.assertLess(abs(nearest["y"] - hit["y"]), EKF_TOLERANCE_M,
+                        f"at t = {t:.1f} s: EKF y {nearest['y']:.3f} vs truth {hit['y']:.3f}")

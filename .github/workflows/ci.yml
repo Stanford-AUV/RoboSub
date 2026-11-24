@@ -39,11 +39,11 @@ jobs:
           load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Run prequal mission in sim
+      - name: Run sim tests (prequal mission, thruster directions)
         run: |
           docker run --rm -v "$GITHUB_WORKSPACE":/ws -e ROS_LOG_DIR=/ws/tests/sim/out/ros_log \
             robosub-sim-humble bash -c "colcon build --merge-install --symlink-install --base-paths . \
-            && source install/setup.bash && launch_test tests/sim/test_prequal_mission.py"
+            && source install/setup.bash && bash tests/sim/run_sim_tests.sh"
       - name: Upload recording and logs
         if: always()       # upload even when the test failed: that's when you need them
         uses: actions/upload-artifact@v4
