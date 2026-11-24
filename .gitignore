@@ -208,3 +208,5 @@ models
 !src/simulation/simulation/models/
 
 plots/
+
+tests/sim/out/
